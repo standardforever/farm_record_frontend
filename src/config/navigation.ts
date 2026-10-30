@@ -1,0 +1,33 @@
+/**
+ * Navigation registry. Each screen registers here once; the sidebar and bottom bar
+ * show only what the person's role and plan allow.
+ *
+ * To add a screen for a new module: add an item with its permission (and feature, if
+ * the module is plan-gated). Planned backend modules are added automatically under
+ * "Coming next" from GET /api/v1/meta, so the menu always matches the roadmap.
+ */
+import type { LucideIcon } from "lucide-react";
+import { Home, KeyRound, ScrollText, Settings, Users } from "lucide-react";
+
+export type NavItem = {
+  key: string;
+  label: string;
+  path: string; // relative to /w/[orgId]
+  icon: LucideIcon;
+  permission?: string;
+  feature?: string;
+  group: "Overview" | "Workspace";
+  mobile?: boolean; // show in the phone bottom bar
+};
+
+export const NAV: NavItem[] = [
+  { key: "home", label: "Home", path: "", icon: Home, group: "Overview", mobile: true },
+  { key: "team", label: "Team and access", path: "/team", icon: Users, permission: "members.view", group: "Workspace", mobile: true },
+  { key: "roles", label: "Roles", path: "/team/roles", icon: KeyRound, permission: "members.view", group: "Workspace" },
+  { key: "audit", label: "Audit trail", path: "/audit", icon: ScrollText, permission: "audit.view", group: "Workspace", mobile: true },
+  { key: "settings", label: "Settings", path: "/settings", icon: Settings, group: "Workspace" },
+];
+
+export const PHASE_LABEL: Record<string, string> = {
+  "phase-0": "Phase 0", "phase-1": "Phase 1", "phase-2": "Phase 2", "phase-3": "Phase 3", "phase-4": "Phase 4", "phase-5": "Phase 5",
+};

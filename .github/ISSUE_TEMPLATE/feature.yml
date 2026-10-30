@@ -1,0 +1,15 @@
+name: Feature or task
+description: Something to build from the roadmap
+labels: ["type/feature"]
+body:
+  - type: input
+    id: module
+    attributes: {label: Module, placeholder: "e.g. farm, health, marketplace"}
+    validations: {required: true}
+  - type: textarea
+    id: what
+    attributes: {label: What should it do?, description: "Who uses it and what they need. Link the PRD section."}
+    validations: {required: true}
+  - type: textarea
+    id: done
+    attributes: {label: Done when, description: "Checklist of acceptance criteria"}

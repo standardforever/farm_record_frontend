@@ -1,0 +1,110 @@
+@import "tailwindcss";
+
+/* Design tokens, carried over from the Oko prototype.
+   Light values on :root, dark values for system dark mode and for data-theme="dark". */
+:root {
+  --bg: #f1f4ee;
+  --surface: #ffffff;
+  --surface-2: #e8ede4;
+  --surface-3: #d9e1d3;
+  --ink: #13241b;
+  --ink-2: #4c5e54;
+  --ink-3: #77887e;
+  --line: #d6ddd0;
+  --brand: #0f5a3f;
+  --brand-2: #177a55;
+  --brand-soft: #daece1;
+  --on-brand: #ffffff;
+  --maize: #c88905;
+  --maize-soft: #f9ecc6;
+  --on-maize: #1f1704;
+  --water: #1e6ca4;
+  --water-soft: #dbe9f4;
+  --good: #1c7d46;
+  --good-soft: #dcefe2;
+  --warn: #a96400;
+  --warn-soft: #faeacb;
+  --crit: #b4371f;
+  --crit-soft: #f7dcd4;
+  --side: #0c2d20;
+  --side-ink: #d3e5d9;
+  --side-ink-2: #8bb09c;
+  --side-hi: #174230;
+  --scrim: rgba(8, 20, 14, 0.48);
+  --shadow: 0 1px 2px rgba(19, 36, 27, 0.06), 0 8px 28px rgba(19, 36, 27, 0.08);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c1410; --surface: #131e18; --surface-2: #1a2820; --surface-3: #243429;
+    --ink: #e5eee8; --ink-2: #a2b4a9; --ink-3: #7b8e83; --line: #26372d;
+    --brand: #3dae7b; --brand-2: #57c690; --brand-soft: #16392a; --on-brand: #08180f;
+    --maize: #ebb43a; --maize-soft: #3a2e11; --water: #5ba9e0; --water-soft: #13304a;
+    --good: #4cc380; --good-soft: #153524; --warn: #e9a83a; --warn-soft: #3a2b0f; --crit: #f27c63; --crit-soft: #3f1c15;
+    --side: #08130e; --side-ink: #cfe1d5; --side-ink-2: #7ea08c; --side-hi: #15291f;
+    --scrim: rgba(0, 0, 0, 0.6); --shadow: 0 1px 2px rgba(0,0,0,.35), 0 10px 30px rgba(0,0,0,.35);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0c1410; --surface: #131e18; --surface-2: #1a2820; --surface-3: #243429;
+  --ink: #e5eee8; --ink-2: #a2b4a9; --ink-3: #7b8e83; --line: #26372d;
+  --brand: #3dae7b; --brand-2: #57c690; --brand-soft: #16392a; --on-brand: #08180f;
+  --maize: #ebb43a; --maize-soft: #3a2e11; --water: #5ba9e0; --water-soft: #13304a;
+  --good: #4cc380; --good-soft: #153524; --warn: #e9a83a; --warn-soft: #3a2b0f; --crit: #f27c63; --crit-soft: #3f1c15;
+  --side: #08130e; --side-ink: #cfe1d5; --side-ink-2: #7ea08c; --side-hi: #15291f;
+  --scrim: rgba(0, 0, 0, 0.6); --shadow: 0 1px 2px rgba(0,0,0,.35), 0 10px 30px rgba(0,0,0,.35);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-line: var(--line);
+  --color-brand: var(--brand);
+  --color-brand-2: var(--brand-2);
+  --color-brand-soft: var(--brand-soft);
+  --color-on-brand: var(--on-brand);
+  --color-maize: var(--maize);
+  --color-maize-soft: var(--maize-soft);
+  --color-on-maize: var(--on-maize);
+  --color-water: var(--water);
+  --color-water-soft: var(--water-soft);
+  --color-good: var(--good);
+  --color-good-soft: var(--good-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-crit: var(--crit);
+  --color-crit-soft: var(--crit-soft);
+  --color-side: var(--side);
+  --color-side-ink: var(--side-ink);
+  --color-side-ink-2: var(--side-ink-2);
+  --color-side-hi: var(--side-hi);
+  --font-display: var(--font-bricolage), "Segoe UI", system-ui, sans-serif;
+  --font-sans: var(--font-figtree), "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --shadow-card: var(--shadow);
+}
+
+html { -webkit-text-size-adjust: 100%; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 14.5px;
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+h1, h2, h3, h4 { font-family: var(--font-display); letter-spacing: -0.012em; text-wrap: balance; }
+:focus-visible { outline: 2px solid var(--maize); outline-offset: 2px; border-radius: 6px; }
+.tnum { font-variant-numeric: tabular-nums; }
+.eyebrow { font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+@keyframes slide-in { from { transform: translateX(28px); opacity: 0.4; } }
+@keyframes rise { from { transform: translateY(24px); opacity: 0.6; } }
+@keyframes fade { from { opacity: 0; } }

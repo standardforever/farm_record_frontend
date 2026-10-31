@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check } from "lucide-react";
+import { ArrowLeft, Check, ShieldCheck } from "lucide-react";
 import { Logo } from "@/components/layout/Logo";
 import { Alert, Button, Field, Input, Select } from "@/components/ui";
 import { ORG_TYPES } from "@/config/orgTypes";
@@ -37,8 +37,11 @@ function CreateWorkspace() {
   return (
     <div className="min-h-dvh px-[max(16px,env(safe-area-inset-left))] py-8 sm:px-8">
       <div className="mx-auto max-w-[880px]">
-        <div className="mb-8 flex items-center justify-between"><Logo dark />
-          {me && me.workspaces.length > 0 && <Button variant="ghost" onClick={() => router.back()}><ArrowLeft size={16} /> Back</Button>}</div>
+        <div className="mb-8 flex items-center justify-between gap-2"><Logo dark />
+          <div className="flex items-center gap-1">
+            {me?.user.platform_role && <Button variant="ghost" onClick={() => router.push("/admin")}><ShieldCheck size={16} /> Oko admin console</Button>}
+            {me && me.workspaces.length > 0 && <Button variant="ghost" onClick={() => router.back()}><ArrowLeft size={16} /> Back</Button>}
+          </div></div>
         <div className="eyebrow">Step {step} of 2</div>
         <h1 className="mt-1 text-[clamp(26px,4vw,36px)] font-bold">{step === 1 ? `Welcome${first ? `, ${first}` : ""}. What do you run?` : "Name your workspace"}</h1>
         <p className="mt-1.5 text-ink-2">{step === 1 ? "Pick the closest match. You only see the tools for your kind of work." : "You can invite your team and change these details later."}</p>

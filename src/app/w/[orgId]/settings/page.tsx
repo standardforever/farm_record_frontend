@@ -5,7 +5,7 @@ import { useMutation } from "@tanstack/react-query";
 import { Check } from "lucide-react";
 import { Alert, Badge, Button, Card, Field, Input, PageHeader, Segmented, Select, useToast } from "@/components/ui";
 import { orgTypeLabel } from "@/config/orgTypes";
-import { useAuth } from "@/features/auth";
+import { useAuth, VerifyEmailCard } from "@/features/auth";
 import { usePlans } from "@/features/meta/api";
 import { useCurrentWorkspace, useUpdateWorkspace } from "@/features/workspaces";
 import { ApiError, patch, post } from "@/lib/api";
@@ -77,6 +77,8 @@ export default function SettingsPage() {
             <div><Button type="submit" variant="primary" loading={saveProfile.isPending}>Save profile</Button></div>
           </form>
         </Card>
+
+        <VerifyEmailCard />
 
         <Card title="Password">
           <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); changePw.mutate(); }}>

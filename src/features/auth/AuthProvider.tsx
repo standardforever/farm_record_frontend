@@ -12,6 +12,8 @@ type AuthCtx = {
   signIn: (identifier: string, password: string) => Promise<Me>;
   signUp: (data: { full_name: string; email?: string; phone?: string; password: string }) => Promise<Me>;
   signOut: () => Promise<void>;
+  /** Finish signing in with an access token returned by another flow (email code, password reset). */
+  signInWithToken: (accessToken: string) => Promise<Me>;
   reload: () => Promise<Me | null>;
 };
 
@@ -62,6 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const r = await post<{ access_token: string }>("/auth/register", data);
       return finish(r.access_token);
     },
+    signInWithToken: finish,
     signOut: async () => {
       await post("/auth/logout").catch(() => null);
       setAccessToken(null);

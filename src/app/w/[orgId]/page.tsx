@@ -27,6 +27,7 @@ export default function Home() {
 
   const steps = [
     { done: true, label: "Create your workspace", href: `${base}/settings` },
+    { done: !!me?.user.email_verified, label: "Confirm your email", href: `${base}/settings`, show: !!me?.user.email },
     { done: ws.member_count + ws.guest_count > 1 || ws.pending_invites > 0, label: "Invite your team or a vet", action: () => setInviting(true), show: ws.can("invites.manage") },
     { done: false, label: "Review who can do what", href: `${base}/team/roles`, show: ws.can("members.view") },
     { done: !!ws.organization.state, label: "Add your state and LGA", href: `${base}/settings`, show: ws.can("workspace.manage") },

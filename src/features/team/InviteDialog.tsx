@@ -43,7 +43,7 @@ export function InviteDialog({ open, onClose, presetRole }: { open: boolean; onC
     const inv = await create.mutateAsync({ full_name: name, role_id: role.id, access_expires_at: expiry,
       ...(mode === "phone" ? { phone: contact } : { email: contact }) });
     setDone(inv);
-    toast(`Invite ready for ${inv.full_name}`);
+    toast(inv.emailed ? `Invite emailed to ${inv.email}` : `Invite ready for ${inv.full_name}`);
   };
   const link = done?.accept_token ? inviteLink(done.accept_token) : "";
   const copy = async () => {
@@ -63,14 +63,15 @@ export function InviteDialog({ open, onClose, presetRole }: { open: boolean; onC
       )}>
       {done ? (
         <div className="flex flex-col gap-4">
-          <p className="text-ink-2">Send this link to <b className="text-ink">{done.full_name}</b>. It works once and expires on {formatDate(done.expires_at)}.</p>
+          {done.emailed && <Alert tone="good">We emailed the invite to <b>{done.email}</b>. You can also share the link yourself.</Alert>}
+          <p className="text-ink-2">{done.emailed ? "This link" : <>Send this link to <b className="text-ink">{done.full_name}</b>. It</>} works once and expires on {formatDate(done.expires_at)}.</p>
           <div className="break-all rounded-xl bg-surface-2 p-3 font-mono text-[12.5px] select-all">{link}</div>
           <div className="flex flex-wrap gap-2">
             <Button variant="primary" onClick={copy}>{copied ? <Check size={16} /> : <Copy size={16} />} {copied ? "Copied" : "Copy link"}</Button>
             <a className="inline-flex h-10 items-center gap-2 rounded-[10px] border border-line px-4 font-semibold hover:bg-surface-2" target="_blank" rel="noreferrer"
               href={`https://wa.me/${done.phone ? done.phone.replace("+", "") : ""}?text=${waText}`}><MessageCircle size={16} /> Send on WhatsApp</a>
           </div>
-          <p className="text-[12.5px] text-ink-3">Automatic SMS and email delivery arrive in milestone M0.4.</p>
+          {!done.emailed && <p className="text-[12.5px] text-ink-3">Invites by phone are shared by WhatsApp or copied link for now. Automatic SMS arrives later.</p>}
         </div>
       ) : step === 1 ? (
         <div className="flex flex-col gap-4">

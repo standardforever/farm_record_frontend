@@ -90,6 +90,7 @@ export type Invite = {
   created_at: string;
   invited_by_name: string | null;
   accept_token?: string;
+  emailed?: boolean;
 };
 
 export type InvitePreview = {

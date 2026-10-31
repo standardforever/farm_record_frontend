@@ -58,7 +58,7 @@ function Inner() {
       <Dialog open={!!fresh} onClose={() => setFresh(null)} title="New invite link" footer={<Button variant="primary" onClick={() => setFresh(null)}>Done</Button>}>
         {fresh?.accept_token && (
           <div className="flex flex-col gap-3">
-            <p className="text-ink-2">The old link no longer works. Send this one to {fresh.full_name}.</p>
+            <p className="text-ink-2">The old link no longer works. {fresh.emailed ? <>We emailed the new link to <b className="text-ink">{fresh.email}</b>.</> : <>Send this one to {fresh.full_name}.</>}</p>
             <div className="break-all rounded-xl bg-surface-2 p-3 font-mono text-[12.5px] select-all">{inviteLink(fresh.accept_token)}</div>
             <Button variant="primary" onClick={() => navigator.clipboard.writeText(inviteLink(fresh.accept_token!)).then(() => toast("Link copied"), () => toast("Select the link and copy it", "crit"))}><Copy size={16} /> Copy link</Button>
           </div>

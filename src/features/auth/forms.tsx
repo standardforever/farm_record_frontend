@@ -10,7 +10,7 @@ import { Alert, Button, Field, Input, Segmented } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "./AuthProvider";
 
-function nextUrl(params: URLSearchParams, fallback = "/") {
+export function nextUrl(params: URLSearchParams, fallback = "/") {
   const n = params.get("next");
   return n && n.startsWith("/") && !n.startsWith("//") ? n : fallback;
 }
@@ -41,10 +41,17 @@ export function LoginForm({ onDone, compact }: { onDone?: () => void; compact?: 
       <Field label="Email or phone number" htmlFor="identifier" error={f.formState.errors.identifier?.message}>
         <Input id="identifier" autoComplete="username" placeholder="0803 555 0147 or you@example.com" {...f.register("identifier")} />
       </Field>
-      <Field label="Password" htmlFor="password" error={f.formState.errors.password?.message}>
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-center justify-between gap-2">
+          <label htmlFor="password" className="text-[12.5px] font-semibold text-ink-2">Password</label>
+          {!compact && <Link href="/forgot-password" className="text-[12.5px] font-semibold text-brand">Forgot password?</Link>}
+        </div>
         <Input id="password" type="password" autoComplete="current-password" {...f.register("password")} />
-      </Field>
+        {f.formState.errors.password && <p className="text-[12.5px] text-crit">{f.formState.errors.password.message}</p>}
+      </div>
       <Button type="submit" variant="primary" size="lg" block loading={f.formState.isSubmitting}>Sign in</Button>
+      {!compact && <Link href={`/login/code${params.get("next") ? `?next=${encodeURIComponent(params.get("next")!)}` : ""}`}
+        className="text-center text-[13.5px] font-semibold text-brand">Email me a sign-in code instead</Link>}
       {!compact && (
         <p className="text-center text-[13.5px] text-ink-2">New to Oko? <Link className="font-semibold text-brand" href={`/register${params.get("next") ? `?next=${encodeURIComponent(params.get("next")!)}` : ""}`}>Create an account</Link></p>
       )}

@@ -46,7 +46,10 @@ const countIn = (b: BatchDetail, unitId: string) => b.units.find((u) => u.unit_i
 
 const LOSS_REASONS = ["Disease", "Heat stress", "Low oxygen", "Predator", "Injury", "Pile-up", "Unknown"];
 
-export function RecordDialog({ batch, open, onClose, mode }: { batch: BatchDetail; open: boolean; onClose: () => void; mode: "loss" | "other" }) {
+/** `saleWarning`: shown when selling or using animals that are on a hold (the server refuses them anyway). */
+export function RecordDialog({ batch, open, onClose, mode, saleWarning }: {
+  batch: BatchDetail; open: boolean; onClose: () => void; mode: "loss" | "other"; saleWarning?: ReactNode;
+}) {
   const ws = useCurrentWorkspace();
   const record = useRecord(ws.orgId, batch.id);
   const toast = useToast();
@@ -76,6 +79,7 @@ export function RecordDialog({ batch, open, onClose, mode }: { batch: BatchDetai
     <ActionDialog open={open} onClose={onClose} title={mode === "loss" ? "Record losses" : "Record sales and other changes"} error={error}
       saveLabel="Save" loading={record.isPending} disabled={!qty || over || (batch.units.filter((u) => !u.ended_on).length > 1 && !f.unit)} onSave={save}>
       <Segmented value={kind} onChange={setKind} options={kinds} />
+      {saleWarning && (kind === "sold" || kind === "consumed") && saleWarning}
       <UnitSelect batch={batch} value={f.unit} onChange={(v) => setF({ ...f, unit: v })} id="r-unit" label="Unit" />
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="How many" htmlFor="r-qty" hint={kind !== "added" ? `${available.toLocaleString("en-NG")} there now` : undefined} error={over ? "More than there are" : undefined}>

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle, Camera, CheckCircle2, ChevronLeft, ChevronRight, Circle, CloudOff, Droplets, Egg, MessageSquareText,
-  NotebookPen, Scale, Settings2, Skull, Undo2, Wheat,
+  NotebookPen, Scale, Settings2, Skull, Stethoscope, Undo2, Wheat,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Alert, Badge, Button, Card, EmptyState, PageLoader, useToast } from "@/components/ui";
@@ -13,6 +13,7 @@ import {
 } from "@/features/daily";
 import { useAuth } from "@/features/auth";
 import { ReasonDialog } from "@/features/batches";
+import { HoldList, ReportCaseDialog } from "@/features/health";
 import { RequirePermission, useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
 import { cn, formatDate, relative } from "@/lib/format";
@@ -40,6 +41,7 @@ function Inner() {
   const [ticking, setTicking] = useState<TodayTask | null>(null);
   const [handover, setHandover] = useState(false);
   const [plan, setPlan] = useState(false);
+  const [sick, setSick] = useState(false);
   const [pending, setPending] = useState(0);
   const [voiding, setVoiding] = useState<string | null>(null);
   const canLog = ws.can("farm.edit") || ws.can("farm.approve");
@@ -97,6 +99,7 @@ function Inner() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
+          {canLog && ws.has("health") && <Button onClick={() => setSick(true)}><Stethoscope size={16} /> Report sick</Button>}
           {canLog && <Button onClick={() => setHandover(true)}><MessageSquareText size={16} /> Handover</Button>}
           {ws.can("farm.approve") && <Button onClick={() => setPlan(true)}><Settings2 size={16} /> Plan routine</Button>}
         </div>
@@ -112,6 +115,8 @@ function Inner() {
           {h.issues?.length ? <span className="mt-1.5 flex flex-wrap gap-1.5">{h.issues.map((i) => <Badge key={i} tone="warn">{i}</Badge>)}</span> : null}
         </Alert></div>
       ))}
+
+      {isToday && d.holds.length > 0 && <div className="mb-3"><HoldList compact holds={d.holds} /></div>}
 
       {isToday && d.missing_feed.length > 0 && canLog && (
         <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-warn/40 bg-warn-soft px-3 py-2.5 text-[13.5px]">
@@ -196,6 +201,7 @@ function Inner() {
       <QuickLog kind={log?.kind ?? null} open={!!log} on={on} presetUnit={log?.unit} onClose={() => setLog(null)} onSaved={afterLog} />
       <CompleteSheet task={ticking} on={on} onClose={() => setTicking(null)} />
       <HandoverDialog open={handover} onClose={() => setHandover(false)} />
+      <ReportCaseDialog open={sick} onClose={() => setSick(false)} />
       <PlanDialog open={plan} onClose={() => setPlan(false)} />
       <ReasonDialog title="Void this record" open={!!voiding} onClose={() => setVoiding(null)} saveLabel="Void record" loading={voidRec.isPending}
         hint="It stays in the history, crossed out. You can void your own logs for 24 hours."

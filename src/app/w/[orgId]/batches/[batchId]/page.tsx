@@ -10,6 +10,7 @@ import {
   useBatch, useBatchCatalog, useVoidAndReopen,
 } from "@/features/batches";
 import { useCatalog } from "@/features/farm";
+import { BatchHealthCard, HoldList, useBatchHealth } from "@/features/health";
 import { StandardCard } from "@/features/packs";
 import { RequirePermission, useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
@@ -41,6 +42,8 @@ function View({ b }: { b: BatchDetail }) {
   const { voidRecord, reopen } = useVoidAndReopen(b);
   const s = b.summary;
   const active = b.status === "active";
+  const health = useBatchHealth(ws.orgId, b.id, active && ws.has("health"));
+  const meatHolds = (health.data?.holds ?? []).filter((h) => h.product === "meat" || h.product === "all");
   const approve = ws.can("farm.approve");
   const edit = ws.can("farm.edit") || approve;
   const money = ws.can("finance.view") && s?.cost_so_far != null;
@@ -80,6 +83,7 @@ function View({ b }: { b: BatchDetail }) {
       </div>
 
       {b.pack_key && <div className="mb-4"><StandardCard batchId={b.id} active={active} /></div>}
+      {ws.has("health") && <div className="mb-4"><BatchHealthCard batchId={b.id} active={active} /></div>}
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <div className="flex min-w-0 flex-col gap-4">
@@ -172,7 +176,8 @@ function View({ b }: { b: BatchDetail }) {
         </div>
       </div>
 
-      <RecordDialog batch={b} open={open === "loss" || open === "other"} mode={open === "other" ? "other" : "loss"} onClose={() => setOpen(null)} />
+      <RecordDialog batch={b} open={open === "loss" || open === "other"} mode={open === "other" ? "other" : "loss"} onClose={() => setOpen(null)}
+        saleWarning={meatHolds.length ? <HoldList compact showBatch={false} holds={meatHolds} title="These animals cannot be sold or eaten yet" /> : undefined} />
       <MoveDialog batch={b} open={open === "move"} onClose={() => setOpen(null)} />
       <SplitDialog batch={b} open={open === "split"} onClose={() => setOpen(null)} onDone={go} />
       <MergeDialog batch={b} open={open === "merge"} onClose={() => setOpen(null)} onDone={go} />

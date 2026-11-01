@@ -9,19 +9,28 @@ export function Dialog({ open, onClose, title, eyebrow, children, footer, side, 
   open: boolean; onClose: () => void; title: string; eyebrow?: string; children: ReactNode; footer?: ReactNode; side?: boolean; wide?: boolean;
 }) {
   const panel = useRef<HTMLDivElement>(null);
+  // Keep the latest onClose without re-running the open effect: parents pass a new function on every
+  // render, and re-running would move focus back to the first field while someone is typing.
+  const close = useRef(onClose);
+  useEffect(() => { close.current = onClose; }, [onClose]);
   useEffect(() => {
     if (!open) return;
     const last = document.activeElement as HTMLElement | null;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close.current();
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
-    setTimeout(() => panel.current?.querySelector<HTMLElement>("input,select,textarea,button:not([data-close])")?.focus(), 30);
+    const t = setTimeout(() => {
+      if (panel.current && !panel.current.contains(document.activeElement)) {
+        panel.current.querySelector<HTMLElement>("input,select,textarea,button:not([data-close])")?.focus();
+      }
+    }, 30);
     return () => {
+      clearTimeout(t);
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
       last?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
   if (!open) return null;
   return (
     <div className={cn("fixed inset-0 z-[90] flex bg-[var(--scrim)] animate-[fade_.15s_ease]",

@@ -7,7 +7,7 @@
  * "Coming next" from GET /api/v1/meta, so the menu always matches the roadmap.
  */
 import type { LucideIcon } from "lucide-react";
-import { ClipboardCheck, Home, KeyRound, Layers, Map, ScrollText, Settings, Users } from "lucide-react";
+import { ClipboardCheck, HeartPulse, Home, KeyRound, Layers, Map, ScrollText, Settings, Users } from "lucide-react";
 
 /** Workspace types that keep animals and so get the farm screens. */
 export const FARM_ORG_TYPES = ["farm", "cooperative", "hatchery", "integrator", "programme"];
@@ -30,6 +30,7 @@ export const NAV: NavItem[] = [
   { key: "today", label: "Today", path: "/today", icon: ClipboardCheck, permission: "farm.view", feature: "farm", orgTypes: FARM_ORG_TYPES, group: "Farm", mobile: true },
   { key: "farm", label: "Farm map", path: "/farm", icon: Map, permission: "farm.view", feature: "farm", orgTypes: FARM_ORG_TYPES, group: "Farm", mobile: true },
   { key: "batches", label: "Batches", path: "/batches", icon: Layers, permission: "farm.view", feature: "farm", orgTypes: FARM_ORG_TYPES, group: "Farm", mobile: true },
+  { key: "health", label: "Health", path: "/health", icon: HeartPulse, permission: "health.view", feature: "health", orgTypes: FARM_ORG_TYPES, group: "Farm" },
   { key: "team", label: "Team and access", path: "/team", icon: Users, permission: "members.view", group: "Workspace" },
   { key: "roles", label: "Roles", path: "/team/roles", icon: KeyRound, permission: "members.view", group: "Workspace" },
   { key: "audit", label: "Audit trail", path: "/audit", icon: ScrollText, permission: "audit.view", group: "Workspace" },

@@ -13,7 +13,8 @@ export type Task = {
 };
 export type TodayTask = Task & { due_on: string | null; overdue: boolean; unit_code: string | null; site_name: string | null; mine: boolean; completion: Completion | null };
 export type Handover = { id: string; on_date: string; shift: string; note: string; issues: string[] | null; from_name: string | null; from_user: string | null; acknowledged_by_name: string | null; acknowledged_at: string | null; created_at: string };
-export type Today = { on: string; tasks: TodayTask[]; done: number; total: number; records: FarmRecord[]; handovers: Handover[]; missing_feed: { unit_id: string; unit_code: string }[] };
+export type Today = { on: string; tasks: TodayTask[]; done: number; total: number; records: FarmRecord[]; handovers: Handover[]; missing_feed: { unit_id: string; unit_code: string }[];
+  holds: { batch_id: string; batch_code: string; unit_codes: string[]; product: "meat" | "eggs" | "milk" | "all"; until: string | null; clear_on: string | null; reason: string }[] };
 export type DailyCatalog = { record_kinds: Record<string, string>; time_slots: Record<string, string>; repeats: Record<string, string>; proofs: Record<string, string>; shifts: Record<string, string>; suggested_for: string[] };
 
 const base = (orgId: string) => `/organizations/${orgId}/farm`;
@@ -27,7 +28,8 @@ export const useTasks = (orgId: string, enabled: boolean) =>
 
 function useFarmMutation<V, R>(orgId: string, fn: (v: V) => Promise<R>) {
   const qc = useQueryClient();
-  return useMutation({ mutationFn: fn, onSuccess: () => qc.invalidateQueries({ queryKey: ["farm", orgId] }) });
+  // Health too: ticking a vaccination task records the vaccination.
+  return useMutation({ mutationFn: fn, onSuccess: () => { qc.invalidateQueries({ queryKey: ["farm", orgId] }); qc.invalidateQueries({ queryKey: ["health", orgId] }); } });
 }
 
 export const useVoidRecord = (orgId: string) => useFarmMutation(orgId, ({ id, reason }: { id: string; reason: string }) => post<FarmRecord>(`${base(orgId)}/records/${id}/void`, { reason }));

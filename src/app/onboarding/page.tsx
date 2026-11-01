@@ -4,12 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Check, ShieldCheck } from "lucide-react";
 import { Logo } from "@/components/layout/Logo";
-import { Alert, Button, Field, Input, Select } from "@/components/ui";
+import { Alert, Button, Field, Input } from "@/components/ui";
 import { ORG_TYPES } from "@/config/orgTypes";
 import { RequireAuth, useAuth } from "@/features/auth";
 import { rememberWorkspace, useCreateWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
-import { cn, NIGERIAN_STATES } from "@/lib/format";
+import { LocationFields } from "@/features/geo";
+import { cn } from "@/lib/format";
 
 export default function Onboarding() {
   return <RequireAuth><CreateWorkspace /></RequireAuth>;
@@ -67,14 +68,7 @@ function CreateWorkspace() {
             <Field label="Name" htmlFor="ws-name" hint={type === "farm" ? "For example, Adeyemi Integrated Farms" : undefined}>
               <Input id="ws-name" required minLength={2} value={name} onChange={(e) => setName(e.target.value)} autoFocus />
             </Field>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="State" htmlFor="ws-state">
-                <Select id="ws-state" value={state} onChange={(e) => setState(e.target.value)}>
-                  <option value="">Choose a state</option>{NIGERIAN_STATES.map((s) => <option key={s}>{s}</option>)}
-                </Select>
-              </Field>
-              <Field label="LGA" htmlFor="ws-lga"><Input id="ws-lga" value={lga} onChange={(e) => setLga(e.target.value)} placeholder="Abeokuta South" /></Field>
-            </div>
+            <LocationFields idPrefix="ws" value={{ state, lga }} onChange={(p) => { setState(p.state); setLga(p.lga); }} />
             <p className="text-[12.5px] text-ink-3">Your location is used for weather, disease alerts and nearby buyers. Others only ever see your LGA.</p>
             <div className="flex justify-between gap-2">
               <Button type="button" variant="ghost" onClick={() => setStep(1)}><ArrowLeft size={16} /> Back</Button>

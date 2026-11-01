@@ -63,7 +63,7 @@ function Inner() {
 
   const groups = useMemo(() => {
     const g = new Map<string, TodayTask[]>();
-    for (const t of today.data?.tasks ?? []) g.set(t.time_slot, [...(g.get(t.time_slot) ?? []), t]);
+    for (const t of today.data?.tasks ?? []) { const k = t.overdue ? "overdue" : t.time_slot; g.set(k, [...(g.get(k) ?? []), t]); }
     return [...g.entries()];
   }, [today.data]);
 
@@ -76,11 +76,11 @@ function Inner() {
   const tick = async (t: TodayTask) => {
     if (t.record_kind && !t.completion) { setLog({ kind: (t.record_kind === "milk" ? "note" : t.record_kind) as QuickKind, unit: t.unit_id, task: t }); return; }
     if (t.proof !== "none") { setTicking(t); return; }
-    try { await complete.mutateAsync({ taskId: t.id, on }); } catch (e) { toast(e instanceof ApiError ? e.message : "Could not save", "crit"); }
+    try { await complete.mutateAsync({ taskId: t.id, on: t.due_on ?? on }); } catch (e) { toast(e instanceof ApiError ? e.message : "Could not save", "crit"); }
   };
   const afterLog = async () => {
     const t = log?.task;
-    if (t && t.proof === "none") { try { await complete.mutateAsync({ taskId: t.id, on }); } catch { /* the log itself is saved */ } }
+    if (t && t.proof === "none") { try { await complete.mutateAsync({ taskId: t.id, on: t.due_on ?? on }); } catch { /* the log itself is saved */ } }
     else if (t) setTicking(t);
   };
 
@@ -145,7 +145,7 @@ function Inner() {
               action={ws.can("farm.approve") ? <Button variant="primary" onClick={() => setPlan(true)}>Plan routine</Button> : undefined} />
           ) : groups.map(([slot, tasks]) => (
             <div key={slot} className="mb-2">
-              <div className="eyebrow mb-1 mt-2">{cat.data?.time_slots[slot] ?? slot}</div>
+              <div className={cn("eyebrow mb-1 mt-2", slot === "overdue" && "text-crit")}>{slot === "overdue" ? "Missed — still to do" : cat.data?.time_slots[slot] ?? slot}</div>
               <ul className="flex flex-col">
                 {tasks.map((t) => {
                   const c = t.completion;
@@ -162,6 +162,7 @@ function Inner() {
                           {t.proof !== "none" && !c && <span className="flex items-center gap-1"><Camera size={12} /> {cat.data?.proofs[t.proof]}</span>}
                           {c && <span>{c.status === "done" ? "Done" : `Skipped: ${c.note}`} by {c.done_by_name ?? "someone"} · {relative(c.done_at)}</span>}
                           {t.mine && !c && <Badge tone="brand">Yours</Badge>}
+                          {t.overdue && <Badge tone="crit">Overdue · was due {formatDate(t.due_on)}</Badge>}
                         </div>
                       </div>
                       {c?.media_id && <ProofPhoto mediaId={c.media_id} />}

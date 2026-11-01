@@ -11,7 +11,7 @@ export type Task = {
   id: string; title: string; details: string | null; unit_id: string | null; site_id: string | null; repeat: string; weekdays: number[] | null;
   every_n: number | null; start_on: string; end_on: string | null; time_slot: string; proof: string; record_kind: string | null; assignee_id: string | null; active: boolean;
 };
-export type TodayTask = Task & { unit_code: string | null; site_name: string | null; mine: boolean; completion: Completion | null };
+export type TodayTask = Task & { due_on: string | null; overdue: boolean; unit_code: string | null; site_name: string | null; mine: boolean; completion: Completion | null };
 export type Handover = { id: string; on_date: string; shift: string; note: string; issues: string[] | null; from_name: string | null; from_user: string | null; acknowledged_by_name: string | null; acknowledged_at: string | null; created_at: string };
 export type Today = { on: string; tasks: TodayTask[]; done: number; total: number; records: FarmRecord[]; handovers: Handover[]; missing_feed: { unit_id: string; unit_code: string }[] };
 export type DailyCatalog = { record_kinds: Record<string, string>; time_slots: Record<string, string>; repeats: Record<string, string>; proofs: Record<string, string>; shifts: Record<string, string>; suggested_for: string[] };

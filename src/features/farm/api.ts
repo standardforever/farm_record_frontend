@@ -3,7 +3,8 @@ import { get, patch, post } from "@/lib/api";
 
 export type UnitStatus = "empty" | "stocked" | "resting" | "maintenance" | "quarantine";
 export type Site = {
-  id: string; name: string; code: string; address: string | null; state: string | null; lga: string | null;
+  id: string; name: string; code: string; address: string | null; state: string | null; lga: string | null; ward: string | null;
+  location_precision: "gps" | "ward" | "lga" | null;
   latitude: number | null; longitude: number | null; area_hectares: number | null; notes: string | null;
   status: "active" | "archived"; created_at: string; unit_count: number;
 };

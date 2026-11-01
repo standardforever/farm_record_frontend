@@ -10,6 +10,7 @@ import {
   useBatch, useBatchCatalog, useVoidAndReopen,
 } from "@/features/batches";
 import { useCatalog } from "@/features/farm";
+import { StandardCard } from "@/features/packs";
 import { RequirePermission, useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
 import { cn, formatDate, naira } from "@/lib/format";
@@ -77,6 +78,8 @@ function View({ b }: { b: BatchDetail }) {
         <Stat label="Days in cycle" value={s?.days ?? 0} sub={`${ageLabel(age)} old`} />
         <Stat label="Sold" value={(s?.sold ?? 0).toLocaleString("en-NG")} sub={s?.avg_sale_weight_kg ? `avg ${s.avg_sale_weight_kg} kg` : s?.sold_weight_kg ? `${s.sold_weight_kg} kg` : "No sales yet"} />
       </div>
+
+      {b.pack_key && <div className="mb-4"><StandardCard batchId={b.id} active={active} /></div>}
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <div className="flex min-w-0 flex-col gap-4">

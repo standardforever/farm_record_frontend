@@ -33,6 +33,12 @@ the network is down keeps it on the phone and retries later. The backend treats 
 `client_id` as the same record, so retries never duplicate. Photos go through
 `shrinkPhoto()` in `src/features/daily/device.ts` first (about 150 KB).
 
+## Places
+
+Ask for a location with `<LocationFields>` from `src/features/geo` (state → LGA → ward, plus
+"Use my location"). Do not add free-text state or LGA boxes: the backend only accepts names
+from the official list (see `docs/LOCATIONS.md` in the backend repo).
+
 ## Style
 
 - Plain words in the interface. Write for a farm manager reading on a phone: "Invite someone", not "Provision user".

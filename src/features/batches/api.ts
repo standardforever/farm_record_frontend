@@ -11,7 +11,7 @@ export type Summary = {
   fcr: number | null; pending: string[];
 };
 export type Batch = {
-  id: string; code: string; species: string; breed: string | null; grade_label: string | null; source_type: string; source_name: string | null;
+  id: string; code: string; species: string; breed: string | null; breed_key?: string | null; pack_key?: string | null; pack_version?: number | null; grade_label: string | null; source_type: string; source_name: string | null;
   started_on: string; age_at_start_days: number; initial_count: number; avg_start_weight_g: string | null; acquisition_cost: string | null;
   expected_end_on: string | null; status: "active" | "closed"; closed_on: string | null; close_note: string | null; notes: string | null;
   created_at: string; current: number; units: Placement[]; summary: Summary | null;
@@ -50,7 +50,7 @@ function useBatchMutation<V>(orgId: string, fn: (v: V) => Promise<BatchDetail>) 
 }
 
 export type StockInput = {
-  species: string; breed?: string | null; code?: string; source_type: string; source_name?: string | null; started_on: string;
+  species: string; breed?: string | null; breed_key?: string; code?: string; source_type: string; source_name?: string | null; started_on: string;
   age_at_start_days: number; avg_start_weight_g?: number | null; acquisition_cost?: number | null; units: { unit_id: string; count: number }[]; notes?: string | null;
 };
 export type RecordInput = { kind: string; unit_id?: string; quantity: number; occurred_on: string; amount?: number | null; weight_kg?: number | null; reason?: string | null; note?: string | null };

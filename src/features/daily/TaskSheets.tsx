@@ -53,7 +53,7 @@ export function CompleteSheet({ task, on, onClose }: { task: TodayTask | null; o
     try {
       let media_id: string | null = null;
       if (mode === "done" && photo) media_id = (await uploadPhoto(ws.orgId, photo.blob, newId())).id;
-      await complete.mutateAsync({ taskId: task.id, on, status: mode, note: note.trim() || null, media_id, ...(mode === "done" && fix ? fix : {}), client_id: newId() });
+      await complete.mutateAsync({ taskId: task.id, on: task.due_on ?? on, status: mode, note: note.trim() || null, media_id, ...(mode === "done" && fix ? fix : {}), client_id: newId() });
       toast(mode === "done" ? `Done: ${task.title}` : `Skipped: ${task.title}`);
       onClose();
     } catch (e) {

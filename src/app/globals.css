@@ -32,6 +32,10 @@
   --side-hi: #174230;
   --scrim: rgba(8, 20, 14, 0.48);
   --shadow: 0 1px 2px rgba(19, 36, 27, 0.06), 0 8px 28px rgba(19, 36, 27, 0.08);
+  /* Chart series: categorical slots 1–2, validated for colour-blind separation and contrast in both modes. */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --grid: #e3e8df;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
@@ -43,6 +47,7 @@
     --good: #4cc380; --good-soft: #153524; --warn: #e9a83a; --warn-soft: #3a2b0f; --crit: #f27c63; --crit-soft: #3f1c15;
     --side: #08130e; --side-ink: #cfe1d5; --side-ink-2: #7ea08c; --side-hi: #15291f;
     --scrim: rgba(0, 0, 0, 0.6); --shadow: 0 1px 2px rgba(0,0,0,.35), 0 10px 30px rgba(0,0,0,.35);
+    --series-1: #3987e5; --series-2: #d95926; --grid: #22312a;
     color-scheme: dark;
   }
 }
@@ -54,6 +59,7 @@
   --good: #4cc380; --good-soft: #153524; --warn: #e9a83a; --warn-soft: #3a2b0f; --crit: #f27c63; --crit-soft: #3f1c15;
   --side: #08130e; --side-ink: #cfe1d5; --side-ink-2: #7ea08c; --side-hi: #15291f;
   --scrim: rgba(0, 0, 0, 0.6); --shadow: 0 1px 2px rgba(0,0,0,.35), 0 10px 30px rgba(0,0,0,.35);
+  --series-1: #3987e5; --series-2: #d95926; --grid: #22312a;
   color-scheme: dark;
 }
 

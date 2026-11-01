@@ -9,7 +9,8 @@ import { useAuth, VerifyEmailCard } from "@/features/auth";
 import { usePlans } from "@/features/meta/api";
 import { useCurrentWorkspace, useUpdateWorkspace } from "@/features/workspaces";
 import { ApiError, patch, post } from "@/lib/api";
-import { cn, naira, NIGERIAN_STATES } from "@/lib/format";
+import { LocationFields } from "@/features/geo";
+import { cn, naira } from "@/lib/format";
 
 const UNIT: Record<string, string> = { workspace: "per month", cycle: "per cycle", unit: "per unit a month", site: "per site a month", agreement: "by agreement" };
 
@@ -42,11 +43,7 @@ export default function SettingsPage() {
           <form className="flex flex-col gap-4" onSubmit={async (e) => { e.preventDefault(); await update.mutateAsync({ ...form, phone: form.phone || null } as never); toast("Workspace saved"); }}>
             {update.error && <Alert tone="crit">{(update.error as ApiError).message}</Alert>}
             <Field label="Name" htmlFor="s-name"><Input id="s-name" disabled={!canEdit} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="State" htmlFor="s-state"><Select id="s-state" disabled={!canEdit} value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })}>
-                <option value="">Choose a state</option>{NIGERIAN_STATES.map((s) => <option key={s}>{s}</option>)}</Select></Field>
-              <Field label="LGA" htmlFor="s-lga"><Input id="s-lga" disabled={!canEdit} value={form.lga} onChange={(e) => setForm({ ...form, lga: e.target.value })} /></Field>
-            </div>
+            <LocationFields idPrefix="s" disabled={!canEdit} value={{ state: form.state, lga: form.lga }} onChange={(p) => setForm({ ...form, state: p.state, lga: p.lga })} />
             <Field label="Business phone" htmlFor="s-phone"><Input id="s-phone" type="tel" disabled={!canEdit} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="0803 555 0147" /></Field>
             {canEdit && <div><Button type="submit" variant="primary" loading={update.isPending}>Save workspace</Button></div>}
           </form>

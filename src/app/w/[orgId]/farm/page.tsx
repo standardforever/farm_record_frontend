@@ -4,7 +4,8 @@ import { useMemo, useState } from "react";
 import { Map as MapIcon, MapPin, Pencil, Plus, Search } from "lucide-react";
 import { Alert, Badge, Button, Card, EmptyState, Input, PageHeader, PageLoader, Select, Toggle } from "@/components/ui";
 import { AddUnitsDialog, kindIcon, SiteDialog, STATUS_LOOK, STATUS_ORDER, UnitDrawer, useCatalog, useFarmMap } from "@/features/farm";
-import type { Site, Unit, UnitStatus } from "@/features/farm";
+import type { Site, Unit, UnitBatch, UnitStatus } from "@/features/farm";
+import { StockBatchDialog } from "@/features/batches";
 import { RequirePermission, useCurrentWorkspace } from "@/features/workspaces";
 import { cn } from "@/lib/format";
 
@@ -23,6 +24,7 @@ function FarmMapView() {
   const [openUnit, setOpenUnit] = useState<string | null>(null);
   const [siteDialog, setSiteDialog] = useState<{ site: Site | null } | null>(null);
   const [adding, setAdding] = useState<{ site?: string } | null>(null);
+  const [stocking, setStocking] = useState<string | null>(null);
   const canSetup = ws.can("farm.setup");
 
   const data = map.data;
@@ -100,7 +102,7 @@ function FarmMapView() {
                     <p className="py-3 text-center text-ink-3">No units match these filters.</p>
                   ) : (
                     <ul className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6">
-                      {shown.map((u) => <Tile key={u.id} unit={u} counts={catalog.data?.kinds[u.kind]?.counts} label={catalog.data?.statuses[u.status]} onOpen={() => setOpenUnit(u.id)} />)}
+                      {shown.map((u) => <Tile key={u.id} unit={u} batches={data.unit_batches[u.id] ?? []} counts={catalog.data?.kinds[u.kind]?.counts} label={catalog.data?.statuses[u.status]} onOpen={() => setOpenUnit(u.id)} />)}
                     </ul>
                   )}
                 </Card>
@@ -110,14 +112,16 @@ function FarmMapView() {
         </>
       )}
 
-      <UnitDrawer unit={unit} sites={data.sites} onClose={() => setOpenUnit(null)} />
+      <UnitDrawer unit={unit} sites={data.sites} batches={unit ? data.unit_batches[unit.id] ?? [] : []} onClose={() => setOpenUnit(null)}
+        onStock={(id) => { setOpenUnit(null); setStocking(id); }} />
+      <StockBatchDialog open={!!stocking} presetUnit={stocking ?? undefined} onClose={() => setStocking(null)} />
       <SiteDialog open={!!siteDialog} site={siteDialog?.site} onClose={() => setSiteDialog(null)} />
       <AddUnitsDialog open={!!adding} presetSite={adding?.site} sites={data.sites} room={room} onClose={() => setAdding(null)} />
     </>
   );
 }
 
-function Tile({ unit, counts, label, onOpen }: { unit: Unit; counts?: string; label?: string; onOpen: () => void }) {
+function Tile({ unit, batches, counts, label, onOpen }: { unit: Unit; batches: UnitBatch[]; counts?: string; label?: string; onOpen: () => void }) {
   const Icon = kindIcon(unit.kind);
   const look = STATUS_LOOK[unit.status];
   return (
@@ -130,7 +134,9 @@ function Tile({ unit, counts, label, onOpen }: { unit: Unit; counts?: string; la
         <span className="mt-auto flex items-center gap-1.5 pt-1 text-[12px] font-semibold text-ink-2">
           <span className={cn("h-2 w-2 shrink-0 rounded-full", look.dot)} />{unit.archived_at ? "Archived" : label ?? unit.status}
         </span>
-        {unit.capacity != null && <span className="text-[11.5px] text-ink-3">{unit.capacity.toLocaleString("en-NG")} {counts}</span>}
+        {batches.length > 0 ? batches.map((b) => (
+          <span key={b.id} className="text-[11.5px] text-ink-2"><b className="font-mono">{b.code}</b> · {b.count.toLocaleString("en-NG")}{unit.capacity ? ` / ${unit.capacity.toLocaleString("en-NG")}` : ""}</span>
+        )) : unit.capacity != null && <span className="text-[11.5px] text-ink-3">{unit.capacity.toLocaleString("en-NG")} {counts}</span>}
       </button>
     </li>
   );

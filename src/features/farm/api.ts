@@ -17,7 +17,9 @@ export type SiteWithUnits = Site & { units: Unit[] };
 export type FarmMap = {
   sites: SiteWithUnits[]; by_status: Record<UnitStatus, number>; total_capacity: number;
   units_used: number; units_limit: number | null; limited_to_scope: boolean;
+  unit_batches: Record<string, UnitBatch[]>;
 };
+export type UnitBatch = { id: string; code: string; species: string; count: number; age_days: number };
 export type Catalog = {
   kinds: Record<string, { label: string; prefix: string; counts: string; water: boolean }>;
   purposes: Record<string, string>; statuses: Record<UnitStatus, string>;

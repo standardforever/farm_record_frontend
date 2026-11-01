@@ -1,18 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Archive, History, Pencil, RotateCcw } from "lucide-react";
+import Link from "next/link";
+import { Archive, History, Layers, Pencil, Plus, RotateCcw } from "lucide-react";
 import { Alert, Badge, Button, Dialog, Field, Input, Select, Textarea, useToast } from "@/components/ui";
 import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
 import { cn, relative } from "@/lib/format";
-import { type Site, type Unit, type UnitStatus, useArchiveUnit, useCatalog, useRestoreUnit, useUnitActivity, useUpdateUnit } from "./api";
+import { type Site, type Unit, type UnitBatch, type UnitStatus, useArchiveUnit, useCatalog, useRestoreUnit, useUnitActivity, useUpdateUnit } from "./api";
 import { kindIcon, STATUS_LOOK, STATUS_ORDER } from "./look";
 
 const num = (v: string) => (v.trim() === "" ? null : Number(v));
 const fmt = (n: number | null, unit = "") => (n == null ? "—" : `${n.toLocaleString("en-NG")}${unit}`);
 
-export function UnitDrawer({ unit, sites, onClose }: { unit: Unit | null; sites: Site[]; onClose: () => void }) {
+export function UnitDrawer({ unit, sites, batches = [], onClose, onStock }: {
+  unit: Unit | null; sites: Site[]; batches?: UnitBatch[]; onClose: () => void; onStock?: (unitId: string) => void;
+}) {
   const ws = useCurrentWorkspace();
   const catalog = useCatalog();
   const update = useUpdateUnit(ws.orgId);
@@ -105,11 +108,29 @@ export function UnitDrawer({ unit, sites, onClose }: { unit: Unit | null; sites:
             </dl>
             {unit.notes && <p className="whitespace-pre-line text-[13.5px] text-ink-2">{unit.notes}</p>}
 
+            {!archived && (
+              <div className="flex flex-col gap-2">
+                <div className="eyebrow flex items-center gap-1.5"><Layers size={13} /> Batches here</div>
+                {batches.length ? (
+                  <ul className="flex flex-col gap-2">
+                    {batches.map((b) => (
+                      <li key={b.id}><Link href={`/w/${ws.orgId}/batches/${b.id}`} className="flex items-center justify-between gap-2 rounded-xl border border-line px-3 py-2 hover:bg-surface-2">
+                        <span><b className="font-mono">{b.code}</b> <span className="text-[12.5px] text-ink-3">· {Math.floor(b.age_days / 7)} weeks old</span></span>
+                        <b className="tnum">{b.count.toLocaleString("en-NG")}</b></Link></li>
+                    ))}
+                  </ul>
+                ) : <p className="text-[13px] text-ink-3">No animals in this unit.</p>}
+                {ws.can("farm.approve") && onStock && (
+                  <div><Button size="sm" variant={batches.length ? "ghost" : "primary"} onClick={() => onStock(unit.id)}><Plus size={14} /> {batches.length ? "Stock another batch here" : "Stock this unit"}</Button></div>
+                )}
+              </div>
+            )}
+
             {canEdit && !archived && (
               <div className="flex flex-col gap-2">
                 <div className="eyebrow">Change status</div>
                 <div className="flex flex-wrap gap-2">
-                  {STATUS_ORDER.filter((s) => s !== unit.status).map((s) => (
+                  {STATUS_ORDER.filter((s) => s !== unit.status && (batches.length ? s === "stocked" || s === "quarantine" : s !== "stocked")).map((s) => (
                     <button key={s} type="button" onClick={() => setPending(pending === s ? null : s)} aria-pressed={pending === s}
                       className={cn("flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-semibold",
                         pending === s ? "border-brand bg-brand-soft text-brand" : "border-line hover:border-ink-3")}>
@@ -124,7 +145,7 @@ export function UnitDrawer({ unit, sites, onClose }: { unit: Unit | null; sites:
                     <Button variant="primary" loading={update.isPending} onClick={setStatus}>Mark {statuses?.[pending]?.toLowerCase()}</Button>
                   </div>
                 )}
-                <p className="text-[12.5px] text-ink-3">“Stocked” will be set automatically when batches arrive (milestone M1.2).</p>
+                <p className="text-[12.5px] text-ink-3">{batches.length ? "While animals are in it, the unit stays stocked (or quarantine). It goes to resting when the batch leaves." : "“Stocked” is set automatically when a batch is stocked here."}</p>
               </div>
             )}
 

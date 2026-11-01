@@ -7,7 +7,8 @@ export type Summary = {
   survival_pct: number | null; mortality_pct: number | null; days: number; age_days: number;
   sold_weight_kg: number | null; avg_sale_weight_kg: number | null;
   sales_amount: number | null; cost_in: number | null; cost_out: number | null; cost_so_far: number | null; result_so_far: number | null;
-  cost_per_head_in: number | null; fcr: number | null; pending: string[];
+  cost_per_head_in: number | null; feed_kg: number; latest_avg_weight_g: number | null; eggs: number; cracked_eggs: number;
+  fcr: number | null; pending: string[];
 };
 export type Batch = {
   id: string; code: string; species: string; breed: string | null; grade_label: string | null; source_type: string; source_name: string | null;
@@ -70,7 +71,8 @@ export const useClose = (orgId: string, id: string) =>
 export const useReopen = (orgId: string, id: string) =>
   useBatchMutation(orgId, (reason: string) => post<BatchDetail>(`${base(orgId)}/${id}/reopen`, { reason }));
 
-export const today = () => new Date().toISOString().slice(0, 10);
+/** Today's date where the person is (not UTC), as YYYY-MM-DD. */
+export const today = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); };
 export const ageOn = (b: Batch, on = new Date()) =>
   b.age_at_start_days + Math.max(0, Math.floor((on.getTime() - new Date(b.started_on + "T00:00:00").getTime()) / 86400000));
 export const ageLabel = (days: number) => (days < 21 ? `${days} days` : days < 140 ? `${Math.floor(days / 7)} weeks` : `${Math.round(days / 30.4)} months`);

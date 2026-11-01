@@ -70,15 +70,16 @@ type Options = Omit<RequestInit, "body"> & { body?: unknown; retry?: boolean };
 
 export async function api<T = unknown>(path: string, opts: Options = {}): Promise<T> {
   const { body, retry = true, headers, ...rest } = opts;
+  const isForm = typeof FormData !== "undefined" && body instanceof FormData;
   const init: RequestInit = {
     ...rest,
     credentials: "include",
     headers: {
-      ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+      ...(body !== undefined && !isForm ? { "Content-Type": "application/json" } : {}),
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       ...headers,
     },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    body: body === undefined ? undefined : isForm ? (body as FormData) : JSON.stringify(body),
   };
   let res: Response;
   try {
@@ -106,3 +107,13 @@ export const post = <T>(path: string, body?: unknown) => api<T>(path, { method: 
 export const patch = <T>(path: string, body: unknown) => api<T>(path, { method: "PATCH", body });
 export const put = <T>(path: string, body: unknown) => api<T>(path, { method: "PUT", body });
 export const del = <T>(path: string) => api<T>(path, { method: "DELETE" });
+export const upload = <T>(path: string, form: FormData) => api<T>(path, { method: "POST", body: form });
+
+/** Fetch a protected file (e.g. a proof photo) and return an object URL for <img>. */
+export async function blobUrl(path: string): Promise<string> {
+  const go = () => fetch(`${BASE}${path}`, { credentials: "include", headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {} });
+  let res = await go();
+  if (res.status === 401 && (await refreshAccessToken())) res = await go();
+  if (!res.ok) throw new ApiError(res.status, "error", "Could not load the photo.");
+  return URL.createObjectURL(await res.blob());
+}

@@ -134,6 +134,9 @@ function View({ b }: { b: BatchDetail }) {
               <dt className="text-ink-3">Sold · home use</dt><dd className="text-right font-semibold tnum">{s?.sold.toLocaleString("en-NG")} · {s?.consumed.toLocaleString("en-NG")}</dd>
               {!!s?.transferred_out && <><dt className="text-ink-3">To other batches</dt><dd className="text-right font-semibold tnum">{s.transferred_out.toLocaleString("en-NG")}</dd></>}
               <dt className="text-ink-3">Survival</dt><dd className="text-right font-semibold">{s?.survival_pct ?? "—"}%</dd>
+              <dt className="text-ink-3">Feed eaten</dt><dd className="text-right font-semibold tnum">{s?.feed_kg ? `${s.feed_kg.toLocaleString("en-NG")} kg` : "—"}</dd>
+              <dt className="text-ink-3">Latest average weight</dt><dd className="text-right font-semibold tnum">{s?.latest_avg_weight_g ? `${s.latest_avg_weight_g.toLocaleString("en-NG")} g` : "—"}</dd>
+              {!!s?.eggs && <><dt className="text-ink-3">Eggs collected</dt><dd className="text-right font-semibold tnum">{s.eggs.toLocaleString("en-NG")}{s.cracked_eggs ? ` (${s.cracked_eggs} cracked)` : ""}</dd></>}
               <dt className="text-ink-3">Feed conversion (FCR)</dt><dd className="text-right font-semibold">{s?.fcr ?? "—"}</dd>
               {money && s && <>
                 <dt className="mt-2 border-t border-line pt-2 text-ink-3">Purchase cost{s.cost_in || s.cost_out ? " (after transfers)" : ""}</dt>

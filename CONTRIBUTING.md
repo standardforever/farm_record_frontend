@@ -25,6 +25,14 @@ Say the backend has just shipped the `health` module.
 
 Nothing outside your feature folder, its pages and one navigation line should change. If you need a new shared primitive, add it to `components/ui/` in a separate pull request.
 
+## Logging from the field
+
+Anything a worker records on a phone (a feed log, a death, a tick) should go through
+`send()` in `src/features/daily/queue.ts`. It adds a `client_id`, sends the request, and if
+the network is down keeps it on the phone and retries later. The backend treats a repeated
+`client_id` as the same record, so retries never duplicate. Photos go through
+`shrinkPhoto()` in `src/features/daily/device.ts` first (about 150 KB).
+
 ## Style
 
 - Plain words in the interface. Write for a farm manager reading on a phone: "Invite someone", not "Provision user".

@@ -17,7 +17,10 @@ Say the backend has just shipped the `health` module.
    ```ts
    { key: "health", label: "Health", path: "/health", icon: Syringe, permission: "health.view", group: "Workspace", mobile: true },
    ```
+   Use `orgTypes` when a screen only makes sense for some workspace types (the farm screens use `FARM_ORG_TYPES`).
    Once the backend marks the module live, it leaves the "Coming next" list on its own.
+   If its records belong to units, the backend already limits them to the member's scope; show the
+   `limited_to_scope` notice like `app/w/[orgId]/farm/page.tsx` does.
 5. Run `npm run check`.
 
 Nothing outside your feature folder, its pages and one navigation line should change. If you need a new shared primitive, add it to `components/ui/` in a separate pull request.

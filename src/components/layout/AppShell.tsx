@@ -24,7 +24,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => { setOpen(false); setSwitcher(false); }, [path]);
 
   const base = `/w/${ws.orgId}`;
-  const items = NAV.filter((n) => (!n.permission || ws.can(n.permission)) && (!n.feature || ws.has(n.feature)));
+  const items = NAV.filter((n) => (!n.permission || ws.can(n.permission)) && (!n.feature || ws.has(n.feature))
+    && (!n.orgTypes || n.orgTypes.includes(ws.organization.type)));
   const planned = (meta?.modules ?? []).filter((m) => m.status === "planned");
   const current = (p: string) => (p === "" ? path === base : path === base + p || (p !== "/team" && path.startsWith(base + p)));
   const others = (me?.workspaces ?? []).filter((w) => w.organization_id !== ws.orgId);
@@ -59,7 +60,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
 
         <nav className="flex flex-col">
-          {(["Overview", "Workspace"] as const).map((g) => (
+          {(["Overview", "Farm", "Workspace"] as const).filter((g) => items.some((i) => i.group === g)).map((g) => (
             <div key={g}>
               <div className="px-2.5 pb-1 pt-3.5 font-mono text-[10.5px] uppercase tracking-[.14em] text-side-ink-2">{g}</div>
               {items.filter((i) => i.group === g).map((i) => (

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Check, Copy, MessageCircle } from "lucide-react";
 import { Alert, Badge, Button, Dialog, Field, Input, Segmented, Select, useToast } from "@/components/ui";
+import { type FarmScope, ScopePicker, scopeIsValid } from "@/features/farm";
 import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
 import { cn, formatDate } from "@/lib/format";
@@ -29,6 +30,7 @@ export function InviteDialog({ open, onClose, presetRole }: { open: boolean; onC
   const [roleId, setRoleId] = useState<string>("");
   const [ending, setEnding] = useState("never");
   const [date, setDate] = useState("");
+  const [scope, setScope] = useState<FarmScope>({});
   const [done, setDone] = useState<Invite | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -37,10 +39,11 @@ export function InviteDialog({ open, onClose, presetRole }: { open: boolean; onC
   const expiry = ending === "never" ? null : ending === "date" ? (date ? new Date(date + "T23:59:00").toISOString() : null)
     : new Date(Date.now() + Number(ending) * 86400000).toISOString();
 
-  const reset = () => { setStep(1); setName(""); setContact(""); setRoleId(""); setEnding("never"); setDate(""); setDone(null); create.reset(); onClose(); };
+  const reset = () => { setStep(1); setName(""); setContact(""); setRoleId(""); setEnding("never"); setDate(""); setScope({}); setDone(null); create.reset(); onClose(); };
   const send = async () => {
     if (!role) return;
-    const inv = await create.mutateAsync({ full_name: name, role_id: role.id, access_expires_at: expiry,
+    const limited = !role.permissions.includes("*") && scopeIsValid(scope) && Object.keys(scope).length > 0;
+    const inv = await create.mutateAsync({ full_name: name, role_id: role.id, access_expires_at: expiry, scope: limited ? scope : {},
       ...(mode === "phone" ? { phone: contact } : { email: contact }) });
     setDone(inv);
     toast(inv.emailed ? `Invite emailed to ${inv.email}` : `Invite ready for ${inv.full_name}`);
@@ -57,7 +60,7 @@ export function InviteDialog({ open, onClose, presetRole }: { open: boolean; onC
       footer={done ? <Button variant="primary" onClick={reset}>Done</Button> : (
         <>
           {step > 1 && <Button variant="ghost" onClick={() => setStep(step - 1)}>Back</Button>}
-          {step < 4 && <Button variant="primary" disabled={(step === 1 && (name.trim().length < 2 || contact.trim().length < 5)) || (step === 2 && !role) || (step === 3 && ending === "date" && !date)} onClick={() => setStep(step + 1)}>Next</Button>}
+          {step < 4 && <Button variant="primary" disabled={(step === 1 && (name.trim().length < 2 || contact.trim().length < 5)) || (step === 2 && !role) || (step === 3 && ((ending === "date" && !date) || !scopeIsValid(scope)))} onClick={() => setStep(step + 1)}>Next</Button>}
           {step === 4 && <Button variant="primary" loading={create.isPending} onClick={send}>Create invite</Button>}
         </>
       )}>
@@ -106,7 +109,7 @@ export function InviteDialog({ open, onClose, presetRole }: { open: boolean; onC
             <Select id="inv-end" value={ending} onChange={(e) => setEnding(e.target.value)}>{ENDINGS.map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}</Select>
           </Field>
           {ending === "date" && <Field label="End date" htmlFor="inv-date"><Input id="inv-date" type="date" value={date} min={new Date().toISOString().slice(0, 10)} onChange={(e) => setDate(e.target.value)} /></Field>}
-          <Alert tone="info">Limiting someone to particular ponds, houses or batches arrives with farm units in milestone M1.1.</Alert>
+          {role && !role.permissions.includes("*") && <ScopePicker value={scope} onChange={setScope} />}
         </div>
       ) : (
         <div className="flex flex-col gap-3">
@@ -116,6 +119,8 @@ export function InviteDialog({ open, onClose, presetRole }: { open: boolean; onC
             <dt className="text-ink-3">{mode === "phone" ? "Phone" : "Email"}</dt><dd className="text-right font-semibold">{contact}</dd>
             <dt className="text-ink-3">Role</dt><dd className="text-right"><Badge tone={role?.kind === "guest" ? "maize" : "brand"}>{role?.name}</Badge></dd>
             <dt className="text-ink-3">Access ends</dt><dd className="text-right font-semibold">{expiry ? formatDate(expiry) : "No end date"}</dd>
+            {(scope.units?.length || scope.sites?.length) ? <><dt className="text-ink-3">Limited to</dt><dd className="text-right font-semibold">
+              {scope.units?.length ? `${scope.units.length} unit${scope.units.length === 1 ? "" : "s"}` : `${scope.sites!.length} site${scope.sites!.length === 1 ? "" : "s"}`}</dd></> : null}
           </dl>
           {role && <p className="text-[12.5px] text-ink-3">{role.name} can: {role.permissions.includes("*") ? "everything" : role.permissions.join(", ")}.</p>}
         </div>

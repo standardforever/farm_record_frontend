@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Search, UserPlus } from "lucide-react";
 import { Avatar, Badge, Button, Card, EmptyState, Input, PageHeader, PageLoader, Segmented } from "@/components/ui";
+import { scopeLabel, useScopeLookup } from "@/features/farm";
 import { InviteDialog, MemberDialog, useMembers } from "@/features/team";
 import { RequirePermission, useCurrentWorkspace } from "@/features/workspaces";
 import { daysUntil, formatDate } from "@/lib/format";
@@ -20,6 +21,7 @@ function Inner() {
   const [q, setQ] = useState("");
   const [selected, setSelected] = useState<Member | null>(null);
   const [inviting, setInviting] = useState(false);
+  const lookup = useScopeLookup();
   const list = useMemo(() => (data ?? []).filter((m) => (filter === "all" || m.kind === filter)
     && (!q || `${m.full_name} ${m.email ?? ""} ${m.phone ?? ""} ${m.role.name}`.toLowerCase().includes(q.toLowerCase()))), [data, filter, q]);
 
@@ -51,6 +53,7 @@ function Inner() {
                     <span className="flex flex-wrap items-center gap-1.5">
                       <Badge tone={m.kind === "guest" ? "maize" : "brand"}>{m.role.name}</Badge>
                       {m.status === "suspended" && <Badge tone="neutral" dot>Suspended</Badge>}
+                      {scopeLabel(m.scope, lookup) && <Badge tone="info">Only {scopeLabel(m.scope, lookup)}</Badge>}
                       {days !== null && <Badge tone={days <= 7 ? "warn" : "neutral"}>{days <= 0 ? "Access ended" : `Until ${formatDate(m.access_expires_at)}`}</Badge>}
                     </span>
                   </button>

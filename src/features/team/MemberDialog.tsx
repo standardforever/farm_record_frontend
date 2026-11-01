@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Alert, Badge, Button, Dialog, Field, Input, Select, Toggle, useToast } from "@/components/ui";
 import { useAuth } from "@/features/auth";
+import { type FarmScope, ScopePicker, scopeIsValid } from "@/features/farm";
 import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
 import { formatDate } from "@/lib/format";
@@ -18,6 +19,7 @@ export function MemberDialog({ member, onClose }: { member: Member | null; onClo
   const toast = useToast();
   const [roleId, setRoleId] = useState("");
   const [end, setEnd] = useState<string | null>(null);
+  const [scope, setScope] = useState<FarmScope | null>(null);
   const [confirm, setConfirm] = useState(false);
   if (!member) return null;
   const isMe = member.user_id === me?.user.id;
@@ -26,12 +28,15 @@ export function MemberDialog({ member, onClose }: { member: Member | null; onClo
   const currentEnd = end ?? (member.access_expires_at ? member.access_expires_at.slice(0, 10) : "");
   const err = (update.error ?? remove.error) as ApiError | null;
 
-  const close = () => { setRoleId(""); setEnd(null); setConfirm(false); update.reset(); remove.reset(); onClose(); };
+  const selectedRole = options.find((r) => r.id === (roleId || member.role.id)) ?? member.role;
+  const isOwnerRole = selectedRole.permissions.includes("*");
+  const close = () => { setRoleId(""); setEnd(null); setScope(null); setConfirm(false); update.reset(); remove.reset(); onClose(); };
   const save = async () => {
     await update.mutateAsync({
       id: member.id,
       ...(roleId && roleId !== member.role.id ? { role_id: roleId } : {}),
       ...(end !== null ? (end ? { access_expires_at: new Date(end + "T23:59:00").toISOString() } : { clear_expiry: true }) : {}),
+      ...(scope !== null ? { scope: isOwnerRole ? {} : scope } : isOwnerRole && Object.keys(member.scope ?? {}).length ? { scope: {} } : {}),
     });
     toast(`Updated ${member.full_name}`);
     close();
@@ -48,7 +53,7 @@ export function MemberDialog({ member, onClose }: { member: Member | null; onClo
 
   return (
     <Dialog open={!!member} onClose={close} side title={member.full_name} eyebrow={member.kind === "guest" ? "Guest" : "Team member"}
-      footer={canManage && !isMe ? <><Button variant="ghost" onClick={close}>Cancel</Button><Button variant="primary" loading={update.isPending} onClick={save} disabled={!roleId && end === null}>Save changes</Button></> : undefined}>
+      footer={canManage && !isMe ? <><Button variant="ghost" onClick={close}>Cancel</Button><Button variant="primary" loading={update.isPending} onClick={save} disabled={(!roleId && end === null && scope === null) || (scope !== null && !scopeIsValid(scope))}>Save changes</Button></> : undefined}>
       <div className="flex flex-col gap-5">
         {err && <Alert tone="crit">{err.message}</Alert>}
         <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-2 text-[13.5px]">
@@ -64,6 +69,7 @@ export function MemberDialog({ member, onClose }: { member: Member | null; onClo
                 {options.map((r) => <option key={r.id} value={r.id}>{r.name}{r.kind === "guest" ? " (guest)" : ""}</option>)}
               </Select>
             </Field>
+            {!isOwnerRole && <ScopePicker value={scope ?? (member.scope as FarmScope)} onChange={setScope} />}
             <Field label="Access ends" htmlFor="m-end" hint="Leave empty for no end date.">
               <Input id="m-end" type="date" value={currentEnd} onChange={(e) => setEnd(e.target.value)} />
             </Field>

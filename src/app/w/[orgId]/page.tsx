@@ -6,7 +6,9 @@ import { useState } from "react";
 import { Badge, Button, Card, PageHeader, Stat } from "@/components/ui";
 import { PHASE_LABEL } from "@/config/navigation";
 import { orgTypeLabel } from "@/config/orgTypes";
+import { FARM_ORG_TYPES } from "@/config/navigation";
 import { useAuth } from "@/features/auth";
+import { useFarmMap } from "@/features/farm";
 import { useMeta } from "@/features/meta/api";
 import { InviteDialog } from "@/features/team";
 import { useCurrentWorkspace } from "@/features/workspaces";
@@ -25,9 +27,13 @@ export default function Home() {
   const modules = (meta?.modules ?? []).filter((m) => !["system", "admin", "plans", "identity"].includes(m.key));
   const phases = ["phase-0", "phase-1", "phase-2", "phase-3", "phase-4", "phase-5"];
 
+  const farmOn = ws.has("farm") && ws.can("farm.view") && FARM_ORG_TYPES.includes(ws.organization.type);
+  const farm = useFarmMap(ws.orgId, false, farmOn);
+  const unitCount = farm.data?.sites.reduce((n, s) => n + s.unit_count, 0) ?? 0;
   const steps = [
     { done: true, label: "Create your workspace", href: `${base}/settings` },
     { done: !!me?.user.email_verified, label: "Confirm your email", href: `${base}/settings`, show: !!me?.user.email },
+    { done: unitCount > 0, label: "Add your ponds, houses or pens", href: `${base}/farm`, show: farmOn && ws.can("farm.setup") },
     { done: ws.member_count + ws.guest_count > 1 || ws.pending_invites > 0, label: "Invite your team or a vet", action: () => setInviting(true), show: ws.can("invites.manage") },
     { done: false, label: "Review who can do what", href: `${base}/team/roles`, show: ws.can("members.view") },
     { done: !!ws.organization.state, label: "Add your state and LGA", href: `${base}/settings`, show: ws.can("workspace.manage") },

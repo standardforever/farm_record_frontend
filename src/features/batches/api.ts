@@ -7,7 +7,7 @@ export type Summary = {
   survival_pct: number | null; mortality_pct: number | null; days: number; age_days: number;
   sold_weight_kg: number | null; avg_sale_weight_kg: number | null;
   sales_amount: number | null; cost_in: number | null; cost_out: number | null; cost_so_far: number | null; result_so_far: number | null;
-  cost_per_head_in: number | null; feed_kg: number; latest_avg_weight_g: number | null; eggs: number; cracked_eggs: number;
+  cost_per_head_in: number | null; inputs_cost?: number | null; inputs_by_category?: Record<string, number> | null; feed_kg: number; latest_avg_weight_g: number | null; eggs: number; cracked_eggs: number;
   fcr: number | null; pending: string[];
 };
 export type Batch = {

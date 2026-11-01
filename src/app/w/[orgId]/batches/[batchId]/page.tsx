@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { use, useState } from "react";
+import { Fragment, use, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRightLeft, CheckCircle2, GitBranch, GitMerge, MinusCircle, PlusCircle, RotateCcw, Undo2 } from "lucide-react";
 import { Alert, Badge, Button, Card, EmptyState, PageLoader, Stat, useToast } from "@/components/ui";
@@ -11,6 +11,7 @@ import {
 } from "@/features/batches";
 import { useCatalog } from "@/features/farm";
 import { BatchHealthCard, HoldList, useBatchHealth } from "@/features/health";
+import { BatchStockCard, useInventoryCatalog } from "@/features/inventory";
 import { StandardCard } from "@/features/packs";
 import { RequirePermission, useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
@@ -43,6 +44,7 @@ function View({ b }: { b: BatchDetail }) {
   const s = b.summary;
   const active = b.status === "active";
   const health = useBatchHealth(ws.orgId, b.id, active && ws.has("health"));
+  const stockCats = useInventoryCatalog();
   const meatHolds = (health.data?.holds ?? []).filter((h) => h.product === "meat" || h.product === "all");
   const approve = ws.can("farm.approve");
   const edit = ws.can("farm.edit") || approve;
@@ -84,6 +86,7 @@ function View({ b }: { b: BatchDetail }) {
 
       {b.pack_key && <div className="mb-4"><StandardCard batchId={b.id} active={active} /></div>}
       {ws.has("health") && <div className="mb-4"><BatchHealthCard batchId={b.id} active={active} /></div>}
+      {ws.has("inventory") && <div className="mb-4"><BatchStockCard batchId={b.id} active={active} /></div>}
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <div className="flex min-w-0 flex-col gap-4">
@@ -147,7 +150,11 @@ function View({ b }: { b: BatchDetail }) {
               <dt className="text-ink-3">Feed conversion (FCR)</dt><dd className="text-right font-semibold">{s?.fcr ?? "—"}</dd>
               {money && s && <>
                 <dt className="mt-2 border-t border-line pt-2 text-ink-3">Purchase cost{s.cost_in || s.cost_out ? " (after transfers)" : ""}</dt>
-                <dd className="mt-2 border-t border-line pt-2 text-right font-semibold tnum">{naira(s.cost_so_far ?? 0)}</dd>
+                <dd className="mt-2 border-t border-line pt-2 text-right font-semibold tnum">{naira((s.cost_so_far ?? 0) - (s.inputs_cost ?? 0))}</dd>
+                {Object.entries(s.inputs_by_category ?? {}).map(([k, v]) => (
+                  <Fragment key={k}><dt className="text-ink-3">{stockCats.data?.categories[k] ?? k} from stock</dt><dd className="text-right font-semibold tnum">{naira(v)}</dd></Fragment>
+                ))}
+                {!!s.inputs_cost && <><dt className="text-ink-3">Total cost so far</dt><dd className="text-right font-semibold tnum">{naira(s.cost_so_far ?? 0)}</dd></>}
                 <dt className="text-ink-3">Sales</dt><dd className="text-right font-semibold tnum">{naira(s.sales_amount ?? 0)}</dd>
                 <dt className="font-semibold">Result so far</dt>
                 <dd className={cn("text-right font-bold tnum", (s.result_so_far ?? 0) < 0 ? "text-crit" : "text-good")}>{naira(s.result_so_far ?? 0)}</dd>

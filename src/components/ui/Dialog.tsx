@@ -16,7 +16,12 @@ export function Dialog({ open, onClose, title, eyebrow, children, footer, side, 
   useEffect(() => {
     if (!open) return;
     const last = document.activeElement as HTMLElement | null;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close.current();
+    // Escape closes only the dialog on top (a dialog can open over a drawer).
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      const all = document.querySelectorAll('[role="dialog"][aria-modal="true"]');
+      if (all[all.length - 1] === panel.current) close.current();
+    };
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
     const t = setTimeout(() => {

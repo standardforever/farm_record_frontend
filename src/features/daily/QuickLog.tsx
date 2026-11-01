@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Button, Dialog, Field, Input, Segmented, Select, Textarea, useToast } from "@/components/ui";
 import { useFarmMap } from "@/features/farm";
 import { useCurrentWorkspace } from "@/features/workspaces";
-import { ApiError } from "@/lib/api";
+import { ApiError, get } from "@/lib/api";
 import { cn } from "@/lib/format";
 import { newId, send } from "./queue";
 
@@ -21,6 +21,8 @@ export const QUICK: { kind: QuickKind; label: string; hint: string }[] = [
 const TITLE: Record<QuickKind, string> = { feed: "Log feed", deaths: "Log deaths", weight: "Log a weigh-in", eggs: "Log eggs", water: "Log water quality", note: "Write an observation" };
 const CAUSES = ["Disease", "Heat stress", "Low oxygen", "Predator", "Injury", "Pile-up", "Unknown"];
 const LAST_FEED = "oko.lastFeed";
+
+type FeedItem = { id: string; name: string; unit: string; pack_size: number | null; in_stock: number };
 
 const n = (v: string) => (v.trim() === "" ? undefined : Number(v.replace(",", ".")));
 const digits = (v: string) => v.replace(/[^\d.]/g, "");
@@ -41,6 +43,12 @@ export function QuickLog({ kind, on, presetUnit, open, onClose, onSaved }: {
   const [busy, setBusy] = useState(false);
   const set = (k: string, v: string) => setF((x) => ({ ...x, [k]: v }));
 
+  // Feed from stock: the feed log takes it off its delivery lots and prices it onto the batch.
+  // (Same query key as the Stock screens, so they share the list.)
+  const stockOn = kind === "feed" && ws.has("inventory") && ws.can("inventory.view");
+  const feeds = useQuery({ queryKey: ["inventory", ws.orgId, "items", "feed"], enabled: open && stockOn,
+    queryFn: () => get<FeedItem[]>(`/organizations/${ws.orgId}/inventory/items?category=feed`) });
+  const feedItems = (feeds.data ?? []).filter((i) => i.unit === "kg" || (i.unit === "bag" && i.pack_size));
   const occupied = useMemo(() => farm.data?.unit_batches ?? {}, [farm.data]);
   const units = useMemo(() => {
     const all = (farm.data?.sites ?? []).flatMap((s) => s.units.filter((u) => !u.archived_at));
@@ -55,10 +63,19 @@ export function QuickLog({ kind, on, presetUnit, open, onClose, onSaved }: {
     setError(null); setBatch("");
     let last: Record<string, string> = {};
     try { last = JSON.parse(localStorage.getItem(LAST_FEED) ?? "{}"); } catch { /* ignore */ }
-    setF({ bag_kg: last.bag_kg ?? "25", feed_name: last.feed_name ?? "", sample_size: "20" });
+    setF({ bag_kg: last.bag_kg ?? "25", feed_name: last.feed_name ?? "", item: last.item ?? "", sample_size: "20" });
     setUnit(presetUnit ?? "");
   }, [open, kind, presetUnit]);
   useEffect(() => { if (open && !unit && units.length === 1) setUnit(units[0].id); }, [open, unit, units]);
+  // Keep the remembered feed only if it is still in the list; with one feed, pick it.
+  useEffect(() => {
+    if (!open || !feeds.data) return;
+    setF((x) => {
+      const keep = feedItems.find((i) => i.id === x.item) ?? (feedItems.length === 1 ? feedItems[0] : undefined);
+      return { ...x, item: keep?.id ?? "", ...(keep?.pack_size ? { bag_kg: String(keep.pack_size) } : {}) };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, feeds.data]);
 
   if (!kind) return null;
   const batchId = batch || (batches.length === 1 ? batches[0].id : "");
@@ -74,6 +91,9 @@ export function QuickLog({ kind, on, presetUnit, open, onClose, onSaved }: {
     }
   })();
   const eggs = (n(f.crates ?? "") ?? 0) * 30 + (n(f.eggs ?? "") ?? 0);
+  const fromStock = feedItems.find((i) => i.id === f.item);
+  const feedKg = feedMode === "kg" ? n(f.kg ?? "") ?? 0 : (n(f.bags ?? "") ?? 0) * (n(f.bag_kg ?? "") ?? 0);
+  const stockKg = fromStock ? (fromStock.unit === "bag" ? fromStock.in_stock * (fromStock.pack_size ?? 0) : fromStock.in_stock) : 0;
   const code = units.find((u) => u.id === unit)?.code ?? "";
 
   const save = async () => {
@@ -89,8 +109,9 @@ export function QuickLog({ kind, on, presetUnit, open, onClose, onSaved }: {
       } else {
         body.batch_id = batchId || null;
         if (kind === "feed") {
-          Object.assign(body, feedMode === "kg" ? { quantity_kg: n(f.kg!) } : { bags: n(f.bags!), bag_kg: n(f.bag_kg!) }, { feed_name: f.feed_name || null });
-          try { localStorage.setItem(LAST_FEED, JSON.stringify({ bag_kg: f.bag_kg, feed_name: f.feed_name })); } catch { /* ignore */ }
+          Object.assign(body, feedMode === "kg" ? { quantity_kg: n(f.kg!) } : { bags: n(f.bags!), bag_kg: n(f.bag_kg!) },
+            fromStock ? { stock_item_id: fromStock.id, feed_name: fromStock.name } : { feed_name: f.feed_name || null });
+          try { localStorage.setItem(LAST_FEED, JSON.stringify({ bag_kg: f.bag_kg, feed_name: f.feed_name, item: f.item })); } catch { /* ignore */ }
           label = `Feed for ${code}: ${feedMode === "kg" ? `${f.kg} kg` : `${f.bags} × ${f.bag_kg} kg`}`;
         } else if (kind === "weight") { Object.assign(body, { avg_weight_g: n(f.avg!), sample_size: n(f.sample_size ?? "") }); label = `Weigh-in ${code}: ${f.avg} g`; }
         else if (kind === "eggs") { Object.assign(body, { eggs, cracked: n(f.cracked ?? "") ?? 0 }); label = `${eggs} eggs from ${code}`; }
@@ -141,7 +162,19 @@ export function QuickLog({ kind, on, presetUnit, open, onClose, onSaved }: {
               <Field label="Bag size (kg)" htmlFor="q-bagkg"><Input id="q-bagkg" className={big} inputMode="decimal" value={f.bag_kg ?? ""} onChange={(e) => set("bag_kg", digits(e.target.value))} /></Field>
             </div>
           ) : <Field label="Kilograms" htmlFor="q-kg"><Input id="q-kg" className={big} inputMode="decimal" value={f.kg ?? ""} onChange={(e) => set("kg", digits(e.target.value))} /></Field>}
-          <Field label="Feed" htmlFor="q-feed" hint="Optional, e.g. Starter, Grower, 4 mm floating"><Input id="q-feed" value={f.feed_name ?? ""} maxLength={80} onChange={(e) => set("feed_name", e.target.value)} /></Field>
+          {feedItems.length > 0 && (
+            <Field label="Which feed" htmlFor="q-item" hint={fromStock ? `${Math.max(stockKg, 0).toLocaleString("en-NG")} kg in stock` : "Not from stock: no cost goes on the batch"}>
+              <Select id="q-item" value={f.item ?? ""} onChange={(e) => {
+                const it = feedItems.find((i) => i.id === e.target.value);
+                setF((x) => ({ ...x, item: e.target.value, ...(it?.pack_size ? { bag_kg: String(it.pack_size) } : {}) }));
+              }}>
+                {feedItems.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
+                <option value="">Other feed (not in stock)</option>
+              </Select>
+            </Field>
+          )}
+          {fromStock && feedKg > stockKg && <Alert tone="warn">That is more than the {Math.max(stockKg, 0).toLocaleString("en-NG")} kg recorded in stock. It is still saved; record the delivery in Stock and it will be covered and priced.</Alert>}
+          {!fromStock && <Field label="Feed" htmlFor="q-feed" hint="Optional, e.g. Starter, Grower, 4 mm floating"><Input id="q-feed" value={f.feed_name ?? ""} maxLength={80} onChange={(e) => set("feed_name", e.target.value)} /></Field>}
         </>)}
 
         {kind === "deaths" && (<>

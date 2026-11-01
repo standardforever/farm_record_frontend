@@ -10,7 +10,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<Toast[]>([]);
   const push = useCallback((message: string, tone: "good" | "crit" = "good") => {
     const id = Date.now() + Math.random();
-    setItems((s) => [...s, { id, message, tone }]);
+    // Keep at most two on screen: quick logging on a phone should not bury the page under messages.
+    setItems((s) => [...s.slice(-1), { id, message, tone }]);
     setTimeout(() => setItems((s) => s.filter((t) => t.id !== id)), 3500);
   }, []);
   return (
@@ -19,7 +20,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       <div className="pointer-events-none fixed inset-x-0 bottom-[calc(24px+env(safe-area-inset-bottom))] z-[100] flex flex-col items-center gap-2 px-4 max-[819px]:bottom-[calc(88px+env(safe-area-inset-bottom))]"
         aria-live="polite">
         {items.map((t) => (
-          <div key={t.id} className="pointer-events-auto flex max-w-full items-center gap-2.5 rounded-xl bg-ink px-4 py-3 text-[13.5px] font-semibold text-bg shadow-[var(--shadow)] animate-[rise_.2s_ease]">
+          <div key={t.id} className="pointer-events-none flex max-w-full items-center gap-2.5 rounded-xl bg-ink px-4 py-3 text-[13.5px] font-semibold text-bg shadow-[var(--shadow)] animate-[rise_.2s_ease]">
             {t.tone === "good" ? <CheckCircle2 size={17} /> : <AlertTriangle size={17} />}
             <span>{t.message}</span>
           </div>

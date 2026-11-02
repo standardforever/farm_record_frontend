@@ -1,10 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { del, get, patch, post } from "@/lib/api";
-import type { Invite, Member, PermissionGroup, Role } from "@/lib/types";
+import { del, get, patch, post, qsOf } from "@/lib/api";
+import type { Invite, Member, Page, PageQuery, PermissionGroup, Role } from "@/lib/types";
 
 const k = (orgId: string, what: string) => ["team", orgId, what];
 
-export const useMembers = (orgId: string) => useQuery({ queryKey: k(orgId, "members"), queryFn: () => get<Member[]>(`/organizations/${orgId}/members`) });
+export const useMembers = (orgId: string, f: { q?: string; kind?: string } & Partial<PageQuery> = {}) =>
+  useQuery({ queryKey: [...k(orgId, "members"), f], placeholderData: (p) => p,
+    queryFn: () => get<Page<Member>>(`/organizations/${orgId}/members${qsOf(f)}`) });
 export const useRoles = (orgId: string) => useQuery({ queryKey: k(orgId, "roles"), queryFn: () => get<Role[]>(`/organizations/${orgId}/roles`) });
 export const useInvites = (orgId: string, enabled = true) =>
   useQuery({ queryKey: k(orgId, "invites"), queryFn: () => get<Invite[]>(`/organizations/${orgId}/invites`), enabled });

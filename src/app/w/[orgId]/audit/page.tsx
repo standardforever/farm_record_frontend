@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ScrollText } from "lucide-react";
-import { Badge, Button, Card, EmptyState, PageHeader, PageLoader } from "@/components/ui";
+import { Badge, Card, EmptyState, PageHeader, PageLoader, Pager, usePager } from "@/components/ui";
 import { useAudit } from "@/features/audit/api";
 import { RequirePermission, useCurrentWorkspace } from "@/features/workspaces";
 import { cn, formatDateTime } from "@/lib/format";
@@ -19,15 +19,15 @@ export default function AuditPage() {
 function Inner() {
   const ws = useCurrentWorkspace();
   const [action, setAction] = useState("");
-  const [offset, setOffset] = useState(0);
-  const { data, isLoading, isFetching } = useAudit(ws.orgId, action, offset);
+  const pg = usePager(20, [action]);
+  const { data, isLoading, isFetching } = useAudit(ws.orgId, action, pg.params);
 
   return (
     <>
       <PageHeader eyebrow="Workspace" title="Audit trail" sub="Every change, who made it and when. Nothing here can be edited or deleted." />
       <div className="mb-4 flex flex-wrap gap-2">
         {FILTERS.map((f) => (
-          <button key={f.v} onClick={() => { setAction(f.v); setOffset(0); }}
+          <button key={f.v} onClick={() => setAction(f.v)}
             className={cn("cursor-pointer rounded-full border px-3.5 py-1.5 text-[13px] font-semibold", action === f.v ? "border-ink bg-ink text-bg" : "border-line bg-surface text-ink-2")}>{f.l}</button>
         ))}
       </div>
@@ -44,16 +44,8 @@ function Inner() {
             ))}
           </ol>
         )}
+        <Pager className="mx-4 mb-3" {...pg.bind(data?.total, isFetching)} noun="entries" />
       </Card>
-      {data && data.total > 25 && (
-        <div className="mt-4 flex items-center justify-between text-[13px] text-ink-3">
-          <span>{offset + 1}–{Math.min(offset + 25, data.total)} of {data.total}</span>
-          <span className="flex gap-2">
-            <Button size="sm" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - 25))}>Newer</Button>
-            <Button size="sm" disabled={offset + 25 >= data.total} onClick={() => setOffset(offset + 25)}>Older</Button>
-          </span>
-        </div>
-      )}
     </>
   );
 }

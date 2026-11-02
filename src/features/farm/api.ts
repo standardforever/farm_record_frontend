@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { get, patch, post } from "@/lib/api";
+import { get, patch, post, qsOf } from "@/lib/api";
+import type { Page, PageQuery } from "@/lib/types";
 
 export type UnitStatus = "empty" | "stocked" | "resting" | "maintenance" | "quarantine";
 export type Site = {
@@ -41,8 +42,9 @@ export const useSites = (orgId: string, enabled = true) =>
   useQuery({ queryKey: [...key(orgId), "sites"], queryFn: () => get<Site[]>(`${base(orgId)}/sites`), enabled });
 export const useUnits = (orgId: string, enabled = true) =>
   useQuery({ queryKey: [...key(orgId), "units"], queryFn: () => get<Unit[]>(`${base(orgId)}/units`), enabled });
-export const useUnitActivity = (orgId: string, unitId: string | null) =>
-  useQuery({ queryKey: [...key(orgId), "activity", unitId], queryFn: () => get<UnitActivity[]>(`${base(orgId)}/units/${unitId}/activity`), enabled: !!unitId });
+export const useUnitActivity = (orgId: string, unitId: string | null, f: Partial<PageQuery> = {}) =>
+  useQuery({ queryKey: [...key(orgId), "activity", unitId, f], placeholderData: (p) => p, enabled: !!unitId,
+    queryFn: () => get<Page<UnitActivity>>(`${base(orgId)}/units/${unitId}/activity${qsOf(f)}`) });
 
 function useFarmMutation<V, R>(orgId: string, fn: (v: V) => Promise<R>) {
   const qc = useQueryClient();

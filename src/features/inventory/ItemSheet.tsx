@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Alert, Badge, Button, Dialog, Field, Input, PageLoader, useToast } from "@/components/ui";
+import { Alert, Badge, Button, Dialog, Field, Input, PageLoader, Pager, usePager, useSlice, useToast } from "@/components/ui";
 import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
 import { cn, naira } from "@/lib/format";
-import { type Lot, type Move, type StockItem, qty, usePriceLot, useStockItem, useVoidLot } from "./api";
+import { type Lot, type Move, type StockItem, qty, useItemMoves, usePriceLot, useStockItem, useVoidLot } from "./api";
 
 const day = (iso: string) => new Date(iso + "T12:00:00").toLocaleDateString("en-NG", { day: "numeric", month: "short" });
 const KIND: Record<string, string> = { receive: "Received", issue: "Used", adjust: "Count", write_off: "Written off" };
@@ -18,6 +18,11 @@ export function ItemSheet({ itemId, onClose, onAction }: {
   const q = useStockItem(ws.orgId, itemId);
   const [pricing, setPricing] = useState<Lot | null>(null);
   const it = q.data;
+  const pg = usePager(20, [itemId]);
+  const moves = useItemMoves(ws.orgId, itemId, pg.params);
+  // The sheet already carries the newest 20, so the first page shows at once (and offline).
+  const moveRows = moves.data?.items ?? (pg.page === 1 ? it?.moves ?? [] : []);
+  const lots = useSlice(it?.lots, 10, [itemId]);
   const edit = ws.can("inventory.edit");
   const money = ws.can("finance.view");
   return (
@@ -46,13 +51,17 @@ export function ItemSheet({ itemId, onClose, onAction }: {
             <h3 className="eyebrow mb-2">Deliveries</h3>
             {it.lots.length === 0 ? <p className="text-[13.5px] text-ink-3">No deliveries recorded yet.</p> : (
               <ul className="flex flex-col divide-y divide-line">
-                {it.lots.map((l) => <LotRow key={l.id} l={l} it={it} onPrice={() => setPricing(l)} onWriteOff={() => onAction("writeoff", it, l.id)} />)}
+                {lots.rows.map((l) => <LotRow key={l.id} l={l} it={it} onPrice={() => setPricing(l)} onWriteOff={() => onAction("writeoff", it, l.id)} />)}
               </ul>
             )}
+            <Pager {...lots.pager} noun="deliveries" />
           </section>
           <section>
             <h3 className="eyebrow mb-2">Movements</h3>
-            <ul className="flex flex-col divide-y divide-line">{it.moves.map((m) => <MoveRow key={m.id} m={m} it={it} />)}</ul>
+            {moveRows.length === 0 ? <p className="text-[13.5px] text-ink-3">Nothing has moved yet.</p> : (
+              <ul className="flex flex-col divide-y divide-line">{moveRows.map((m) => <MoveRow key={m.id} m={m} it={it} />)}</ul>
+            )}
+            <Pager {...pg.bind(moves.data?.total ?? (it.moves.length < 20 ? it.moves.length : undefined), moves.isFetching)} noun="movements" />
           </section>
         </div>
       )}

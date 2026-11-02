@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRightLeft, Check, Plus, UserPlus, X } from "lucide-react";
-import { Alert, Badge, Button, Card, Dialog, Field, Input, PageLoader, Select, Textarea, useToast } from "@/components/ui";
+import { Alert, Badge, Button, Card, Dialog, Field, Input, PageLoader, Pager, Select, Textarea, usePager, useSlice, useToast } from "@/components/ui";
 import { localDay } from "@/features/daily/api";
 import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
@@ -105,7 +105,8 @@ function useExpenseActions() {
 export function OverviewPanel({ onAddAccount }: { onAddAccount: () => void }) {
   const ws = useCurrentWorkspace();
   const ov = useFinance(ws.orgId);
-  const unpaid = useExpenses(ws.orgId, { unpaid: true });
+  const upg = usePager(10);
+  const unpaid = useExpenses(ws.orgId, { unpaid: true, ...upg.params });
   const save = useSaveFinanceSettings(ws.orgId);
   const toast = useToast();
   const { onPay, onVoid, dialogs } = useExpenseActions();
@@ -119,9 +120,10 @@ export function OverviewPanel({ onAddAccount }: { onAddAccount: () => void }) {
         {d.pending.length === 0 ? <p className="text-[13.5px] text-ink-3">Nothing waiting.</p>
           : <ul className="flex flex-col divide-y divide-line">{d.pending.map((e) => <ExpenseRow key={e.id} e={e} onVoid={onVoid} />)}</ul>}
       </Card>
-      <Card title="Bills not paid yet" meta={unpaid.data?.length ? `${naira(d.unpaid_bills)} owed to suppliers` : undefined}>
-        {!unpaid.data ? <PageLoader /> : unpaid.data.length === 0 ? <p className="text-[13.5px] text-ink-3">You owe nothing.</p>
-          : <ul className="flex flex-col divide-y divide-line">{unpaid.data.map((e) => <ExpenseRow key={e.id} e={e} onPay={onPay} />)}</ul>}
+      <Card title="Bills not paid yet" meta={unpaid.data?.total ? `${naira(d.unpaid_bills)} owed to suppliers` : undefined}>
+        {!unpaid.data ? <PageLoader /> : unpaid.data.total === 0 ? <p className="text-[13.5px] text-ink-3">You owe nothing.</p>
+          : <ul className="flex flex-col divide-y divide-line">{unpaid.data.items.map((e) => <ExpenseRow key={e.id} e={e} onPay={onPay} />)}</ul>}
+        <Pager {...upg.bind(unpaid.data?.total, unpaid.isFetching)} noun="bills" />
       </Card>
       <Card title="Money accounts" className="lg:col-span-2" action={ws.can("finance.edit") ? <Button size="sm" onClick={onAddAccount}><Plus size={14} /> Add account</Button> : undefined}>
         {d.accounts.length === 0 ? <p className="text-[13.5px] text-ink-3">Add your cash box and bank accounts so Oko can tell you how much money you have, and check it against the bank.</p> : (
@@ -151,11 +153,11 @@ export function ExpensesPanel() {
   const [status, setStatus] = useState("");
   const [category, setCategory] = useState("");
   const range = monthRange(offset);
-  const q = useExpenses(ws.orgId, { ...range, status, category });
+  const pg = usePager(20, [offset, status, category]);
+  const q = useExpenses(ws.orgId, { ...range, status, category, ...pg.params });
   const { onPay, onVoid, dialogs } = useExpenseActions();
-  const live = (q.data ?? []).filter((e) => !e.voided_at && e.status === "approved");
   return (
-    <Card title={`Expenses · ${monthLabel(range.start)}`} meta={q.data ? `${live.length} approved · ${naira(live.reduce((s, e) => s + e.amount, 0))}` : undefined}
+    <Card title={`Expenses · ${monthLabel(range.start)}`} meta={q.data ? `${q.data.approved_count} approved · ${naira(q.data.approved_total)}` : undefined}
       action={<div className="flex flex-wrap items-center gap-1.5">
         <Button size="sm" variant="ghost" onClick={() => setOffset(offset - 1)}>‹</Button>
         <Button size="sm" variant="ghost" disabled={offset >= 0} onClick={() => setOffset(offset + 1)}>›</Button>
@@ -164,8 +166,9 @@ export function ExpensesPanel() {
         <select aria-label="Category" className="rounded-lg border border-line bg-surface px-2 py-1 text-[13px]" value={category} onChange={(e) => setCategory(e.target.value)}>
           <option value="">Every kind</option>{Object.entries(cat.data?.expense_categories ?? {}).map(([k, v]) => <option key={k} value={k}>{v.replace(/ \(.*\)$/, "")}</option>)}</select>
       </div>}>
-      {!q.data ? <PageLoader /> : q.data.length === 0 ? <p className="text-[13.5px] text-ink-3">No expenses here.</p>
-        : <ul className="flex flex-col divide-y divide-line">{q.data.map((e) => <ExpenseRow key={e.id} e={e} onPay={onPay} onVoid={onVoid} />)}</ul>}
+      {!q.data ? <PageLoader /> : q.data.total === 0 ? <p className="text-[13.5px] text-ink-3">No expenses here.</p>
+        : <ul className="flex flex-col divide-y divide-line">{q.data.items.map((e) => <ExpenseRow key={e.id} e={e} onPay={onPay} onVoid={onVoid} />)}</ul>}
+      <Pager {...pg.bind(q.data?.total, q.isFetching)} noun="expenses" />
       {dialogs}
     </Card>
   );
@@ -216,6 +219,8 @@ export function ProfitPanel() {
   const [status, setStatus] = useState("");
   const batches = useBatchProfits(ws.orgId, status || undefined);
   const units = useUnitProfits(ws.orgId);
+  const bs = useSlice(batches.data, 20, [status]);
+  const us = useSlice(units.data, 20);
   return (
     <div className="flex flex-col gap-4">
       <Card title="Profit and loss" meta={whole ? `This year so far` : monthLabel(range.start)}
@@ -230,13 +235,13 @@ export function ProfitPanel() {
         action={<select aria-label="Batches" className="rounded-lg border border-line bg-surface px-2 py-1 text-[13px]" value={status} onChange={(e) => setStatus(e.target.value)}>
           <option value="">All batches</option><option value="active">Running</option><option value="closed">Closed</option></select>}>
         {!batches.data ? <PageLoader /> : batches.data.length === 0 ? <p className="text-[13.5px] text-ink-3">No batches yet.</p> : (
-          <div className="overflow-x-auto">
+          <><div className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-[13px]">
               <thead><tr className="border-b border-line text-left text-[12px] text-ink-3">
                 <th className="py-1.5 font-semibold">Batch</th><th className="py-1.5 text-right font-semibold">Survival</th><th className="py-1.5 text-right font-semibold">Sales</th>
                 <th className="py-1.5 text-right font-semibold">Costs</th><th className="py-1.5 text-right font-semibold">Profit</th><th className="py-1.5 text-right font-semibold">Margin</th>
                 <th className="py-1.5 text-right font-semibold">Per head in</th></tr></thead>
-              <tbody className="divide-y divide-line">{batches.data.map((b) => (
+              <tbody className="divide-y divide-line">{bs.rows.map((b) => (
                 <tr key={b.batch_id}>
                   <td className="py-2"><Link href={`/w/${ws.orgId}/batches/${b.batch_id}`} className="font-mono font-semibold underline-offset-2 hover:underline">{b.code}</Link>
                     <span className="block text-[12px] text-ink-3">{b.species} · {b.days} days{b.status === "closed" ? " · closed" : ""}</span></td>
@@ -249,20 +254,22 @@ export function ProfitPanel() {
                 </tr>))}</tbody>
             </table>
           </div>
+            <Pager {...bs.pager} noun="batches" /></>
         )}
       </Card>
       <Card title="Profit per unit" meta="Each pond, pen or house: its share of the batches kept in it, plus expenses charged to the unit itself.">
         {!units.data ? <PageLoader /> : units.data.length === 0 ? <p className="text-[13.5px] text-ink-3">No units with batches yet.</p> : (
-          <div className="overflow-x-auto">
+          <><div className="overflow-x-auto">
             <table className="w-full min-w-[480px] text-[13px]">
               <thead><tr className="border-b border-line text-left text-[12px] text-ink-3"><th className="py-1.5 font-semibold">Unit</th><th className="py-1.5 text-right font-semibold">Batches</th>
                 <th className="py-1.5 text-right font-semibold">Sales</th><th className="py-1.5 text-right font-semibold">Costs</th><th className="py-1.5 text-right font-semibold">Profit</th></tr></thead>
-              <tbody className="divide-y divide-line">{units.data.map((u) => (
+              <tbody className="divide-y divide-line">{us.rows.map((u) => (
                 <tr key={u.unit_id}><td className="py-2"><b className="font-mono">{u.code}</b>{u.site_name && <span className="block text-[12px] text-ink-3">{u.site_name}</span>}</td>
                   <td className="py-2 text-right tnum">{u.batches}</td><td className="py-2 text-right font-mono tnum">{naira(u.revenue)}</td>
                   <td className="py-2 text-right font-mono tnum">{naira(u.costs + u.unit_expenses)}</td><td className="py-2 text-right font-semibold">{signed(u.profit)}</td></tr>))}</tbody>
             </table>
           </div>
+            <Pager {...us.pager} noun="units" /></>
         )}
       </Card>
     </div>
@@ -388,11 +395,13 @@ function PayRunCard({ run, employees }: { run: PayRun | null; employees: Employe
 export function PayrollPanel() {
   const ws = useCurrentWorkspace();
   const emps = useEmployees(ws.orgId);
-  const runs = usePayRuns(ws.orgId);
+  const latest = usePayRuns(ws.orgId, { page: 1, page_size: 3 });  // the draft, if any, is the newest
+  const hpg = usePager(10);
+  const history = usePayRuns(ws.orgId, hpg.params);
   const [editing, setEditing] = useState<Employee | "new" | null>(null);
   const [fresh, setFresh] = useState(false);
-  if (!emps.data || !runs.data) return <PageLoader />;
-  const draft = runs.data.find((r) => r.status === "draft") ?? null;
+  if (!emps.data || !latest.data) return <PageLoader />;
+  const draft = latest.data.items.find((r) => r.status === "draft") ?? null;
   return (
     <div className="flex flex-col gap-4">
       <Card title="People you pay" meta="Permanent staff on a monthly salary and casual workers paid by the day."
@@ -406,13 +415,16 @@ export function PayrollPanel() {
             </li>))}</ul>
         )}
       </Card>
-      {(draft || fresh || runs.data.length === 0) ? <PayRunCard run={draft} employees={emps.data} />
+      {(draft || fresh || latest.data.total === 0) ? <PayRunCard run={draft} employees={emps.data} />
         : ws.can("finance.edit") && <div><Button onClick={() => setFresh(true)}><Plus size={15} /> Prepare next month&apos;s wages</Button></div>}
-      {runs.data.filter((r) => r.status === "paid").length > 0 && (
-        <Card title="Paid">
-          <ul className="flex flex-col divide-y divide-line">{runs.data.filter((r) => r.status === "paid").map((r) => (
-            <li key={r.id} className="flex items-center justify-between gap-3 py-2 text-[13.5px]"><span>{monthLabel(r.period)} · {r.lines.length} people · paid {day(r.paid_on)}</span><b className="font-mono tnum">{naira(r.net)}</b></li>
+      {(history.data?.total ?? 0) > 0 && (
+        <Card title="Pay runs">
+          <ul className="flex flex-col divide-y divide-line">{history.data!.items.map((r) => (
+            <li key={r.id} className="flex items-center justify-between gap-3 py-2 text-[13.5px]">
+              <span>{monthLabel(r.period)} · {r.lines.length} people · {r.status === "paid" ? `paid ${day(r.paid_on)}` : <Badge tone="warn">Not paid yet</Badge>}</span>
+              <b className="font-mono tnum">{naira(r.net)}</b></li>
           ))}</ul>
+          <Pager {...hpg.bind(history.data?.total, history.isFetching)} noun="pay runs" />
         </Card>
       )}
       <EmployeeDialog open={!!editing} onClose={() => setEditing(null)} employee={editing === "new" ? null : editing} />

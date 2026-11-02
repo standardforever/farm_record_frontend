@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Search } from "lucide-react";
-import { Avatar, Badge, Card, Input, PageHeader, PageLoader, Select, useToast } from "@/components/ui";
+import { Avatar, Badge, Card, Input, PageHeader, PageLoader, Pager, Select, useDebounced, usePager, useToast } from "@/components/ui";
 import { useAuth } from "@/features/auth";
 import { useAdminUsers, useUpdateUser } from "@/features/admin/api";
 import { ApiError } from "@/lib/api";
@@ -12,7 +12,9 @@ const STAFF = ["", "super_admin", "verification", "support", "moderation", "cont
 
 export default function AdminUsers() {
   const [q, setQ] = useState("");
-  const users = useAdminUsers(q);
+  const term = useDebounced(q);
+  const pg = usePager(20, [term]);
+  const users = useAdminUsers(term, pg.params);
   const update = useUpdateUser();
   const { me } = useAuth();
   const toast = useToast();
@@ -41,6 +43,7 @@ export default function AdminUsers() {
             ))}
           </ul>
         )}
+        <Pager className="mx-4 mb-3" {...pg.bind(users.data?.total, users.isFetching)} noun="people" />
       </Card>
     </>
   );

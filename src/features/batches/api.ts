@@ -1,4 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { qsOf } from "@/lib/api";
+import type { Page, PageQuery } from "@/lib/types";
 import { get, patch, post } from "@/lib/api";
 
 export type Placement = { unit_id: string; unit_code: string; unit_name: string | null; started_on: string; ended_on: string | null; count: number };
@@ -32,8 +34,14 @@ export type BatchCatalog = {
 const base = (orgId: string) => `/organizations/${orgId}/farm/batches`;
 
 export const useBatchCatalog = () => useQuery({ queryKey: ["batch-catalog"], queryFn: () => get<BatchCatalog>("/farm/batches/catalog"), staleTime: Infinity });
+/** For pickers: up to 100 batches (active ones by default), as a plain list. */
 export const useBatches = (orgId: string, status: "active" | "closed" | "" = "active", enabled = true) =>
-  useQuery({ queryKey: ["farm", orgId, "batches", status], queryFn: () => get<Batch[]>(`${base(orgId)}${status ? `?status=${status}` : ""}`), enabled, placeholderData: (p) => p });
+  useQuery({ queryKey: ["farm", orgId, "batches", status, "all"], enabled, placeholderData: (p) => p,
+    queryFn: async () => (await get<Page<Batch>>(`${base(orgId)}?page_size=100${status ? `&status=${status}` : ""}`)).items });
+/** For the Batches screen: one page at a time, with the total. */
+export const useBatchPage = (orgId: string, f: { status?: string; q?: string } & PageQuery) =>
+  useQuery({ queryKey: ["farm", orgId, "batches", "page", f], placeholderData: (p) => p,
+    queryFn: () => get<Page<Batch>>(`${base(orgId)}${qsOf(f)}`) });
 export const useBatch = (orgId: string, id: string) =>
   useQuery({ queryKey: ["farm", orgId, "batch", id], queryFn: () => get<BatchDetail>(`${base(orgId)}/${id}`) });
 

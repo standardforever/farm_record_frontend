@@ -1,4 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { qsOf } from "@/lib/api";
+import type { Page, PageQuery } from "@/lib/types";
 import { get, patch, post, put } from "@/lib/api";
 
 export type Customer = {
@@ -41,16 +43,21 @@ const base = (orgId: string) => `/organizations/${orgId}/sales`;
 
 export const useSalesCatalog = () => useQuery({ queryKey: ["sales-catalog"], queryFn: () => get<SalesCatalog>("/sales/catalog"), staleTime: Infinity });
 export const useSalesOverview = (orgId: string) => useQuery({ queryKey: ["sales", orgId, "overview"], queryFn: () => get<SalesOverview>(base(orgId)) });
-export const useCustomers = (orgId: string, enabled = true) =>
-  useQuery({ queryKey: ["sales", orgId, "customers"], queryFn: () => get<Customer[]>(`${base(orgId)}/customers`), enabled });
-export const useInvoices = (orgId: string, params: { status?: string; customer_id?: string; batch_id?: string } = {}, enabled = true) => {
-  const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v) as [string, string][]).toString();
-  return useQuery({ queryKey: ["sales", orgId, "invoices", qs], queryFn: () => get<Invoice[]>(`${base(orgId)}/invoices${qs ? `?${qs}` : ""}`), enabled });
-};
+/** For pickers: up to 100 customers by name, as a plain list (type to search). */
+export const useCustomers = (orgId: string, enabled = true, q = "") =>
+  useQuery({ queryKey: ["sales", orgId, "customers", "all", q], enabled, placeholderData: (p) => p,
+    queryFn: async () => (await get<Page<Customer>>(`${base(orgId)}/customers${qsOf({ page_size: 100, q })}`)).items });
+export const useCustomerPage = (orgId: string, f: { q?: string } & PageQuery) =>
+  useQuery({ queryKey: ["sales", orgId, "customers", "page", f], placeholderData: (p) => p,
+    queryFn: () => get<Page<Customer>>(`${base(orgId)}/customers${qsOf(f)}`) });
+export const useInvoices = (orgId: string, params: { status?: string; customer_id?: string; batch_id?: string } & Partial<PageQuery> = {}, enabled = true) =>
+  useQuery({ queryKey: ["sales", orgId, "invoices", params], enabled, placeholderData: (p) => p,
+    queryFn: () => get<Page<Invoice>>(`${base(orgId)}/invoices${qsOf(params)}`) });
 export const useInvoice = (orgId: string, id: string | null) =>
   useQuery({ queryKey: ["sales", orgId, "invoice", id], queryFn: () => get<InvoiceDetail>(`${base(orgId)}/invoices/${id}`), enabled: !!id });
-export const usePayments = (orgId: string, customerId?: string) =>
-  useQuery({ queryKey: ["sales", orgId, "payments", customerId ?? ""], queryFn: () => get<Payment[]>(`${base(orgId)}/payments${customerId ? `?customer_id=${customerId}` : ""}`) });
+export const usePayments = (orgId: string, f: { customer_id?: string } & Partial<PageQuery> = {}) =>
+  useQuery({ queryKey: ["sales", orgId, "payments", f], placeholderData: (p) => p,
+    queryFn: () => get<Page<Payment>>(`${base(orgId)}/payments${qsOf(f)}`) });
 export const usePayment = (orgId: string, id: string | null) =>
   useQuery({ queryKey: ["sales", orgId, "payment", id], queryFn: () => get<Payment>(`${base(orgId)}/payments/${id}`), enabled: !!id });
 export const useAging = (orgId: string, asOf?: string) =>

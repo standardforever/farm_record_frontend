@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Search } from "lucide-react";
-import { Badge, Card, Input, PageHeader, PageLoader, Select, Stat, useToast } from "@/components/ui";
+import { Badge, Card, Input, PageHeader, PageLoader, Pager, Select, Stat, useDebounced, usePager, useToast } from "@/components/ui";
 import { ORG_TYPES, orgTypeLabel } from "@/config/orgTypes";
 import { useAdminOrgs, useAdminStats, useUpdateOrg } from "@/features/admin/api";
 import { usePlans } from "@/features/meta/api";
@@ -15,7 +15,9 @@ export default function AdminHome() {
   const stats = useAdminStats();
   const [q, setQ] = useState("");
   const [type, setType] = useState("");
-  const orgs = useAdminOrgs(q, type);
+  const term = useDebounced(q);
+  const pg = usePager(20, [term, type]);
+  const orgs = useAdminOrgs(term, type, pg.params);
   const plans = usePlans();
   const update = useUpdateOrg();
   const toast = useToast();
@@ -62,6 +64,7 @@ export default function AdminHome() {
             </table>
           </div>
         )}
+        <Pager className="mx-4 mb-3" {...pg.bind(orgs.data?.total, orgs.isFetching)} noun="workspaces" />
       </Card>
     </>
   );

@@ -33,12 +33,12 @@ export function PaymentDialog({ open, onClose, customerId, invoiceId, amount }: 
   useEffect(() => {
     if (open) { setError(null); setF({ customer: customerId ?? "", amount: amount ? String(amount) : "", channel: "transfer", on: localDay(), reference: "", note: "", account: "" }); }
   }, [open, customerId, amount]);
-  const open_ = useInvoices(ws.orgId, { status: "open", customer_id: f.customer }, open && !!f.customer);
+  const open_ = useInvoices(ws.orgId, { status: "open", customer_id: f.customer, page_size: 100 }, open && !!f.customer);
   const cust = customers.data?.find((c) => c.id === f.customer);
   const amt = Number(f.amount) || 0;
   // Preview where the money goes: oldest due first.
   let rest = amt;
-  const plan = (open_.data ?? []).slice().sort((a, b) => (invoiceId ? Number(b.id === invoiceId) - Number(a.id === invoiceId) : 0) || a.due_on.localeCompare(b.due_on))
+  const plan = (open_.data?.items ?? []).slice().sort((a, b) => (invoiceId ? Number(b.id === invoiceId) - Number(a.id === invoiceId) : 0) || a.due_on.localeCompare(b.due_on))
     .map((i) => { const take = Math.min(rest, i.balance); rest -= take; return { i, take }; }).filter((x) => x.take > 0);
   return (
     <Dialog open={open} onClose={onClose} title="Money received" eyebrow="Sales"

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { CheckCircle2, Circle, Plus, Stethoscope } from "lucide-react";
 import Link from "next/link";
-import { Badge, Button, Card, EmptyState, PageHeader, PageLoader, Segmented, useToast } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, PageHeader, PageLoader, Pager, Segmented, usePager, useToast } from "@/components/ui";
 import { useComplete } from "@/features/daily";
 import {
   type Case, type Dose, CaseSheet, HoldList, ReportCaseDialog, shortDay, TreatmentDialog, TreatmentRows, useHealthOverview, useTreatments,
@@ -25,7 +25,8 @@ function Inner() {
   const ws = useCurrentWorkspace();
   const ov = useHealthOverview(ws.orgId);
   const [log, setLog] = useState<"recent" | "all">("recent");
-  const all = useTreatments(ws.orgId, true);
+  const pg = usePager(20);
+  const all = useTreatments(ws.orgId, { include_void: true, ...pg.params }, log === "all");
   const [treating, setTreating] = useState<{ batchId?: string; caseId?: string | null } | null>(null);
   const [reporting, setReporting] = useState(false);
   const [openCase, setOpenCase] = useState<Case | null>(null);
@@ -77,7 +78,7 @@ function Inner() {
         </div>
 
         <Card title="Treatment log" action={<Segmented value={log} onChange={setLog} options={[{ value: "recent", label: "Last 30 days" }, { value: "all", label: "All" }]} />}>
-          {log === "recent" ? <TreatmentRows rows={d.recent} /> : all.data ? <TreatmentRows rows={all.data} /> : <PageLoader />}
+          {log === "recent" ? <TreatmentRows rows={d.recent} /> : all.data ? <><TreatmentRows rows={all.data.items} /><Pager {...pg.bind(all.data.total, all.isFetching)} noun="treatments" /></> : <PageLoader />}
         </Card>
       </div>
 

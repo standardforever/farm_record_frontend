@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Archive, History, Layers, Pencil, Plus, RotateCcw } from "lucide-react";
-import { Alert, Badge, Button, Dialog, Field, Input, Select, Textarea, useToast } from "@/components/ui";
+import { Alert, Badge, Button, Dialog, Field, Input, Select, Pager, Textarea, usePager, useToast } from "@/components/ui";
 import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
 import { cn, relative } from "@/lib/format";
@@ -21,7 +21,8 @@ export function UnitDrawer({ unit, sites, batches = [], onClose, onStock }: {
   const update = useUpdateUnit(ws.orgId);
   const archive = useArchiveUnit(ws.orgId);
   const restore = useRestoreUnit(ws.orgId);
-  const activity = useUnitActivity(ws.orgId, unit?.id ?? null);
+  const pg = usePager(10, [unit?.id]);
+  const activity = useUnitActivity(ws.orgId, unit?.id ?? null, pg.params);
   const toast = useToast();
   const [editing, setEditing] = useState(false);
   const [pending, setPending] = useState<UnitStatus | null>(null);
@@ -151,9 +152,9 @@ export function UnitDrawer({ unit, sites, batches = [], onClose, onStock }: {
 
             <div className="flex flex-col gap-2">
               <div className="eyebrow flex items-center gap-1.5"><History size={13} /> History</div>
-              {activity.isLoading ? <p className="text-ink-3">Loading…</p> : !activity.data?.length ? <p className="text-ink-3">Nothing yet.</p> : (
+              {activity.isLoading ? <p className="text-ink-3">Loading…</p> : !activity.data?.items.length ? <p className="text-ink-3">Nothing yet.</p> : (
                 <ol className="flex flex-col">
-                  {activity.data.map((a, i) => (
+                  {activity.data.items.map((a, i) => (
                     <li key={i} className="border-t border-line py-2 text-[13.5px] first:border-0">
                       <div>{a.summary}</div>
                       <div className="text-[12px] text-ink-3">{a.actor_name ?? "Oko"} · {relative(a.created_at)}</div>
@@ -161,6 +162,7 @@ export function UnitDrawer({ unit, sites, batches = [], onClose, onStock }: {
                   ))}
                 </ol>
               )}
+              <Pager {...pg.bind(activity.data?.total, activity.isFetching)} noun="entries" />
             </div>
           </>
         )}

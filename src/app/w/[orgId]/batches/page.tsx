@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Layers, Plus } from "lucide-react";
-import { Badge, Button, Card, EmptyState, PageHeader, PageLoader, Segmented } from "@/components/ui";
-import { type Batch, ageLabel, ageOn, StockBatchDialog, useBatches } from "@/features/batches";
+import { Badge, Button, Card, EmptyState, PageHeader, PageLoader, Pager, Segmented, usePager } from "@/components/ui";
+import { type Batch, ageLabel, ageOn, StockBatchDialog, useBatchPage } from "@/features/batches";
 import { useCatalog } from "@/features/farm";
 import { RequirePermission, useCurrentWorkspace } from "@/features/workspaces";
 import { cn, formatDate } from "@/lib/format";
@@ -16,7 +16,8 @@ export default function BatchesPage() {
 function Inner() {
   const ws = useCurrentWorkspace();
   const [status, setStatus] = useState<"active" | "closed">("active");
-  const batches = useBatches(ws.orgId, status);
+  const pg = usePager(20, [status]);
+  const batches = useBatchPage(ws.orgId, { status, ...pg.params });
   const catalog = useCatalog();
   const [stocking, setStocking] = useState(false);
   const canStock = ws.can("farm.approve");
@@ -25,14 +26,17 @@ function Inner() {
       <PageHeader eyebrow="Farm" title="Batches" sub="Every flock, stocking or herd from the day it arrives to close-out."
         actions={canStock ? <Button variant="primary" onClick={() => setStocking(true)}><Plus size={16} /> Stock a batch</Button> : undefined} />
       <div className="mb-4"><Segmented value={status} onChange={setStatus} options={[{ value: "active", label: "Active" }, { value: "closed", label: "Closed" }]} /></div>
-      {batches.isLoading ? <PageLoader /> : !batches.data?.length ? (
+      {batches.isLoading ? <PageLoader /> : !batches.data?.items.length ? (
         <Card><EmptyState icon={<Layers size={22} />} title={status === "active" ? "No active batches" : "No closed batches yet"}
           body={status === "active" ? (canStock ? "Stock your first batch: day-old chicks, point-of-lay birds, fingerlings or a herd." : "Batches appear here when an owner or manager stocks them.") : "Closed batches keep their close-out summary here."}
           action={status === "active" && canStock ? <Button variant="primary" onClick={() => setStocking(true)}><Plus size={16} /> Stock a batch</Button> : undefined} /></Card>
       ) : (
-        <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {batches.data.map((b) => <BatchCard key={b.id} b={b} species={catalog.data?.purposes[b.species] ?? b.species} />)}
-        </ul>
+        <>
+          <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {batches.data.items.map((b) => <BatchCard key={b.id} b={b} species={catalog.data?.purposes[b.species] ?? b.species} />)}
+          </ul>
+          <Pager {...pg.bind(batches.data.total, batches.isFetching)} noun="batches" />
+        </>
       )}
       <StockBatchDialog open={stocking} onClose={() => setStocking(false)} />
     </>

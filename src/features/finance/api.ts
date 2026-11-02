@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { get, patch, post, put } from "@/lib/api";
+import type { Page, PageQuery } from "@/lib/types";
 
 export type Account = {
   id: string; name: string; kind: "cash" | "bank" | "mobile"; bank_name: string | null; account_number: string | null; opening_balance: number;
@@ -44,10 +45,14 @@ export const useStatement = (orgId: string, id: string | null, start: string, en
   useQuery({ queryKey: ["finance", orgId, "statement", id, start, end], queryFn: () => get<Statement>(`${base(orgId)}/accounts/${id}/statement${qs({ start, end })}`), enabled: !!id });
 export const useReconciliations = (orgId: string, id: string | null) =>
   useQuery({ queryKey: ["finance", orgId, "recs", id], queryFn: () => get<Reconciliation[]>(`${base(orgId)}/accounts/${id}/reconciliations`), enabled: !!id });
-export const useExpenses = (orgId: string, f: { status?: string; category?: string; start?: string; end?: string; unpaid?: boolean } = {}) =>
-  useQuery({ queryKey: ["finance", orgId, "expenses", f], queryFn: () => get<Expense[]>(`${base(orgId)}/expenses${qs(f)}`) });
+export type ExpensePage = Page<Expense> & { approved_count: number; approved_total: number };
+export const useExpenses = (orgId: string, f: { status?: string; category?: string; start?: string; end?: string; unpaid?: boolean } & Partial<PageQuery> = {}) =>
+  useQuery({ queryKey: ["finance", orgId, "expenses", f], placeholderData: (p) => p,
+    queryFn: () => get<ExpensePage>(`${base(orgId)}/expenses${qs(f as Record<string, string | boolean | undefined>)}`) });
 export const useEmployees = (orgId: string) => useQuery({ queryKey: ["finance", orgId, "employees"], queryFn: () => get<Employee[]>(`${base(orgId)}/employees`) });
-export const usePayRuns = (orgId: string) => useQuery({ queryKey: ["finance", orgId, "payruns"], queryFn: () => get<PayRun[]>(`${base(orgId)}/payruns`) });
+export const usePayRuns = (orgId: string, f: Partial<PageQuery> = {}) =>
+  useQuery({ queryKey: ["finance", orgId, "payruns", f], placeholderData: (p) => p,
+    queryFn: () => get<Page<PayRun>>(`${base(orgId)}/payruns${qs(f as Record<string, string | undefined>)}`) });
 export const usePnl = (orgId: string, start: string, end: string) => useQuery({ queryKey: ["finance", orgId, "pnl", start, end], queryFn: () => get<Pnl>(`${base(orgId)}/pnl${qs({ start, end })}`) });
 export const useBatchProfits = (orgId: string, status?: string) => useQuery({ queryKey: ["finance", orgId, "batches", status ?? ""], queryFn: () => get<BatchProfit[]>(`${base(orgId)}/batches${qs({ status })}`) });
 export const useUnitProfits = (orgId: string) => useQuery({ queryKey: ["finance", orgId, "units"], queryFn: () => get<UnitProfit[]>(`${base(orgId)}/units`) });

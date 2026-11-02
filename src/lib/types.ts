@@ -142,7 +142,8 @@ export type Plan = {
   limits: Record<string, number>;
 };
 
-export type Page<T> = { items: T[]; total: number; limit: number; offset: number };
+export type Page<T> = { items: T[]; total: number; limit: number; offset: number; page: number; page_size: number; pages: number };
+export type PageQuery = { page: number; page_size: number };
 
 export type AuditEvent = {
   id: string;

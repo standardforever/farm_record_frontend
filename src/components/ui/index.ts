@@ -7,3 +7,4 @@ export * from "./Field";
 export * from "./Spinner";
 export * from "./Tabs";
 export * from "./Toast";
+export * from "./Pager";

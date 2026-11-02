@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { Banknote, Plus, Settings2, UserPlus } from "lucide-react";
 import Link from "next/link";
-import { Badge, Button, Card, EmptyState, PageHeader, PageLoader, Segmented, Stat } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, Input, PageHeader, PageLoader, Pager, Segmented, Stat, useDebounced, usePager, useSlice } from "@/components/ui";
 import {
-  type Customer, CustomerDialog, InvoiceDialog, InvoiceSettingsDialog, InvoiceSheet, PaymentDialog, STATUS, day, useAging, useCustomers, useInvoices,
+  type Customer, CustomerDialog, InvoiceDialog, InvoiceSettingsDialog, InvoiceSheet, PaymentDialog, STATUS, day, useAging, useCustomerPage, useInvoices,
   usePayments, useSalesCatalog, useSalesOverview,
 } from "@/features/sales";
 import { RequirePermission, useCurrentWorkspace } from "@/features/workspaces";
@@ -67,13 +67,14 @@ function Inner() {
 function Invoices({ onOpen }: { onOpen: (id: string) => void }) {
   const ws = useCurrentWorkspace();
   const [status, setStatus] = useState("");
-  const q = useInvoices(ws.orgId, { status });
+  const pg = usePager(20, [status]);
+  const q = useInvoices(ws.orgId, { status, ...pg.params });
   return (
     <Card title="Invoices" action={<select aria-label="Show" className="rounded-lg border border-line bg-surface px-2 py-1 text-[13px]" value={status} onChange={(e) => setStatus(e.target.value)}>
       <option value="">All</option><option value="open">Unpaid</option><option value="overdue">Overdue</option><option value="paid">Paid</option><option value="void">Void</option></select>}>
-      {!q.data ? <PageLoader /> : q.data.length === 0 ? <p className="text-[13.5px] text-ink-3">No invoices{status ? " here" : " yet. Record your first sale with New sale"}.</p> : (
+      {!q.data ? <PageLoader /> : q.data.total === 0 ? <p className="text-[13.5px] text-ink-3">No invoices{status ? " here" : " yet. Record your first sale with New sale"}.</p> : (
         <ul className="flex flex-col divide-y divide-line">
-          {q.data.map((i) => (
+          {q.data.items.map((i) => (
             <li key={i.id}>
               <button type="button" onClick={() => onOpen(i.id)} className="flex w-full items-center gap-3 py-2.5 text-left hover:bg-surface-2/60">
                 <div className="min-w-0 flex-1">
@@ -89,6 +90,7 @@ function Invoices({ onOpen }: { onOpen: (id: string) => void }) {
           ))}
         </ul>
       )}
+      <Pager {...pg.bind(q.data?.total, q.isFetching)} noun="invoices" />
     </Card>
   );
 }
@@ -96,13 +98,18 @@ function Invoices({ onOpen }: { onOpen: (id: string) => void }) {
 function Customers({ onEdit, onSell, onPay }: { onEdit: (c: Customer | "new") => void; onSell: (id: string) => void; onPay: (id: string) => void }) {
   const ws = useCurrentWorkspace();
   const cat = useSalesCatalog();
-  const q = useCustomers(ws.orgId);
+  const [search, setSearch] = useState("");
+  const term = useDebounced(search.trim());
+  const pg = usePager(20, [term]);
+  const q = useCustomerPage(ws.orgId, { q: term, ...pg.params });
   const edit = ws.can("sales.edit");
   return (
-    <Card title="Customers" action={edit ? <Button size="sm" onClick={() => onEdit("new")}><UserPlus size={15} /> Add customer</Button> : undefined}>
-      {!q.data ? <PageLoader /> : q.data.length === 0 ? <p className="text-[13.5px] text-ink-3">Add the people who buy from you regularly to give them credit terms and track what they owe.</p> : (
+    <Card title="Customers" action={<div className="flex flex-wrap items-center gap-2">
+      <div className="w-[190px]"><Input aria-label="Search customers" className="h-9" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name or phone" /></div>
+      {edit && <Button size="sm" onClick={() => onEdit("new")}><UserPlus size={15} /> Add customer</Button>}</div>}>
+      {!q.data ? <PageLoader /> : q.data.total === 0 ? <p className="text-[13.5px] text-ink-3">{search ? "No customer matches that." : "Add the people who buy from you regularly to give them credit terms and track what they owe."}</p> : (
         <ul className="flex flex-col divide-y divide-line">
-          {q.data.map((c) => (
+          {q.data.items.map((c) => (
             <li key={c.id} className="flex flex-wrap items-center gap-3 py-2.5">
               <div className="min-w-0 flex-1 basis-[200px]">
                 <b className="text-[14px]">{c.name}</b>
@@ -122,6 +129,7 @@ function Customers({ onEdit, onSell, onPay }: { onEdit: (c: Customer | "new") =>
           ))}
         </ul>
       )}
+      <Pager {...pg.bind(q.data?.total, q.isFetching)} noun="customers" />
     </Card>
   );
 }
@@ -129,12 +137,13 @@ function Customers({ onEdit, onSell, onPay }: { onEdit: (c: Customer | "new") =>
 function Payments() {
   const ws = useCurrentWorkspace();
   const cat = useSalesCatalog();
-  const q = usePayments(ws.orgId);
+  const pg = usePager(20);
+  const q = usePayments(ws.orgId, pg.params);
   return (
     <Card title="Payments received" meta="Each one has a receipt number you can print.">
-      {!q.data ? <PageLoader /> : q.data.length === 0 ? <p className="text-[13.5px] text-ink-3">No payments yet.</p> : (
+      {!q.data ? <PageLoader /> : q.data.total === 0 ? <p className="text-[13.5px] text-ink-3">No payments yet.</p> : (
         <ul className="flex flex-col divide-y divide-line">
-          {q.data.map((p) => (
+          {q.data.items.map((p) => (
             <li key={p.id} className={cn("flex flex-wrap items-center gap-3 py-2.5", p.voided_at && "opacity-55")}>
               <div className="min-w-0 flex-1 basis-[200px]">
                 <div className="flex flex-wrap items-center gap-1.5"><b className="font-mono text-[13px]">{p.number}</b><span className="text-[14px] font-semibold">{p.payer_name}</span>
@@ -147,6 +156,7 @@ function Payments() {
           ))}
         </ul>
       )}
+      <Pager {...pg.bind(q.data?.total, q.isFetching)} noun="payments" />
     </Card>
   );
 }
@@ -154,6 +164,7 @@ function Payments() {
 function AgingTable({ onPay }: { onPay: (id: string) => void }) {
   const ws = useCurrentWorkspace();
   const q = useAging(ws.orgId);
+  const { rows, pager } = useSlice(q.data?.rows, 20);
   if (!q.data) return <PageLoader />;
   const a = q.data;
   if (!a.rows.length) return <EmptyState title="Nobody owes you money" body="Credit sales and part payments show here, by how late they are." />;
@@ -167,7 +178,7 @@ function AgingTable({ onPay }: { onPay: (id: string) => void }) {
             <th className="px-4 py-2 text-right font-semibold">Total</th>
           </tr></thead>
           <tbody>
-            {a.rows.map((r) => (
+            {rows.map((r) => (
               <tr key={r.customer_id ?? r.customer_name} className="border-b border-line last:border-0">
                 <td className="px-4 py-2"><b>{r.customer_name}</b><div className="text-[11.5px] text-ink-3">{r.invoices} invoice{r.invoices > 1 ? "s" : ""}{r.phone ? ` · ${r.phone}` : ""}
                   {r.customer_id && ws.can("sales.edit") && <> · <button className="font-semibold text-brand" onClick={() => onPay(r.customer_id!)}>Record payment</button></>}</div></td>
@@ -181,6 +192,7 @@ function AgingTable({ onPay }: { onPay: (id: string) => void }) {
             <td className="px-4 py-2 text-right font-mono tnum">{naira(a.total)}</td></tr></tfoot>
         </table>
       </div>
+      <Pager {...pager} noun="customers" className="mx-4 mb-1" />
     </Card>
   );
 }

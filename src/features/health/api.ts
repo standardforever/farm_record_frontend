@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { get, patch, post } from "@/lib/api";
+import { get, patch, post, qsOf } from "@/lib/api";
+import type { Page, PageQuery } from "@/lib/types";
 
 export type Product = "meat" | "eggs" | "milk";
 export type Hold = {
@@ -52,8 +53,9 @@ export const useBatchHealth = (orgId: string, batchId: string, enabled = true) =
   useQuery({ queryKey: ["health", orgId, "batch", batchId], queryFn: () => get<BatchHealth>(`${base(orgId)}/batches/${batchId}`), enabled: enabled && !!batchId });
 export const useProductHints = (orgId: string, enabled = true) =>
   useQuery({ queryKey: ["health", orgId, "products"], queryFn: () => get<ProductHint[]>(`${base(orgId)}/products`), enabled });
-export const useTreatments = (orgId: string, includeVoid = false) =>
-  useQuery({ queryKey: ["health", orgId, "treatments", includeVoid], queryFn: () => get<Treatment[]>(`${base(orgId)}/treatments?include_void=${includeVoid}&limit=100`) });
+export const useTreatments = (orgId: string, f: { include_void?: boolean; batch_id?: string } & Partial<PageQuery> = {}, enabled = true) =>
+  useQuery({ queryKey: ["health", orgId, "treatments", f], placeholderData: (p) => p, enabled,
+    queryFn: () => get<Page<Treatment>>(`${base(orgId)}/treatments${qsOf(f)}`) });
 
 function useHealthMutation<V, R>(orgId: string, fn: (v: V) => Promise<R>) {
   const qc = useQueryClient();

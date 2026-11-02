@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Camera, X } from "lucide-react";
-import { Alert, Badge, Button, Dialog, Field, Input, PageLoader, Segmented, Select, Textarea, useToast } from "@/components/ui";
+import { Alert, Badge, Button, Dialog, Field, Input, PageLoader, Pager, Segmented, Select, Textarea, useSlice, useToast } from "@/components/ui";
 import { useBatches } from "@/features/batches";
 import { localDay, uploadPhoto } from "@/features/daily/api";
 import { shrinkPhoto } from "@/features/daily/device";
@@ -204,6 +204,7 @@ export function AccountSheet({ account, onClose }: { account: Account | null; on
   const [f, setF] = useState({ balance: "", note: "" });
   const [error, setError] = useState<string | null>(null);
   useEffect(() => { setOffset(0); setF({ balance: "", note: "" }); setError(null); }, [account?.id]);
+  const lines = useSlice(st.data?.lines, 20, [account?.id, offset]);
   if (!account) return null;
   const asOf = offset === 0 ? localDay() : range.end;
   const d = st.data;
@@ -245,7 +246,7 @@ export function AccountSheet({ account, onClose }: { account: Account | null; on
             </section>
             <ul className="flex flex-col divide-y divide-line">
               {d.lines.length === 0 && <li className="py-2 text-[13px] text-ink-3">Nothing moved this month.</li>}
-              {d.lines.map((x) => (
+              {lines.rows.map((x) => (
                 <li key={`${x.kind}-${x.source_id}`} className="flex items-start gap-3 py-2 text-[13px]">
                   <span className="w-[48px] shrink-0 font-mono text-[12px] text-ink-3">{new Date(x.on + "T12:00:00").toLocaleDateString("en-NG", { day: "numeric", month: "short" })}</span>
                   <span className="min-w-0 flex-1">{x.description}{x.reference && <span className="block text-[11.5px] text-ink-3">{x.reference}</span>}</span>
@@ -254,6 +255,7 @@ export function AccountSheet({ account, onClose }: { account: Account | null; on
                 </li>
               ))}
             </ul>
+            <Pager {...lines.pager} noun="entries" />
           </>
         )}
       </div>

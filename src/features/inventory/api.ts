@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { get, patch, post } from "@/lib/api";
+import { get, patch, post, qsOf } from "@/lib/api";
+import type { Page, PageQuery } from "@/lib/types";
 
 export type StockItem = {
   id: string; name: string; category: string; unit: string; pack_name: string | null; pack_size: number | null;
@@ -38,6 +39,9 @@ export const useStockItems = (orgId: string, category?: string, enabled = true) 
   useQuery({ queryKey: ["inventory", orgId, "items", category ?? ""], queryFn: () => get<StockItem[]>(`${base(orgId)}/items${category ? `?category=${category}` : ""}`), enabled });
 export const useStockItem = (orgId: string, id: string | null) =>
   useQuery({ queryKey: ["inventory", orgId, "item", id], queryFn: () => get<ItemDetail>(`${base(orgId)}/items/${id}`), enabled: !!id });
+export const useItemMoves = (orgId: string, id: string | null, f: PageQuery) =>
+  useQuery({ queryKey: ["inventory", orgId, "item", id, "moves", f], placeholderData: (p) => p, enabled: !!id,
+    queryFn: () => get<Page<Move>>(`${base(orgId)}/items/${id}/moves${qsOf(f)}`) });
 export const useBatchStock = (orgId: string, batchId: string, enabled = true) =>
   useQuery({ queryKey: ["inventory", orgId, "batch", batchId], queryFn: () => get<Move[]>(`${base(orgId)}/batches/${batchId}`), enabled });
 export const useEquipment = (orgId: string, includeRetired = false) =>

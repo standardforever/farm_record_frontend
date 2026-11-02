@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Search, UserPlus } from "lucide-react";
-import { Avatar, Badge, Button, Card, EmptyState, Input, PageHeader, PageLoader, Segmented } from "@/components/ui";
+import { Avatar, Badge, Button, Card, EmptyState, Input, PageHeader, PageLoader, Pager, Segmented, useDebounced, usePager } from "@/components/ui";
 import { scopeLabel, useScopeLookup } from "@/features/farm";
 import { InviteDialog, MemberDialog, useMembers } from "@/features/team";
 import { RequirePermission, useCurrentWorkspace } from "@/features/workspaces";
@@ -16,14 +16,15 @@ export default function TeamPage() {
 
 function Inner() {
   const ws = useCurrentWorkspace();
-  const { data, isLoading } = useMembers(ws.orgId);
   const [filter, setFilter] = useState<"all" | "member" | "guest">("all");
   const [q, setQ] = useState("");
+  const term = useDebounced(q.trim());
+  const pg = usePager(20, [filter, term]);
+  const { data, isLoading, isFetching } = useMembers(ws.orgId, { kind: filter === "all" ? undefined : filter, q: term, ...pg.params });
   const [selected, setSelected] = useState<Member | null>(null);
   const [inviting, setInviting] = useState(false);
   const lookup = useScopeLookup();
-  const list = useMemo(() => (data ?? []).filter((m) => (filter === "all" || m.kind === filter)
-    && (!q || `${m.full_name} ${m.email ?? ""} ${m.phone ?? ""} ${m.role.name}`.toLowerCase().includes(q.toLowerCase()))), [data, filter, q]);
+  const list = data?.items ?? [];
 
   return (
     <>
@@ -39,7 +40,7 @@ function Inner() {
       </div>
       <Card flush>
         {isLoading ? <PageLoader /> : list.length === 0 ? (
-          <EmptyState title="No one here yet" body="Invite your staff, or a vet or lender as a guest." />
+          <EmptyState title={term ? "No one matches that" : "No one here yet"} body={term ? "Try part of a name, phone number or role." : "Invite your staff, or a vet or lender as a guest."} />
         ) : (
           <ul>
             {list.map((m) => {
@@ -62,6 +63,7 @@ function Inner() {
             })}
           </ul>
         )}
+        <Pager className="mx-4 mb-3" {...pg.bind(data?.total, isFetching)} noun="people" />
       </Card>
       <MemberDialog member={selected} onClose={() => setSelected(null)} />
       <InviteDialog open={inviting} onClose={() => setInviting(false)} />

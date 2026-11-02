@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Mail, RotateCw, Send } from "lucide-react";
-import { Alert, Badge, Button, Card, EmptyState, Input, PageHeader, PageLoader, Segmented, useToast } from "@/components/ui";
+import { Alert, Badge, Button, Card, EmptyState, Input, PageHeader, PageLoader, Pager, Segmented, useDebounced, usePager, useToast } from "@/components/ui";
 import { useDeliveryConfig, useMessages, useRetryMessage, useSendTest } from "@/features/admin/api";
 import { useAuth } from "@/features/auth";
 import { ApiError } from "@/lib/api";
@@ -19,7 +19,9 @@ export default function Messages() {
   const [status, setStatus] = useState("");
   const [q, setQ] = useState("");
   const [to, setTo] = useState(me?.user.email ?? "");
-  const msgs = useMessages(status, q);
+  const term = useDebounced(q);
+  const pg = usePager(20, [status, term]);
+  const msgs = useMessages(status, term, pg.params);
   const cfg = useDeliveryConfig();
   const test = useSendTest();
   const retry = useRetryMessage();
@@ -83,6 +85,7 @@ export default function Messages() {
             ))}
           </ul>
         )}
+        <Pager className="mx-4 mb-3" {...pg.bind(msgs.data?.total, msgs.isFetching)} noun="messages" />
       </Card>
     </>
   );

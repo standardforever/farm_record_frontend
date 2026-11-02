@@ -126,3 +126,13 @@ export async function blobUrl(path: string): Promise<string> {
   if (!res.ok) throw new ApiError(res.status, "error", "Could not load the photo.");
   return URL.createObjectURL(await res.blob());
 }
+
+/** "?a=1&b=x" from an object, leaving out empty values. */
+/** page/page_size as the limit/offset the older list routes (audit, admin) take. */
+export const limitOffset = (p: { page: number; page_size: number }) => `limit=${p.page_size}&offset=${(p.page - 1) * p.page_size}`;
+
+export function qsOf(o: Record<string, string | number | boolean | null | undefined>): string {
+  const s = new URLSearchParams(Object.entries(o).filter(([, v]) => v !== undefined && v !== null && v !== "" && v !== false)
+    .map(([k, v]) => [k, String(v)])).toString();
+  return s ? `?${s}` : "";
+}

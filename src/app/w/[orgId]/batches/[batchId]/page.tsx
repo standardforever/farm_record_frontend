@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Fragment, use, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRightLeft, CheckCircle2, GitBranch, GitMerge, MinusCircle, PlusCircle, Receipt, RotateCcw, Undo2, Wallet } from "lucide-react";
-import { Alert, Badge, Button, Card, EmptyState, PageLoader, Stat, useToast } from "@/components/ui";
+import { Alert, Badge, Button, Card, EmptyState, PageLoader, Pager, Stat, useSlice, useToast } from "@/components/ui";
 import {
   type BatchDetail, ageLabel, ageOn, CloseDialog, MergeDialog, MoveDialog, ReasonDialog, RecordDialog, SplitDialog,
   useBatch, useBatchCatalog, useVoidAndReopen,
@@ -42,6 +42,7 @@ function View({ b, checking }: { b: BatchDetail; checking?: boolean }) {
   const toast = useToast();
   const catalog = useCatalog();
   const bc = useBatchCatalog();
+  const events = useSlice(b.events, 20, [b.id]);
   const [open, setOpen] = useState<Open>(null);
   const [voiding, setVoiding] = useState<string | null>(null);
   const { voidRecord, reopen } = useVoidAndReopen(b);
@@ -123,7 +124,7 @@ function View({ b, checking }: { b: BatchDetail; checking?: boolean }) {
 
           <Card title="Records" meta="Every change to the count. Wrong entries are voided, never deleted.">
             <ol className="flex flex-col">
-              {b.events.map((e) => (
+              {events.rows.map((e) => (
                 <li key={e.id} className={cn("flex flex-wrap items-start gap-x-3 gap-y-1 border-t border-line py-2.5 first:border-0", e.voided_at && "opacity-50")}>
                   <span className={cn("w-[72px] shrink-0 text-right font-mono font-semibold tnum", e.signed > 0 ? "text-good" : e.signed < 0 ? "text-crit" : "text-ink-2")}>
                     {e.signed > 0 ? "+" : ""}{e.signed.toLocaleString("en-NG")}</span>
@@ -141,6 +142,7 @@ function View({ b, checking }: { b: BatchDetail; checking?: boolean }) {
                 </li>
               ))}
             </ol>
+            <Pager {...events.pager} noun="records" />
           </Card>
         </div>
 

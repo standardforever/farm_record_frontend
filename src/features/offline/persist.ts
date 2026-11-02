@@ -1,6 +1,10 @@
 /**
  * Keep what the app last loaded (farm map, today's tasks, batches, stock…) on the phone, so screens
- * open with no network. Saved to IndexedDB a moment after data changes; restored before the app draws.
+ * open with no network. Saved to IndexedDB a moment after data changes.
+ *
+ * Used only when there is no network: at start-up if the phone is offline, or the first time a request
+ * fails for lack of network. With network, screens always show the server's numbers (no stale flash, and
+ * forms never start from old counts).
  *
  * Tied to the signed-in person: another account on the same phone never sees it, and sign-out clears it.
  * Admin screens and anything older than two weeks are not kept.
@@ -13,8 +17,11 @@ const MAX_AGE = 14 * 24 * 3600 * 1000;
 const SKIP = new Set(["admin", "audit"]);
 type Saved = { user: string; at: number; state: unknown };
 
-export async function restoreOfflineCache(client: QueryClient, userId: string | null) {
-  if (!userId) return;
+let restoredOnce = false;
+export async function restoreOfflineCache(client: QueryClient, userId: string | null, { force = false } = {}) {
+  if (!userId || restoredOnce) return;
+  if (!force && typeof navigator !== "undefined" && navigator.onLine) return;  // with network, ask the server
+  restoredOnce = true;
   const saved = await Promise.race([idbGet<Saved>("cache", KEY), new Promise<undefined>((r) => setTimeout(() => r(undefined), 1500))]);
   if (saved && saved.user === userId && Date.now() - saved.at < MAX_AGE) {
     try {

@@ -28,13 +28,15 @@ function Inner({ id }: { id: string }) {
   const ws = useCurrentWorkspace();
   const q = useBatch(ws.orgId, id);
   if (q.isLoading) return <PageLoader />;
-  if (q.error || !q.data) return <EmptyState title="Batch not found" body={q.error instanceof ApiError ? q.error.message : undefined} />;
-  return <View b={q.data} />;
+  if (!q.data) return <EmptyState title="Batch not found" body={q.error instanceof ApiError ? q.error.message : undefined} />;
+  // A copy kept on the phone shows at once; with network, changes wait for the server's numbers.
+  const checking = !q.isFetchedAfterMount && q.isFetching && typeof navigator !== "undefined" && navigator.onLine;
+  return <View b={q.data} checking={checking} />;
 }
 
 type Open = "loss" | "other" | "move" | "split" | "merge" | "close" | "reopen" | null;
 
-function View({ b }: { b: BatchDetail }) {
+function View({ b, checking }: { b: BatchDetail; checking?: boolean }) {
   const ws = useCurrentWorkspace();
   const router = useRouter();
   const toast = useToast();
@@ -72,12 +74,12 @@ function View({ b }: { b: BatchDetail }) {
             {active && b.expected_end_on ? ` · expected end ${formatDate(b.expected_end_on)}` : ""}</p>
         </div>
         {active && (
-          <div className="flex flex-wrap gap-2">
+          <fieldset disabled={checking} className="flex flex-wrap gap-2" aria-busy={checking} title={checking ? "Getting the latest counts…" : undefined}>
             {edit && <Button onClick={() => setOpen("loss")}><MinusCircle size={16} /> Record losses</Button>}
             {ws.has("sales") && ws.can("sales.edit") && b.current > 0 && <Button variant="primary" onClick={() => setSelling(true)}><Receipt size={16} /> Sell</Button>}
             {ws.has("finance") && ws.can("finance.edit") && active && <Button onClick={() => setSpending(true)}><Wallet size={16} /> Expense</Button>}
             {approve && <Button variant={ws.has("sales") && ws.can("sales.edit") ? "secondary" : "primary"} onClick={() => setOpen("other")}><PlusCircle size={16} /> {ws.has("sales") ? "Other changes" : "Sales and other"}</Button>}
-          </div>
+          </fieldset>
         )}
       </div>
 

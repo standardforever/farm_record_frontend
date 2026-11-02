@@ -29,7 +29,17 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<H
   return <textarea ref={ref} className={cn(control, "min-h-20 resize-y", className)} {...p} />;
 });
 
-export function Toggle({ checked, onChange, label, disabled }: { checked: boolean; onChange: (v: boolean) => void; label: string; disabled?: boolean }) {
+export function Toggle({ checked, onChange, label, disabled, showLabel }: {
+  checked: boolean; onChange: (v: boolean) => void; label: string; disabled?: boolean; /** Write the label next to the switch. */ showLabel?: boolean;
+}) {
+  if (showLabel) {
+    return (
+      <div className="flex items-start gap-3">
+        <Toggle checked={checked} onChange={onChange} label={label} disabled={disabled} />
+        <span className="cursor-pointer text-[14px] leading-6" onClick={() => !disabled && onChange(!checked)}>{label}</span>
+      </div>
+    );
+  }
   return (
     <button
       type="button" role="switch" aria-checked={checked} aria-label={label} disabled={disabled}

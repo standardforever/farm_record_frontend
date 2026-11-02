@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import {
   AlertTriangle, Camera, CheckCircle2, ChevronLeft, ChevronRight, Circle, CloudOff, Droplets, Egg, MessageSquareText,
-  NotebookPen, Scale, Settings2, Skull, Stethoscope, Undo2, Wheat,
+  NotebookPen, Scale, Settings2, Skull, Stethoscope, ThermometerSun, Undo2, Wheat,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Alert, Badge, Button, Card, EmptyState, PageLoader, useToast } from "@/components/ui";
@@ -168,6 +168,7 @@ function Inner() {
                           {t.proof !== "none" && !c && <span className="flex items-center gap-1"><Camera size={12} /> {cat.data?.proofs[t.proof]}</span>}
                           {c && <span>{c.status === "done" ? "Done" : `Skipped: ${c.note}`} by {c.done_by_name ?? "someone"} · {relative(c.done_at)}</span>}
                           {c && "local" in c && <Badge tone="warn"><CloudOff size={11} /> Saved on this phone</Badge>}
+                          {t.kind === "climate" && <Badge tone="info"><ThermometerSun size={11} /> Weather</Badge>}
                           {t.mine && !c && <Badge tone="brand">Yours</Badge>}
                           {t.overdue && <Badge tone="crit">Overdue · was due {formatDate(t.due_on)}</Badge>}
                         </div>

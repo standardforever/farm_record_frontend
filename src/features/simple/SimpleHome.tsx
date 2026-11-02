@@ -6,6 +6,7 @@ import type { LucideIcon } from "lucide-react";
 import { CheckCircle2, ChevronRight, CloudOff, Droplets, Egg, LayoutGrid, NotebookPen, Scale, Skull, Stethoscope, UploadCloud, Wheat } from "lucide-react";
 import { Button, PageLoader } from "@/components/ui";
 import { useAuth } from "@/features/auth";
+import { ClimateHomeCard } from "@/features/climate";
 import { type QuickKind, QuickLog, localDay, useToday } from "@/features/daily";
 import { useFarmMap } from "@/features/farm";
 import { ReportCaseDialog } from "@/features/health";
@@ -80,6 +81,8 @@ export function SimpleHome() {
         </span>
         <ChevronRight size={20} className="text-ink-3" />
       </button>
+
+      <ClimateHomeCard big />
 
       {units.length === 0 ? (
         <p className="rounded-2xl border border-line bg-surface p-4 text-[15px] text-ink-2">No pond, house or pen has animals in it yet. Your manager stocks a batch first.</p>

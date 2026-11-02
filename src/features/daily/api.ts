@@ -10,6 +10,7 @@ export type Completion = { id: string; status: "done" | "skipped"; note: string 
 export type Task = {
   id: string; title: string; details: string | null; unit_id: string | null; site_id: string | null; repeat: string; weekdays: number[] | null;
   every_n: number | null; start_on: string; end_on: string | null; time_slot: string; proof: string; record_kind: string | null; assignee_id: string | null; active: boolean;
+  kind?: string | null; batch_id?: string | null;
 };
 export type TodayTask = Task & { due_on: string | null; overdue: boolean; unit_code: string | null; site_name: string | null; mine: boolean; completion: Completion | null };
 export type Handover = { id: string; on_date: string; shift: string; note: string; issues: string[] | null; from_name: string | null; from_user: string | null; acknowledged_by_name: string | null; acknowledged_at: string | null; created_at: string };

@@ -32,7 +32,11 @@ export type Op = {
   attempts?: number;
   /** Who saved it: only sent while that person is signed in on this phone. */
   user_id?: string | null;
+  /** Being sent right now by the screen that saved it (not shown as waiting, not picked up by flush for a minute). */
+  sending_since?: number | null;
 };
+const SENDING_GRACE = 60_000;
+const settled = (o: Op) => !o.sending_since || Date.now() - o.sending_since > SENDING_GRACE;
 type Result = { client_id: string; status: "applied" | "duplicate" | "conflict" | "retry"; id: string | null; code: string | null; message: string | null };
 type SyncOut = { results: Result[]; applied: number; duplicates: number; conflicts: number; retry: number };
 
@@ -57,7 +61,7 @@ let currentUser: string | null = null;
 export function setQueueUser(id: string | null) { currentUser = id; changed(); }
 
 export const queued = async (orgId?: string) =>
-  (await idbAll<Op>("queue", "op:")).filter((o) => (!orgId || o.org_id === orgId) && (!o.user_id || o.user_id === currentUser))
+  (await idbAll<Op>("queue", "op:")).filter((o) => (!orgId || o.org_id === orgId) && (!o.user_id || o.user_id === currentUser) && settled(o))
     .sort((a, b) => a.saved_at.localeCompare(b.saved_at));
 
 const offlineError = (e: unknown) => e instanceof ApiError && (e.status === 0 || e.status >= 500 || e.status === 429 || e.status === 401);
@@ -81,7 +85,8 @@ async function sendOps(orgId: string, ops: Op[]): Promise<SyncOut> {
 export type Saved = { status: "sent"; id: string | null; duplicate: boolean } | { status: "queued" };
 
 /**
- * Save one piece of work. Sent now when possible; kept on the phone when there is no network.
+ * Save one piece of work. It is written to the phone first (so closing the app mid-send loses nothing),
+ * then sent; once the server has it, it is removed from the phone. With no network it simply waits.
  * A conflict while the person is still on the form is thrown as an ApiError (so the form shows it).
  */
 export async function save(orgId: string, kind: string, body: Record<string, unknown>, label: string,
@@ -90,22 +95,26 @@ export async function save(orgId: string, kind: string, body: Record<string, unk
     body: { ...body }, label, saved_at: new Date().toISOString(), status: "waiting", user_id: currentUser };
   delete op.body.client_id;
   const photoField = opts.photoField ?? "media_id";
-  const keep = async () => {
-    if (opts.photo) { await idbSet("queue", PHOTO(op.client_id), opts.photo); op.photo = true; op.photo_field = photoField; }
-    await idbSet("queue", OP(op.client_id), op);
-    changed();
-    return { status: "queued" } as const;
-  };
-  if (typeof navigator !== "undefined" && navigator.onLine === false) return keep();
+  if (opts.photo) { await idbSet("queue", PHOTO(op.client_id), opts.photo); op.photo = true; op.photo_field = photoField; }
+  const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+  await idbSet("queue", OP(op.client_id), { ...op, sending_since: offline ? null : Date.now() });
+  const keep = async () => { await idbSet("queue", OP(op.client_id), { ...op, sending_since: null }); changed(); return { status: "queued" } as const; };
+  const done = async () => { await idbDel("queue", OP(op.client_id)); await idbDel("queue", PHOTO(op.client_id)); };
+  if (offline) { changed(); return { status: "queued" }; }
   try {
-    if (opts.photo) op.body[photoField] = await uploadPhoto(orgId, opts.photo, photoClientId(op.client_id));
+    if (opts.photo) {
+      op.body[photoField] = await uploadPhoto(orgId, opts.photo, photoClientId(op.client_id));
+      await idbSet("queue", OP(op.client_id), { ...op, sending_since: Date.now() });
+    }
     const out = await sendOps(orgId, [op]);
     const r = out.results[0];
-    if (r.status === "conflict") throw new ApiError(409, r.code ?? "conflict", r.message ?? "Could not save this.");
+    if (r.status === "conflict") { await done(); throw new ApiError(409, r.code ?? "conflict", r.message ?? "Could not save this."); }
     if (r.status === "retry") return keep();
+    await done();
     return { status: "sent", id: r.id, duplicate: r.status === "duplicate" };
   } catch (e) {
     if (offlineError(e)) return keep();
+    if (!(e instanceof ApiError && e.status === 409)) await done();
     throw e;
   }
 }

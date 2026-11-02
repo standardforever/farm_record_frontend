@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useBatchCatalog, useBatches } from "@/features/batches";
+import { useClimate } from "@/features/climate";
 import { localDay, useDailyCatalog, useToday } from "@/features/daily";
 import { useCatalog, useFarmMap } from "@/features/farm";
 import { useHealthCatalog } from "@/features/health";
@@ -22,6 +23,7 @@ export function OfflineWarmup() {
   useToday(ws.orgId, localDay(), farm);
   useCatalog(); useDailyCatalog(); useBatchCatalog();
   useHealthCatalog(); // public and small
+  useClimate(ws.orgId, farm && ws.has("climate"));
   useQuery({ queryKey: ["inventory", ws.orgId, "items", "feed"], enabled: stock,
     queryFn: () => get(`/organizations/${ws.orgId}/inventory/items?category=feed`) });
   return null;

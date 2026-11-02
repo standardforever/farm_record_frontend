@@ -11,6 +11,7 @@ import { useAuth } from "@/features/auth";
 import { useFarmMap } from "@/features/farm";
 import { useMeta } from "@/features/meta/api";
 import { InviteDialog } from "@/features/team";
+import { ClimateHomeCard } from "@/features/climate";
 import { InstallOko } from "@/features/offline";
 import { SimpleHome, setSimpleMode, useSimpleMode } from "@/features/simple";
 import { useCurrentWorkspace } from "@/features/workspaces";
@@ -58,6 +59,7 @@ function Home() {
         </>} />
       <div className="mb-3 empty:hidden"><InstallOko compact /></div>
 
+      {farmOn && <div className="mb-4"><ClimateHomeCard /></div>}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <Stat hero label="Your role" value={ws.my_role.name} sub={`${ws.my_permissions.includes("*") ? "Full access" : ws.my_permissions.length + " permissions"}`} />
         <Stat label="Team members" value={ws.member_count} sub={`${ws.guest_count} guests`} />

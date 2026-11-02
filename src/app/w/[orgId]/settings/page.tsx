@@ -100,7 +100,7 @@ function PhoneCard() {
   return (
     <Card title="This phone" meta="Settings for this device only.">
       <div className="flex flex-col gap-4">
-        <Toggle checked={simple} onChange={setSimpleMode} label="Simple mode: big buttons for the day's work on the home screen" />
+        <Toggle checked={simple} onChange={setSimpleMode} label="Simple mode: big buttons for the day's work on the home screen" showLabel />
         <p className="text-[13px] text-ink-3">Oko keeps working without network. Records are saved on this phone and sent when the network returns.</p>
         <InstallOko />
       </div>

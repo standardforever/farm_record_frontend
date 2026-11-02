@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Fragment, use, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRightLeft, CheckCircle2, GitBranch, GitMerge, MinusCircle, PlusCircle, RotateCcw, Undo2 } from "lucide-react";
+import { ArrowLeft, ArrowRightLeft, CheckCircle2, GitBranch, GitMerge, MinusCircle, PlusCircle, Receipt, RotateCcw, Undo2 } from "lucide-react";
 import { Alert, Badge, Button, Card, EmptyState, PageLoader, Stat, useToast } from "@/components/ui";
 import {
   type BatchDetail, ageLabel, ageOn, CloseDialog, MergeDialog, MoveDialog, ReasonDialog, RecordDialog, SplitDialog,
@@ -12,6 +12,7 @@ import {
 import { useCatalog } from "@/features/farm";
 import { BatchHealthCard, HoldList, useBatchHealth } from "@/features/health";
 import { BatchStockCard, useInventoryCatalog } from "@/features/inventory";
+import { InvoiceDialog } from "@/features/sales";
 import { StandardCard } from "@/features/packs";
 import { RequirePermission, useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
@@ -45,6 +46,7 @@ function View({ b }: { b: BatchDetail }) {
   const active = b.status === "active";
   const health = useBatchHealth(ws.orgId, b.id, active && ws.has("health"));
   const stockCats = useInventoryCatalog();
+  const [selling, setSelling] = useState(false);
   const meatHolds = (health.data?.holds ?? []).filter((h) => h.product === "meat" || h.product === "all");
   const approve = ws.can("farm.approve");
   const edit = ws.can("farm.edit") || approve;
@@ -69,7 +71,8 @@ function View({ b }: { b: BatchDetail }) {
         {active && (
           <div className="flex flex-wrap gap-2">
             {edit && <Button onClick={() => setOpen("loss")}><MinusCircle size={16} /> Record losses</Button>}
-            {approve && <Button variant="primary" onClick={() => setOpen("other")}><PlusCircle size={16} /> Sales and other</Button>}
+            {ws.has("sales") && ws.can("sales.edit") && b.current > 0 && <Button variant="primary" onClick={() => setSelling(true)}><Receipt size={16} /> Sell</Button>}
+            {approve && <Button variant={ws.has("sales") && ws.can("sales.edit") ? "secondary" : "primary"} onClick={() => setOpen("other")}><PlusCircle size={16} /> {ws.has("sales") ? "Other changes" : "Sales and other"}</Button>}
           </div>
         )}
       </div>
@@ -156,6 +159,9 @@ function View({ b }: { b: BatchDetail }) {
                 ))}
                 {!!s.inputs_cost && <><dt className="text-ink-3">Total cost so far</dt><dd className="text-right font-semibold tnum">{naira(s.cost_so_far ?? 0)}</dd></>}
                 <dt className="text-ink-3">Sales</dt><dd className="text-right font-semibold tnum">{naira(s.sales_amount ?? 0)}</dd>
+                {Object.entries(s.other_sales ?? {}).map(([k, v]) => (
+                  <Fragment key={k}><dt className="pl-3 text-[12.5px] text-ink-3">of which {k}</dt><dd className="text-right text-[12.5px] text-ink-3 tnum">{naira(v)}</dd></Fragment>
+                ))}
                 <dt className="font-semibold">Result so far</dt>
                 <dd className={cn("text-right font-bold tnum", (s.result_so_far ?? 0) < 0 ? "text-crit" : "text-good")}>{naira(s.result_so_far ?? 0)}</dd>
                 {s.cost_per_head_in != null && <><dt className="text-ink-3">Cost per head stocked</dt><dd className="text-right tnum">{naira(s.cost_per_head_in)}</dd></>}
@@ -183,6 +189,7 @@ function View({ b }: { b: BatchDetail }) {
         </div>
       </div>
 
+      <InvoiceDialog open={selling} onClose={() => setSelling(false)} batchId={b.id} />
       <RecordDialog batch={b} open={open === "loss" || open === "other"} mode={open === "other" ? "other" : "loss"} onClose={() => setOpen(null)}
         saleWarning={meatHolds.length ? <HoldList compact showBatch={false} holds={meatHolds} title="These animals cannot be sold or eaten yet" /> : undefined} />
       <MoveDialog batch={b} open={open === "move"} onClose={() => setOpen(null)} />

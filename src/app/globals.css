@@ -114,3 +114,12 @@ h1, h2, h3, h4 { font-family: var(--font-display); letter-spacing: -0.012em; tex
 @keyframes slide-in { from { transform: translateX(28px); opacity: 0.4; } }
 @keyframes rise { from { transform: translateY(24px); opacity: 0.6; } }
 @keyframes fade { from { opacity: 0; } }
+
+/* Printing an invoice or receipt: only the document, on white, no app chrome. */
+@media print {
+  @page { size: A4; margin: 14mm; }
+  body * { visibility: hidden !important; }
+  .print-doc, .print-doc * { visibility: visible !important; }
+  .print-doc { position: absolute; inset: 0 auto auto 0; width: 100%; color: #111 !important; background: #fff !important; box-shadow: none !important; border: 0 !important; }
+  .no-print { display: none !important; }
+}

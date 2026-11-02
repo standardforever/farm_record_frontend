@@ -21,8 +21,9 @@ const base = (orgId: string) => `/organizations/${orgId}/farm`;
 export const todayKey = (orgId: string, on: string) => ["farm", orgId, "today", on];
 
 export const useDailyCatalog = () => useQuery({ queryKey: ["daily-catalog"], queryFn: () => get<DailyCatalog>("/farm/daily/catalog"), staleTime: Infinity });
-export const useToday = (orgId: string, on: string) =>
-  useQuery({ queryKey: todayKey(orgId, on), queryFn: () => get<Today>(`${base(orgId)}/today?on=${on}`), placeholderData: (p) => p, refetchInterval: 60_000 });
+export const useToday = (orgId: string, on: string, enabled = true) =>
+  useQuery({ queryKey: todayKey(orgId, on), queryFn: () => get<Today>(`${base(orgId)}/today?on=${on}`), placeholderData: (p) => p,
+    refetchInterval: enabled ? 60_000 : false, enabled });
 export const useTasks = (orgId: string, enabled: boolean) =>
   useQuery({ queryKey: ["farm", orgId, "tasks"], queryFn: () => get<Task[]>(`${base(orgId)}/tasks`), enabled });
 

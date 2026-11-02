@@ -7,7 +7,7 @@ import { useFarmMap } from "@/features/farm";
 import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError, get } from "@/lib/api";
 import { cn } from "@/lib/format";
-import { newId, send } from "./queue";
+import { save as saveOffline } from "@/features/offline/queue";
 
 export type QuickKind = "feed" | "deaths" | "weight" | "eggs" | "water" | "note";
 export const QUICK: { kind: QuickKind; label: string; hint: string }[] = [
@@ -27,7 +27,7 @@ type FeedItem = { id: string; name: string; unit: string; pack_size: number | nu
 const n = (v: string) => (v.trim() === "" ? undefined : Number(v.replace(",", ".")));
 const digits = (v: string) => v.replace(/[^\d.]/g, "");
 
-/** One sheet for every quick log. Sends through the send-later queue, so a weak network never loses a log. */
+/** One sheet for every quick log. Saved through the offline queue, so a weak network never loses a log. */
 export function QuickLog({ kind, on, presetUnit, open, onClose, onSaved }: {
   kind: QuickKind | null; on: string; presetUnit?: string | null; open: boolean; onClose: () => void; onSaved?: (unitId: string) => void;
 }) {
@@ -99,13 +99,14 @@ export function QuickLog({ kind, on, presetUnit, open, onClose, onSaved }: {
   const save = async () => {
     setError(null); setBusy(true);
     try {
-      let path = `/organizations/${ws.orgId}/farm/records`;
-      let body: Record<string, unknown> = { kind, unit_id: unit, occurred_on: on, note: f.note?.trim() || null, client_id: newId() };
+      let op = "farm.record";
+      let params: Record<string, string> = {};
+      let body: Record<string, unknown> = { kind, unit_id: unit, occurred_on: on, note: f.note?.trim() || null };
       let label = "";
       if (kind === "deaths") {
-        path = `/organizations/${ws.orgId}/farm/batches/${batchId}/records`;
-        body = { kind: "died", unit_id: unit, quantity: n(f.count!), occurred_on: on, reason: f.reason || null, note: f.note?.trim() || null, client_id: body.client_id };
-        label = `${f.count} died in ${code}`;
+        op = "farm.batch_event"; params = { batch_id: batchId };
+        body = { kind: "died", unit_id: unit, quantity: n(f.count!), occurred_on: on, reason: f.reason || null, note: f.note?.trim() || null };
+        label = `${Number(f.count).toLocaleString("en-NG")} died in ${code}`;
       } else {
         body.batch_id = batchId || null;
         if (kind === "feed") {
@@ -118,8 +119,8 @@ export function QuickLog({ kind, on, presetUnit, open, onClose, onSaved }: {
         else if (kind === "water") { Object.assign(body, { ph: n(f.ph ?? ""), do_mg_l: n(f.do ?? ""), temp_c: n(f.temp ?? ""), ammonia: n(f.ammonia ?? ""), nitrite: n(f.nitrite ?? "") }); label = `Water in ${code}`; }
         else label = `Note on ${code}`;
       }
-      const res = await send(ws.orgId, path, body, label);
-      toast(res === null ? "Saved on this phone. It will send when you are back online." : `${label} ✓`);
+      const res = await saveOffline(ws.orgId, op, body, label, { params });
+      toast(res.status === "queued" ? `Saved on this phone: ${label}` : `${label} ✓`);
       qc.invalidateQueries({ queryKey: ["farm", ws.orgId] });
       onSaved?.(unit);
       onClose();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   AlertTriangle, Camera, CheckCircle2, ChevronLeft, ChevronRight, Circle, CloudOff, Droplets, Egg, MessageSquareText,
   NotebookPen, Scale, Settings2, Skull, Stethoscope, Undo2, Wheat,
@@ -8,10 +8,11 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { Alert, Badge, Button, Card, EmptyState, PageLoader, useToast } from "@/components/ui";
 import {
-  type QuickKind, type TodayTask, CompleteSheet, flush, HandoverDialog, localDay, onQueueChange, pendingFor, PlanDialog, ProofPhoto,
-  QUICK, QuickLog, shiftDay, useAcknowledge, useComplete, useDailyCatalog, useToday, useUndo, useVoidRecord,
+  type QuickKind, type TodayTask, CompleteSheet, HandoverDialog, localDay, PlanDialog, ProofPhoto,
+  QUICK, QuickLog, shiftDay, useAcknowledge, useDailyCatalog, useToday, useUndo, useVoidRecord,
 } from "@/features/daily";
 import { useAuth } from "@/features/auth";
+import { save as saveOffline, useSync } from "@/features/offline";
 import { ReasonDialog } from "@/features/batches";
 import { HoldList, ReportCaseDialog } from "@/features/health";
 import { RequirePermission, useCurrentWorkspace } from "@/features/workspaces";
@@ -33,7 +34,6 @@ function Inner() {
   const [on, setOn] = useState(localDay());
   const today = useToday(ws.orgId, on);
   const cat = useDailyCatalog();
-  const complete = useComplete(ws.orgId);
   const undo = useUndo(ws.orgId);
   const ack = useAcknowledge(ws.orgId);
   const voidRec = useVoidRecord(ws.orgId);
@@ -42,26 +42,14 @@ function Inner() {
   const [handover, setHandover] = useState(false);
   const [plan, setPlan] = useState(false);
   const [sick, setSick] = useState(false);
-  const [pending, setPending] = useState(0);
+  const sync = useSync(ws.orgId);
   const [voiding, setVoiding] = useState<string | null>(null);
   const canLog = ws.can("farm.edit") || ws.can("farm.approve");
   const isToday = on === localDay();
 
-  // Send anything saved while offline, now and whenever the connection returns.
-  useEffect(() => {
-    const count = () => setPending(pendingFor(ws.orgId).length);
-    count();
-    const off = onQueueChange(count);
-    const go = async () => {
-      const { sent, rejected } = await flush();
-      if (sent) { toast(`Sent ${sent} saved log${sent > 1 ? "s" : ""}`); qc.invalidateQueries({ queryKey: ["farm", ws.orgId] }); }
-      rejected.forEach((r) => toast(`Could not send “${r.label}”. Log it again.`, "crit"));
-    };
-    go();
-    window.addEventListener("online", go);
-    const t = setInterval(go, 30_000);
-    return () => { off(); window.removeEventListener("online", go); clearInterval(t); };
-  }, [ws.orgId, qc, toast]);
+  // Work saved on this phone but not sent yet shows as done here, so nobody does it twice.
+  const savedHere = useMemo(() => new Map(sync.ops.filter((o) => o.kind === "farm.task_done" && o.status === "waiting")
+    .map((o) => [`${o.params.task_id}|${o.body.on}`, o])), [sync.ops]);
 
   const groups = useMemo(() => {
     const g = new Map<string, TodayTask[]>();
@@ -72,17 +60,26 @@ function Inner() {
   if (!ws.has("farm")) return <EmptyState title="Farm records are not in your plan" />;
   if (today.isLoading || !today.data) return <PageLoader />;
   const d = today.data;
-  const pct = d.total ? Math.round((100 * d.done) / d.total) : 0;
+  const doneHere = d.tasks.filter((t) => !t.completion && savedHere.has(`${t.id}|${t.due_on ?? on}`)).length;
+  const done = d.done + doneHere;
+  const pct = d.total ? Math.round((100 * done) / d.total) : 0;
   const unread = d.handovers.filter((h) => !h.acknowledged_at && h.from_user !== me?.user.id);
 
   const tick = async (t: TodayTask) => {
     if (t.record_kind && !t.completion) { setLog({ kind: (t.record_kind === "milk" ? "note" : t.record_kind) as QuickKind, unit: t.unit_id, task: t }); return; }
     if (t.proof !== "none") { setTicking(t); return; }
-    try { await complete.mutateAsync({ taskId: t.id, on: t.due_on ?? on }); } catch (e) { toast(e instanceof ApiError ? e.message : "Could not save", "crit"); }
+    await quickTick(t);
   };
+  async function quickTick(t: TodayTask, quiet = false) {
+    try {
+      const r = await saveOffline(ws.orgId, "farm.task_done", { on: t.due_on ?? on, status: "done" }, `Done: ${t.title}`, { params: { task_id: t.id } });
+      qc.invalidateQueries({ queryKey: ["farm", ws.orgId] });
+      if (r.status === "queued" && !quiet) toast(`Saved on this phone: ${t.title}`);
+    } catch (e) { if (!quiet) toast(e instanceof ApiError ? e.message : "Could not save", "crit"); }
+  }
   const afterLog = async () => {
     const t = log?.task;
-    if (t && t.proof === "none") { try { await complete.mutateAsync({ taskId: t.id, on: t.due_on ?? on }); } catch { /* the log itself is saved */ } }
+    if (t && t.proof === "none") await quickTick(t, true); // the log itself is saved either way
     else if (t) setTicking(t);
   };
 
@@ -105,8 +102,11 @@ function Inner() {
         </div>
       </div>
 
-      {pending > 0 && <div className="mb-3"><Alert tone="warn" title={`${pending} log${pending > 1 ? "s" : ""} waiting to send`} action={<Button size="sm" onClick={() => flush()}>Send now</Button>}>
-        <span className="flex items-center gap-1.5"><CloudOff size={14} /> Saved on this phone. They send by themselves when the network is back.</span></Alert></div>}
+      {sync.waiting.length > 0 && <div className="mb-3"><Alert tone="warn" title={`${sync.waiting.length} saved on this phone, waiting to send`}
+        action={sync.online ? <Button size="sm" loading={sync.syncing} onClick={() => sync.sendNow()}>Send now</Button> : undefined}>
+        <span className="flex items-center gap-1.5"><CloudOff size={14} /> They send by themselves when the network is back.</span></Alert></div>}
+      {sync.conflicts.length > 0 && <div className="mb-3"><Alert tone="crit" title={`${sync.conflicts.length} saved entr${sync.conflicts.length > 1 ? "ies" : "y"} could not be sent`}>
+        Tap the red sync button at the top to see why, then fix or remove {sync.conflicts.length > 1 ? "them" : "it"}.</Alert></div>}
 
       {unread.map((h) => (
         <div key={h.id} className="mb-3"><Alert tone="info" title={`Handover from ${h.from_name ?? "the last shift"} · ${cat.data?.shifts[h.shift] ?? h.shift}`}
@@ -142,7 +142,7 @@ function Inner() {
       )}
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
-        <Card title="Checklist" meta={d.total ? `${d.done} of ${d.total} done` : undefined}
+        <Card title="Checklist" meta={d.total ? `${done} of ${d.total} done${doneHere ? ` (${doneHere} saved on this phone)` : ""}` : undefined}
           action={d.total ? <span className="font-display text-[20px] font-bold text-brand tnum">{pct}%</span> : undefined}>
           {d.total > 0 && <div className="mb-3 h-2 overflow-hidden rounded-full bg-surface-2"><div className="h-full rounded-full bg-brand transition-all" style={{ width: `${pct}%` }} /></div>}
           {d.total === 0 ? (
@@ -153,7 +153,8 @@ function Inner() {
               <div className={cn("eyebrow mb-1 mt-2", slot === "overdue" && "text-crit")}>{slot === "overdue" ? "Missed — still to do" : cat.data?.time_slots[slot] ?? slot}</div>
               <ul className="flex flex-col">
                 {tasks.map((t) => {
-                  const c = t.completion;
+                  const here = savedHere.get(`${t.id}|${t.due_on ?? on}`);
+                  const c = t.completion ?? (here ? { status: String(here.body.status), note: (here.body.note as string) ?? null, done_by_name: "you", done_at: here.saved_at, media_id: null, local: true } : null);
                   return (
                     <li key={t.id} className="flex items-center gap-3 border-t border-line py-2.5 first:border-0">
                       <button type="button" disabled={!canLog || !!c} onClick={() => tick(t)} aria-label={c ? `${t.title}: done` : `Mark ${t.title} done`}
@@ -166,12 +167,13 @@ function Inner() {
                           <span className="font-mono">{t.unit_code ?? t.site_name ?? "Whole farm"}</span>
                           {t.proof !== "none" && !c && <span className="flex items-center gap-1"><Camera size={12} /> {cat.data?.proofs[t.proof]}</span>}
                           {c && <span>{c.status === "done" ? "Done" : `Skipped: ${c.note}`} by {c.done_by_name ?? "someone"} · {relative(c.done_at)}</span>}
+                          {c && "local" in c && <Badge tone="warn"><CloudOff size={11} /> Saved on this phone</Badge>}
                           {t.mine && !c && <Badge tone="brand">Yours</Badge>}
                           {t.overdue && <Badge tone="crit">Overdue · was due {formatDate(t.due_on)}</Badge>}
                         </div>
                       </div>
                       {c?.media_id && <ProofPhoto mediaId={c.media_id} />}
-                      {c && canLog && <button aria-label={`Undo ${t.title}`} className="text-ink-3 hover:text-ink" onClick={() => undo.mutate({ taskId: t.id, on })}><Undo2 size={16} /></button>}
+                      {c && !("local" in c) && canLog && <button aria-label={`Undo ${t.title}`} className="text-ink-3 hover:text-ink" onClick={() => undo.mutate({ taskId: t.id, on })}><Undo2 size={16} /></button>}
                     </li>
                   );
                 })}

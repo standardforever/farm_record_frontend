@@ -6,7 +6,7 @@ import { Alert, Badge, Button, Dialog, Field, Input, PageLoader, Segmented, Sele
 import { useBatches } from "@/features/batches";
 import { localDay, uploadPhoto } from "@/features/daily/api";
 import { shrinkPhoto } from "@/features/daily/device";
-import { newId } from "@/features/daily/queue";
+import { newId } from "@/features/offline/queue";
 import { useFarmMap } from "@/features/farm";
 import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";

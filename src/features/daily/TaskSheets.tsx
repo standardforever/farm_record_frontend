@@ -7,16 +7,17 @@ import { useCatalog, useFarmMap } from "@/features/farm";
 import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError, blobUrl } from "@/lib/api";
 import { cn } from "@/lib/format";
-import { type TodayTask, uploadPhoto, useComplete, useCreateTask, useDailyCatalog, useHandover, useSuggest, useTasks, useUpdateTask } from "./api";
+import { useQueryClient } from "@tanstack/react-query";
+import { save as saveOffline } from "@/features/offline/queue";
+import { type TodayTask, useCreateTask, useDailyCatalog, useSuggest, useTasks, useUpdateTask } from "./api";
 import { type Fix, locate, shrinkPhoto } from "./device";
-import { newId } from "./queue";
 
 const errMsg = (e: unknown) => (e instanceof ApiError || e instanceof Error ? e.message : "Something went wrong.");
 
 /** Tick a task off with the proof it asks for (photo, location), or skip it with a reason. */
 export function CompleteSheet({ task, on, onClose }: { task: TodayTask | null; on: string; onClose: () => void }) {
   const ws = useCurrentWorkspace();
-  const complete = useComplete(ws.orgId);
+  const qc = useQueryClient();
   const toast = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
   const [mode, setMode] = useState<"done" | "skipped">("done");
@@ -51,13 +52,15 @@ export function CompleteSheet({ task, on, onClose }: { task: TodayTask | null; o
   const save = async () => {
     setBusy(true); setError(null);
     try {
-      let media_id: string | null = null;
-      if (mode === "done" && photo) media_id = (await uploadPhoto(ws.orgId, photo.blob, newId())).id;
-      await complete.mutateAsync({ taskId: task.id, on: task.due_on ?? on, status: mode, note: note.trim() || null, media_id, ...(mode === "done" && fix ? fix : {}), client_id: newId() });
-      toast(mode === "done" ? `Done: ${task.title}` : `Skipped: ${task.title}`);
+      const r = await saveOffline(ws.orgId, "farm.task_done",
+        { on: task.due_on ?? on, status: mode, note: note.trim() || null, ...(mode === "done" && fix ? fix : {}) },
+        `${mode === "done" ? "Done" : "Skipped"}: ${task.title}`, { params: { task_id: task.id }, photo: mode === "done" ? photo?.blob : null });
+      qc.invalidateQueries({ queryKey: ["farm", ws.orgId] });
+      toast(r.status === "queued" ? `Saved on this phone: ${task.title}. It will send when you are back online.`
+        : r.duplicate ? `${task.title} was already ticked off` : mode === "done" ? `Done: ${task.title}` : `Skipped: ${task.title}`);
       onClose();
     } catch (e) {
-      setError(e instanceof ApiError && e.status === 0 ? "No connection. Photos and location need the network: try again in a moment." : errMsg(e));
+      setError(errMsg(e));
     } finally { setBusy(false); }
   };
 
@@ -115,7 +118,8 @@ export function ProofPhoto({ mediaId }: { mediaId: string }) {
 export function HandoverDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const ws = useCurrentWorkspace();
   const cat = useDailyCatalog();
-  const save = useHandover(ws.orgId);
+  const qc = useQueryClient();
+  const [saving, setSaving] = useState(false);
   const toast = useToast();
   const hour = new Date().getHours();
   const [shift, setShift] = useState(hour < 12 ? "morning" : hour < 18 ? "afternoon" : "night");
@@ -127,8 +131,15 @@ export function HandoverDialog({ open, onClose }: { open: boolean; onClose: () =
   const add = () => { if (issue.trim()) { setIssues([...issues, issue.trim()]); setIssue(""); } };
   return (
     <Dialog open={open} onClose={onClose} title="Hand over to the next shift" eyebrow="Today"
-      footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button variant="primary" loading={save.isPending} disabled={note.trim().length < 3}
-        onClick={async () => { try { await save.mutateAsync({ shift, note: note.trim(), issues, client_id: newId() }); toast("Handover saved"); onClose(); } catch (e) { setError(errMsg(e)); } }}>Save handover</Button></>}>
+      footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button variant="primary" loading={saving} disabled={note.trim().length < 3}
+        onClick={async () => {
+          setSaving(true); setError(null);
+          try {
+            const r = await saveOffline(ws.orgId, "farm.handover", { shift, note: note.trim(), issues }, `Handover (${shift})`);
+            qc.invalidateQueries({ queryKey: ["farm", ws.orgId] });
+            toast(r.status === "queued" ? "Handover saved on this phone. It will send when you are back online." : "Handover saved"); onClose();
+          } catch (e) { setError(errMsg(e)); } finally { setSaving(false); }
+        }}>Save handover</Button></>}>
       <div className="flex flex-col gap-4">
         {error && <Alert tone="crit">{error}</Alert>}
         <Field label="Your shift" htmlFor="h-shift"><Select id="h-shift" value={shift} onChange={(e) => setShift(e.target.value)}>

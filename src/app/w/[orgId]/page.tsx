@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, Clock, KeyRound, ShieldCheck, UserPlus } from "lucide-react";
+import { ArrowRight, CheckCircle2, Clock, KeyRound, ShieldCheck, Smartphone, UserPlus } from "lucide-react";
 import { useState } from "react";
 import { Badge, Button, Card, PageHeader, Stat } from "@/components/ui";
 import { PHASE_LABEL } from "@/config/navigation";
@@ -11,12 +11,21 @@ import { useAuth } from "@/features/auth";
 import { useFarmMap } from "@/features/farm";
 import { useMeta } from "@/features/meta/api";
 import { InviteDialog } from "@/features/team";
+import { InstallOko } from "@/features/offline";
+import { SimpleHome, setSimpleMode, useSimpleMode } from "@/features/simple";
 import { useCurrentWorkspace } from "@/features/workspaces";
 import { cn } from "@/lib/format";
 
 const VERIFY: Record<string, string> = { none: "Not verified", phone: "Phone verified", identity: "Identity verified", business: "Business verified", farm: "Farm verified", professional: "Professional verified" };
 
-export default function Home() {
+export default function HomePage() {
+  const ws = useCurrentWorkspace();
+  const simple = useSimpleMode(ws.my_role.key);
+  const farmOn = ws.has("farm") && ws.can("farm.view") && FARM_ORG_TYPES.includes(ws.organization.type);
+  return simple && farmOn ? <SimpleHome /> : <Home />;
+}
+
+function Home() {
   const ws = useCurrentWorkspace();
   const { me } = useAuth();
   const { data: meta } = useMeta();
@@ -43,7 +52,11 @@ export default function Home() {
     <>
       <PageHeader eyebrow={`${orgTypeLabel(ws.organization.type)} · ${ws.organization.state ?? "Nigeria"}`} title={`${greet}, ${me?.user.full_name.split(" ")[0]}`}
         sub={`You are ${ws.my_role.kind === "guest" ? "a guest" : "the " + ws.my_role.name.toLowerCase()} in ${ws.organization.name}.`}
-        actions={ws.can("invites.manage") ? <Button variant="primary" onClick={() => setInviting(true)}><UserPlus size={16} /> Invite someone</Button> : undefined} />
+        actions={<>
+          {farmOn && <Button onClick={() => setSimpleMode(true)}><Smartphone size={16} /> Simple mode</Button>}
+          {ws.can("invites.manage") && <Button variant="primary" onClick={() => setInviting(true)}><UserPlus size={16} /> Invite someone</Button>}
+        </>} />
+      <div className="mb-3 empty:hidden"><InstallOko compact /></div>
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <Stat hero label="Your role" value={ws.my_role.name} sub={`${ws.my_permissions.includes("*") ? "Full access" : ws.my_permissions.length + " permissions"}`} />

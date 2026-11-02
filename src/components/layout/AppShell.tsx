@@ -4,10 +4,13 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { ChevronDown, Clock, LogOut, Menu, Plus, Shield, X } from "lucide-react";
-import { NAV, PHASE_LABEL } from "@/config/navigation";
+import { FARM_ORG_TYPES, NAV, PHASE_LABEL, SIMPLE_NAV } from "@/config/navigation";
 import { orgTypeLabel } from "@/config/orgTypes";
 import { useAuth } from "@/features/auth";
 import { useMeta } from "@/features/meta/api";
+import { SyncStatus, useAutoSync } from "@/features/offline";
+import { OfflineWarmup } from "@/features/offline/Warmup";
+import { useSimpleMode } from "@/features/simple";
 import { useCurrentWorkspace } from "@/features/workspaces";
 import { Avatar, Badge } from "@/components/ui";
 import { cn } from "@/lib/format";
@@ -22,11 +25,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [switcher, setSwitcher] = useState(false);
   useEffect(() => { setOpen(false); setSwitcher(false); }, [path]);
+  useAutoSync();
 
   const base = `/w/${ws.orgId}`;
+  const simple = useSimpleMode(ws.my_role.key) && ws.has("farm") && ws.can("farm.view") && FARM_ORG_TYPES.includes(ws.organization.type);
   const items = NAV.filter((n) => (!n.permission || ws.can(n.permission)) && (!n.feature || ws.has(n.feature))
-    && (!n.orgTypes || n.orgTypes.includes(ws.organization.type)));
-  const planned = (meta?.modules ?? []).filter((m) => m.status === "planned");
+    && (!n.orgTypes || n.orgTypes.includes(ws.organization.type)) && (!simple || SIMPLE_NAV.includes(n.key)));
+  const planned = simple ? [] : (meta?.modules ?? []).filter((m) => m.status === "planned");
   const current = (p: string) => (p === "" ? path === base : path === base + p || (p !== "/team" && path.startsWith(base + p)));
   const others = (me?.workspaces ?? []).filter((w) => w.organization_id !== ws.orgId);
 
@@ -89,6 +94,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
 
         <div className="mt-auto flex flex-col gap-2 border-t border-side-hi px-1.5 pt-3">
+          <div className="hidden lg:block"><SyncStatus orgId={ws.orgId} dark /></div>
           {me?.user.platform_role && (
             <Link href="/admin" className="flex items-center gap-2 rounded-lg px-2 py-2 text-[13px] font-semibold hover:bg-side-hi"><Shield size={16} /> Oko admin console</Link>
           )}
@@ -109,8 +115,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           <button onClick={() => setOpen(true)} aria-label="Open menu" className="grid h-10 w-10 cursor-pointer place-items-center rounded-[10px] border border-line"><Menu size={20} /></button>
           <div className="min-w-0"><div className="eyebrow !text-[10.5px]">{orgTypeLabel(ws.organization.type)}</div>
             <b className="block truncate font-display text-[16px]">{ws.organization.name}</b></div>
-          <Badge tone="brand" className="ml-auto">{ws.my_role.name}</Badge>
+          <div className="ml-auto flex items-center gap-2"><SyncStatus orgId={ws.orgId} /><Badge tone="brand" className="max-[380px]:hidden">{ws.my_role.name}</Badge></div>
         </header>
+        <OfflineWarmup />
         <main className="w-full max-w-[1280px] flex-1 px-[max(16px,env(safe-area-inset-left))] pb-[calc(100px+env(safe-area-inset-bottom))] pt-6 sm:px-6 lg:px-8 lg:pb-14">
           {children}
         </main>

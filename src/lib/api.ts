@@ -47,20 +47,29 @@ async function parse(res: Response) {
   }
 }
 
-/** Ask the backend for a new access token using the refresh cookie. Shared between callers. */
+let refreshOffline = false;
+/** True when the last refresh could not reach the server (no network): the session may still be valid. */
+export const lastRefreshWasOffline = () => refreshOffline;
+
+/**
+ * Ask the backend for a new access token using the refresh cookie. Shared between callers.
+ * With no network the current token (if any) is kept, so a worker offline stays signed in.
+ */
 export function refreshAccessToken(): Promise<string | null> {
   if (!refreshing) {
     refreshing = fetch(`${BASE}/auth/refresh`, { method: "POST", credentials: "include" })
       .then(async (res) => {
+        refreshOffline = res.status >= 500;
+        if (refreshOffline) return undefined;
         if (!res.ok) return null;
         const body = await res.json();
         return body.access_token as string;
       })
-      .catch(() => null)
+      .catch(() => { refreshOffline = true; return undefined; })
       .then((token) => {
-        setAccessToken(token);
+        if (token !== undefined) setAccessToken(token);
         refreshing = null;
-        return token;
+        return token === undefined ? accessToken : token;
       });
   }
   return refreshing;

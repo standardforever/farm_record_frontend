@@ -40,6 +40,9 @@ export const NAV: NavItem[] = [
   { key: "settings", label: "Settings", path: "/settings", icon: Settings, group: "Workspace" },
 ];
 
+/** In simple mode (a worker's phone) the menu keeps only these. */
+export const SIMPLE_NAV = ["home", "today", "farm", "batches", "health", "settings"];
+
 export const PHASE_LABEL: Record<string, string> = {
   "phase-0": "Phase 0", "phase-1": "Phase 1", "phase-2": "Phase 2", "phase-3": "Phase 3", "phase-4": "Phase 4", "phase-5": "Phase 5",
 };

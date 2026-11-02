@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Check } from "lucide-react";
-import { Alert, Badge, Button, Card, Field, Input, PageHeader, Segmented, Select, useToast } from "@/components/ui";
+import { Alert, Badge, Button, Card, Field, Input, PageHeader, Segmented, Select, Toggle, useToast } from "@/components/ui";
+import { InstallOko } from "@/features/offline";
+import { setSimpleMode, useSimpleMode } from "@/features/simple";
 import { orgTypeLabel } from "@/config/orgTypes";
 import { useAuth, VerifyEmailCard } from "@/features/auth";
 import { usePlans } from "@/features/meta/api";
@@ -75,6 +77,8 @@ export default function SettingsPage() {
           </form>
         </Card>
 
+        <PhoneCard />
+
         <VerifyEmailCard />
 
         <Card title="Password">
@@ -87,5 +91,19 @@ export default function SettingsPage() {
         </Card>
       </div>
     </>
+  );
+}
+
+function PhoneCard() {
+  const ws = useCurrentWorkspace();
+  const simple = useSimpleMode(ws.my_role.key);
+  return (
+    <Card title="This phone" meta="Settings for this device only.">
+      <div className="flex flex-col gap-4">
+        <Toggle checked={simple} onChange={setSimpleMode} label="Simple mode: big buttons for the day's work on the home screen" />
+        <p className="text-[13px] text-ink-3">Oko keeps working without network. Records are saved on this phone and sent when the network returns.</p>
+        <InstallOko />
+      </div>
+    </Card>
   );
 }

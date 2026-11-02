@@ -11,7 +11,8 @@ const plex = IBM_Plex_Mono({ subsets: ["latin"], variable: "--font-plex-mono", w
 export const metadata: Metadata = {
   title: { default: "Oko", template: "%s · Oko" },
   description: "Run your farm, work with vets, suppliers and buyers, and grow with your records.",
-  icons: { icon: "/favicon.svg" },
+  icons: { icon: "/favicon.svg", apple: "/icons/apple-touch-icon.png" },
+  appleWebApp: { capable: true, title: "Oko", statusBarStyle: "default" },
 };
 export const viewport: Viewport = {
   width: "device-width", initialScale: 1, viewportFit: "cover",

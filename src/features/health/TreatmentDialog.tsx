@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Alert, Button, Dialog, Field, Input, Select, Textarea, useToast } from "@/components/ui";
 import { useBatches } from "@/features/batches";
 import { localDay } from "@/features/daily/api";
-import { newId } from "@/features/daily/queue";
+import { newId } from "@/features/offline/queue";
 import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/format";

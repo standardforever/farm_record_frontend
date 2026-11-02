@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>No network · Oko</title>
+<style>
+  :root { --bg:#f1f4ee; --ink:#14201a; --ink3:#5f6f66; --line:#d9e0d7; --brand:#0f5a3a; --card:#fff; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0c1410; --ink:#e7efe9; --ink3:#93a69a; --line:#22332a; --brand:#3dae7b; --card:#121c17; } }
+  body { margin:0; font: 16px/1.5 system-ui, sans-serif; background:var(--bg); color:var(--ink); }
+  main { max-width:440px; margin:12vh auto 0; padding:0 16px; }
+  h1 { font-size:22px; margin:12px 0 4px; } p { color:var(--ink3); margin:0 0 16px; }
+  a.btn, button { display:block; width:100%; box-sizing:border-box; text-align:center; padding:14px; border-radius:12px; font-weight:700; font-size:16px;
+    border:1px solid var(--line); background:var(--card); color:var(--ink); text-decoration:none; margin-bottom:10px; cursor:pointer; }
+  .primary { background:var(--brand); color:#fff; border-color:var(--brand); }
+  ul { list-style:none; padding:0; margin:0 0 16px; }
+</style>
+</head>
+<body>
+<main>
+  <img src="/icons/icon-192.png" width="48" height="48" alt="">
+  <h1>No network</h1>
+  <p>This page has not been opened on this phone yet. These pages are saved and work offline:</p>
+  <ul id="pages"></ul>
+  <button class="primary" onclick="location.reload()">Try again</button>
+</main>
+<script>
+  const names = { "": "Home", "/today": "Today's work", "/farm": "Farm map", "/batches": "Batches", "/simple": "Simple home" };
+  caches.open("oko-pages-v1").then((c) => c.keys()).then((keys) => {
+    const list = document.getElementById("pages");
+    keys.map((k) => new URL(k.url).pathname).filter((p) => p.startsWith("/w/")).forEach((p) => {
+      const rest = p.replace(/^\/w\/[^/]+/, "");
+      if (!(rest in names)) return;
+      const li = document.createElement("li"); const a = document.createElement("a");
+      a.href = p; a.className = "btn"; a.textContent = names[rest]; li.appendChild(a); list.appendChild(li);
+    });
+    if (!list.children.length) list.outerHTML = "<p>Nothing is saved yet. Open Oko once with network.</p>";
+  });
+</script>
+</body>
+</html>

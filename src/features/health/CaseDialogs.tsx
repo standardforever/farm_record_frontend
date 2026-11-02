@@ -4,24 +4,25 @@ import { useEffect, useRef, useState } from "react";
 import { Camera, X } from "lucide-react";
 import { Alert, Badge, Button, Checkbox, Dialog, Field, Input, Select, Textarea, useToast } from "@/components/ui";
 import { useBatches } from "@/features/batches";
-import { localDay, uploadPhoto } from "@/features/daily/api";
+import { useQueryClient } from "@tanstack/react-query";
+import { localDay } from "@/features/daily/api";
 import { shrinkPhoto } from "@/features/daily/device";
-import { newId } from "@/features/daily/queue";
+import { save as saveOffline } from "@/features/offline/queue";
 import { ProofPhoto } from "@/features/daily/TaskSheets";
 import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/format";
-import { type Case, shortDay, useCloseCase, useHealthCatalog, useOpenCase, useUpdateCase } from "./api";
+import { type Case, shortDay, useCloseCase, useHealthCatalog, useUpdateCase } from "./api";
 
 const groupOf = (groups: Record<string, string[]> | undefined, species?: string) =>
   (species && Object.entries(groups ?? {}).find(([, s]) => s.includes(species))?.[0]) || "other";
 
 /** Anyone logging daily work can report sick animals: what they see, how many, a photo. */
-export function ReportCaseDialog({ open, onClose, batchId }: { open: boolean; onClose: () => void; batchId?: string }) {
+export function ReportCaseDialog({ open, onClose, batchId, unitId }: { open: boolean; onClose: () => void; batchId?: string; unitId?: string | null }) {
   const ws = useCurrentWorkspace();
   const cat = useHealthCatalog();
   const batches = useBatches(ws.orgId, "active", open);
-  const report = useOpenCase(ws.orgId);
+  const qc = useQueryClient();
   const toast = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
   const [f, setF] = useState({ batch: "", unit: "", on: localDay(), affected: "", description: "", suspected: "", hold: false });
@@ -32,9 +33,9 @@ export function ReportCaseDialog({ open, onClose, batchId }: { open: boolean; on
 
   useEffect(() => {
     if (!open) return;
-    setF({ batch: batchId ?? "", unit: "", on: localDay(), affected: "", description: "", suspected: "", hold: false });
+    setF({ batch: batchId ?? "", unit: unitId ?? "", on: localDay(), affected: "", description: "", suspected: "", hold: false });
     setSigns([]); setPhoto(null); setError(null);
-  }, [open, batchId]);
+  }, [open, batchId, unitId]);
 
   const batch = batches.data?.find((b) => b.id === f.batch);
   const units = (batch?.units ?? []).filter((u) => !u.ended_on);
@@ -48,10 +49,13 @@ export function ReportCaseDialog({ open, onClose, batchId }: { open: boolean; on
   const save = async () => {
     setBusy(true); setError(null);
     try {
-      const media_id = photo ? (await uploadPhoto(ws.orgId, photo.blob, newId())).id : null;
-      const c = await report.mutateAsync({ batch_id: f.batch, unit_id: f.unit || (units.length === 1 ? units[0].unit_id : null), opened_on: f.on, signs,
-        affected: f.affected ? Number(f.affected) : null, description: f.description || null, suspected: f.suspected || null, media_id, hold_sales: f.hold, client_id: newId() });
-      toast(c.hold_sales ? `Reported. Sales from ${c.batch_code} are on hold` : `Reported for ${c.batch_code}`);
+      const code = batches.data?.find((b) => b.id === f.batch)?.code ?? "the batch";
+      const r = await saveOffline(ws.orgId, "health.case", { batch_id: f.batch, unit_id: f.unit || (units.length === 1 ? units[0].unit_id : null), opened_on: f.on, signs,
+        affected: f.affected ? Number(f.affected) : null, description: f.description || null, suspected: f.suspected || null, hold_sales: f.hold },
+        `Sick animals in ${code}`, { photo: photo?.blob });
+      qc.invalidateQueries({ queryKey: ["health", ws.orgId] }); qc.invalidateQueries({ queryKey: ["farm", ws.orgId] });
+      toast(r.status === "queued" ? `Saved on this phone. The report for ${code} sends when you are back online.`
+        : f.hold ? `Reported. Sales from ${code} are on hold` : `Reported for ${code}`);
       onClose();
     } catch (e) { setError(e instanceof ApiError ? e.message : "Could not save."); } finally { setBusy(false); }
   };

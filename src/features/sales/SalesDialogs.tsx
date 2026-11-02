@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Alert, Button, Dialog, Field, Input, Select, Textarea, useToast } from "@/components/ui";
 import { localDay } from "@/features/daily/api";
 import { useAccounts } from "@/features/finance/api";
-import { newId } from "@/features/daily/queue";
+import { newId } from "@/features/offline/queue";
 import { LocationFields } from "@/features/geo";
 import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";

@@ -5,7 +5,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { Alert, Button, Checkbox, Dialog, Field, Input, Segmented, Select, Textarea, useToast } from "@/components/ui";
 import { useBatches } from "@/features/batches";
 import { localDay } from "@/features/daily/api";
-import { newId } from "@/features/daily/queue";
+import { newId } from "@/features/offline/queue";
 import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
 import { naira } from "@/lib/format";

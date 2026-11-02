@@ -25,7 +25,7 @@ export function relative(iso: string) {
   return formatDate(iso);
 }
 
-export const naira = (n: number) => "₦" + Math.round(n).toLocaleString("en-NG");
+export const naira = (n: number) => (Math.round(n) < 0 ? "−₦" : "₦") + Math.abs(Math.round(n)).toLocaleString("en-NG");
 
 export function daysUntil(iso: string | null) {
   if (!iso) return null;

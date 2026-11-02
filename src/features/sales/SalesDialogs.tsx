@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Alert, Button, Dialog, Field, Input, Select, Textarea, useToast } from "@/components/ui";
 import { localDay } from "@/features/daily/api";
+import { useAccounts } from "@/features/finance/api";
 import { newId } from "@/features/daily/queue";
 import { LocationFields } from "@/features/geo";
 import { useCurrentWorkspace } from "@/features/workspaces";
@@ -24,11 +25,13 @@ export function PaymentDialog({ open, onClose, customerId, invoiceId, amount }: 
   const cat = useSalesCatalog();
   const customers = useCustomers(ws.orgId, open);
   const record = useRecordPayment(ws.orgId);
+  const seeAccounts = ws.has("finance") && ws.can("finance.view");
+  const accounts = useAccounts(ws.orgId, open && seeAccounts);
   const toast = useToast();
-  const [f, setF] = useState({ customer: "", amount: "", channel: "transfer", on: localDay(), reference: "", note: "" });
+  const [f, setF] = useState({ customer: "", amount: "", channel: "transfer", on: localDay(), reference: "", note: "", account: "" });
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
-    if (open) { setError(null); setF({ customer: customerId ?? "", amount: amount ? String(amount) : "", channel: "transfer", on: localDay(), reference: "", note: "" }); }
+    if (open) { setError(null); setF({ customer: customerId ?? "", amount: amount ? String(amount) : "", channel: "transfer", on: localDay(), reference: "", note: "", account: "" }); }
   }, [open, customerId, amount]);
   const open_ = useInvoices(ws.orgId, { status: "open", customer_id: f.customer }, open && !!f.customer);
   const cust = customers.data?.find((c) => c.id === f.customer);
@@ -43,7 +46,7 @@ export function PaymentDialog({ open, onClose, customerId, invoiceId, amount }: 
         setError(null);
         try {
           const p = await record.mutateAsync({ customer_id: f.customer || null, invoice_id: invoiceId ?? null, received_on: f.on, amount: amt, channel: f.channel,
-            reference: f.reference || null, note: f.note || null, client_id: newId() });
+            reference: f.reference || null, note: f.note || null, account_id: f.account || null, client_id: newId() });
           toast(`${p.number}: ${naira(p.amount)} from ${p.payer_name}` + (p.unapplied ? ` (${naira(p.unapplied)} kept as credit)` : ""));
           onClose();
         } catch (e) { setError(errMsg(e)); }
@@ -62,7 +65,14 @@ export function PaymentDialog({ open, onClose, customerId, invoiceId, amount }: 
             {Object.entries(cat.data?.channels ?? {}).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</Select></Field>
           <Field label="Received on" htmlFor="p-on"><Input id="p-on" type="date" max={localDay()} value={f.on} onChange={(e) => setF({ ...f, on: e.target.value })} /></Field>
         </div>
-        <Field label="Reference" htmlFor="p-ref" hint="Transfer reference, POS slip or cheque number"><Input id="p-ref" value={f.reference} onChange={(e) => setF({ ...f, reference: e.target.value })} /></Field>
+        <div className={seeAccounts && accounts.data?.length ? "grid gap-4 sm:grid-cols-2" : undefined}>
+          <Field label="Reference" htmlFor="p-ref" hint="Transfer reference, POS slip or cheque number"><Input id="p-ref" value={f.reference} onChange={(e) => setF({ ...f, reference: e.target.value })} /></Field>
+          {seeAccounts && !!accounts.data?.length && (
+            <Field label="Into account" htmlFor="p-account" hint="Left on automatic: cash to the cash box, the rest to the bank">
+              <Select id="p-account" value={f.account} onChange={(e) => setF({ ...f, account: e.target.value })}>
+                <option value="">Automatic</option>{accounts.data.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</Select></Field>
+          )}
+        </div>
         {f.customer && amt > 0 && (
           <div className="rounded-xl border border-line p-3 text-[13px]">
             <b>Where it goes</b>

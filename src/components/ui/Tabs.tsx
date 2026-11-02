@@ -28,7 +28,7 @@ export function Segmented<T extends string>({ value, onChange, options }: { valu
     <div className="inline-flex rounded-[10px] bg-surface-2 p-[3px]" role="group">
       {options.map((o) => (
         <button key={o.value} type="button" onClick={() => onChange(o.value)}
-          className={cn("cursor-pointer rounded-[7px] px-3 py-1.5 text-[12.5px] font-semibold",
+          className={cn("cursor-pointer whitespace-nowrap rounded-[7px] px-3 py-1.5 text-[12.5px] font-semibold",
             value === o.value ? "bg-surface text-ink shadow-[var(--shadow)]" : "text-ink-2")}>
           {o.label}
         </button>

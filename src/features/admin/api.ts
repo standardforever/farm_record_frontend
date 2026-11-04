@@ -40,3 +40,18 @@ export const useErrors = (status: string, source: string, pg: PageQuery) =>
 export const useErrorDetail = (id: string | null) =>
   useQuery({ queryKey: ["admin", "error", id], enabled: !!id, queryFn: () => get<ErrorDetail>(`/admin/errors/${id}`) });
 export const useResolveError = () => useAdminMutation(({ id, resolved }: { id: string; resolved: boolean }) => patch(`/admin/errors/${id}`, { resolved }));
+
+export type BackupRow = { id: string; name: string; size: number; created_at: string; on_drive: boolean; drill_ok: boolean | null; drill_at: string | null; drill: { migration?: string; tables?: number; rows?: number; problems?: string[] }; run_url: string | null };
+export type StorageStatus = {
+  configured: boolean; status: "not_connected" | "ok" | "reconnect"; email: string | null; connected_at: string | null; connected_by: string | null;
+  error: string | null; redirect_uri: string; folder_url: string | null; evidence: Record<string, { count: number; bytes: number }>;
+  quota: { limit: number | null; usage: number } | null; backups_enabled: boolean; backups: BackupRow[];
+};
+export const useStorage = () => useQuery({ queryKey: ["admin", "storage"], queryFn: () => get<StorageStatus>("/admin/storage") });
+export const useStartDrive = () => useMutation({ mutationFn: () => post<{ url: string }>("/admin/storage/google/start") });
+function useStorageAction<R>(path: string) {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: () => post<R>(path), onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "storage"] }) });
+}
+export const useDisconnectDrive = () => useStorageAction<void>("/admin/storage/google/disconnect");
+export const useMoveNow = () => useStorageAction<{ moved: number }>("/admin/storage/move-now");

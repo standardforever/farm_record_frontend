@@ -9,7 +9,7 @@ import { Alert } from "@/components/ui";
 import { RequireAuth, useAuth } from "@/features/auth";
 import { cn } from "@/lib/format";
 
-const TABS = [{ href: "/admin", label: "Workspaces" }, { href: "/admin/users", label: "Accounts" }, { href: "/admin/flags", label: "Feature switches" }, { href: "/admin/messages", label: "Email delivery" }, { href: "/admin/errors", label: "Errors" }, { href: "/admin/packs", label: "Species packs" }];
+const TABS = [{ href: "/admin", label: "Workspaces" }, { href: "/admin/users", label: "Accounts" }, { href: "/admin/flags", label: "Feature switches" }, { href: "/admin/messages", label: "Email delivery" }, { href: "/admin/errors", label: "Errors" }, { href: "/admin/storage", label: "Storage" }, { href: "/admin/packs", label: "Species packs" }];
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return <RequireAuth><Gate>{children}</Gate></RequireAuth>;

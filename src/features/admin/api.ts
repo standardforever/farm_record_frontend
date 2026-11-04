@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { get, limitOffset, patch, post, put } from "@/lib/api";
+import { get, limitOffset, patch, post, put, qsOf } from "@/lib/api";
 import type { Page, PageQuery } from "@/lib/types";
 
 export type AdminOrg = { id: string; name: string; slug: string; type: string; plan_code: string; status: string; verification_level: string; state: string | null; lga: string | null; created_at: string; members: number };
@@ -31,3 +31,12 @@ export const useMessages = (status: string, q: string, pg: PageQuery = { page: 1
 export const useDeliveryConfig = () => useQuery({ queryKey: ["admin", "delivery-config"], queryFn: () => get<DeliveryConfig>("/admin/messages/config") });
 export const useSendTest = () => useAdminMutation((to: string) => post<OutboundMessage>("/admin/messages/test", { to }));
 export const useRetryMessage = () => useAdminMutation((id: string) => post<OutboundMessage>(`/admin/messages/${id}/retry`));
+
+export type ErrorGroup = { id: string; source: "api" | "worker" | "web"; title: string; location: string; count: number; people: number; release: string; first_seen: string; last_seen: string; resolved_at: string | null };
+export type ErrorDetail = ErrorGroup & { sample: { traceback?: string; stack?: string; path?: string; method?: string; kind?: string; user_agent?: string; web_release?: string; logger?: string; note?: string } };
+export const useErrors = (status: string, source: string, pg: PageQuery) =>
+  useQuery({ queryKey: ["admin", "errors", status, source, pg], placeholderData: (p) => p, refetchInterval: 30000,
+    queryFn: () => get<Page<ErrorGroup>>(`/admin/errors${qsOf({ status, source, ...pg })}`) });
+export const useErrorDetail = (id: string | null) =>
+  useQuery({ queryKey: ["admin", "error", id], enabled: !!id, queryFn: () => get<ErrorDetail>(`/admin/errors/${id}`) });
+export const useResolveError = () => useAdminMutation(({ id, resolved }: { id: string; resolved: boolean }) => patch(`/admin/errors/${id}`, { resolved }));

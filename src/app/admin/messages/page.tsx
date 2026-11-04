@@ -11,7 +11,7 @@ import { relative } from "@/lib/format";
 const STATUS_TONE = { sent: "good", queued: "warn", failed: "crit" } as const;
 const TEMPLATE: Record<string, string> = {
   code_verify_email: "Confirm email code", code_reset_password: "Password reset code", code_login: "Sign-in code",
-  invite: "Invite", test: "Test email",
+  invite: "Invite", test: "Test email", error_alert: "Error alert",
 };
 
 export default function Messages() {

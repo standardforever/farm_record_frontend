@@ -7,6 +7,7 @@ import { cachedUserId } from "@/features/auth/AuthProvider";
 import { keepOfflineCache, markRestored, restoreOfflineCache } from "@/features/offline/persist";
 import { ToastProvider } from "@/components/ui";
 import { ApiError } from "@/lib/api";
+import { watchGlobalErrors } from "@/lib/report";
 
 export function Providers({ children }: { children: ReactNode }) {
   const [client] = useState(() => new QueryClient({
@@ -27,10 +28,11 @@ export function Providers({ children }: { children: ReactNode }) {
   useEffect(() => {
     markRestored(restoreOfflineCache(client, cachedUserId()));
     const stop = keepOfflineCache(client, cachedUserId);
+    const unwatch = watchGlobalErrors();
     if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
       navigator.serviceWorker.register("/sw.js").catch(() => null);
     }
-    return stop;
+    return () => { stop(); unwatch(); };
   }, [client]);
   return (
     <QueryClientProvider client={client}>

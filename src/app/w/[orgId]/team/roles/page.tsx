@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { SHOW_ROADMAP } from "@/config/focus";
 import { Lock, Plus } from "lucide-react";
 import { Badge, Button, Card, PageHeader, PageLoader } from "@/components/ui";
 import { RoleDialog, usePermissionCatalogue, useRoles } from "@/features/team";
@@ -18,7 +19,7 @@ function Inner() {
   const cat = usePermissionCatalogue();
   const [open, setOpen] = useState<{ role: Role | null } | null>(null);
   const has = (r: Role, p: string) => r.permissions.includes("*") || r.permissions.includes(p);
-  const groups = (cat.data ?? []).filter((g) => g.permissions.length);
+  const groups = (cat.data ?? []).filter((g) => g.permissions.length && (SHOW_ROADMAP || g.status !== "planned"));
 
   return (
     <>

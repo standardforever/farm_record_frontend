@@ -11,7 +11,7 @@ const plex = IBM_Plex_Mono({ subsets: ["latin"], variable: "--font-plex-mono", w
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://oko-livestock.vercel.app"),
   title: { default: "Oko", template: "%s · Oko" },
-  description: "Run your farm, work with vets, suppliers and buyers, and grow with your records.",
+  description: "Farm records for Nigerian livestock farmers: daily work, health, stock, sales and profit per batch. Works offline.",
   icons: { icon: "/favicon.svg", apple: "/icons/apple-touch-icon.png" },
   appleWebApp: { capable: true, title: "Oko", statusBarStyle: "default" },
 };

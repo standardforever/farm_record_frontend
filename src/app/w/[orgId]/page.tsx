@@ -4,7 +4,8 @@ import Link from "next/link";
 import { ArrowRight, CheckCircle2, Clock, KeyRound, ShieldCheck, Smartphone, UserPlus } from "lucide-react";
 import { useState } from "react";
 import { Badge, Button, Card, PageHeader, Stat } from "@/components/ui";
-import { PHASE_LABEL } from "@/config/navigation";
+import { SHOW_ROADMAP } from "@/config/focus";
+import { NAV, PHASE_LABEL } from "@/config/navigation";
 import { orgTypeLabel } from "@/config/orgTypes";
 import { FARM_ORG_TYPES } from "@/config/navigation";
 import { useAuth } from "@/features/auth";
@@ -68,34 +69,36 @@ function Home() {
       </div>
 
       <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+        {SHOW_ROADMAP ? (
         <Card title="What Oko will do for you" meta="Built in phases. Each one goes live here as it is finished.">
-          <div className="flex flex-col gap-5">
-            {phases.map((p) => {
-              const list = modules.filter((m) => m.phase === p);
-              if (!list.length) return null;
-              const live = list.every((m) => m.status === "live");
-              return (
-                <div key={p}>
-                  <div className="mb-2 flex items-center gap-2"><b className="font-display text-[15px]">{PHASE_LABEL[p]}</b>
-                    {live ? <Badge tone="good" dot>Live</Badge> : p === "phase-1" ? <Badge tone="maize" dot>Next</Badge> : <Badge>Planned</Badge>}</div>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {list.map((m) => {
-                      const on = !m.feature || ws.has(m.feature);
-                      return (
-                        <Link key={m.key} href={m.status === "live" ? base : `${base}/modules/${m.key}`}
-                          className={cn("flex items-start gap-2.5 rounded-xl border border-line p-3 hover:border-ink-3", m.status === "live" && "bg-brand-soft/50")}>
-                          <span className={cn("mt-0.5", m.status === "live" ? "text-good" : "text-ink-3")}>{m.status === "live" ? <CheckCircle2 size={16} /> : <Clock size={16} />}</span>
-                          <span className="min-w-0"><b className="block text-[13.5px]">{m.name}</b>
-                            <span className="block text-[12px] text-ink-3">{m.status === "live" ? "Available now" : on ? "In your plan when released" : "Not in your plan"}</span></span>
-                        </Link>
-                      );
-                    })}
+            <div className="flex flex-col gap-5">
+              {phases.map((p) => {
+                const list = modules.filter((m) => m.phase === p);
+                if (!list.length) return null;
+                const live = list.every((m) => m.status === "live");
+                return (
+                  <div key={p}>
+                    <div className="mb-2 flex items-center gap-2"><b className="font-display text-[15px]">{PHASE_LABEL[p]}</b>
+                      {live ? <Badge tone="good" dot>Live</Badge> : p === "phase-1" ? <Badge tone="maize" dot>Next</Badge> : <Badge>Planned</Badge>}</div>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {list.map((m) => {
+                        const on = !m.feature || ws.has(m.feature);
+                        return (
+                          <Link key={m.key} href={m.status === "live" ? base : `${base}/modules/${m.key}`}
+                            className={cn("flex items-start gap-2.5 rounded-xl border border-line p-3 hover:border-ink-3", m.status === "live" && "bg-brand-soft/50")}>
+                            <span className={cn("mt-0.5", m.status === "live" ? "text-good" : "text-ink-3")}>{m.status === "live" ? <CheckCircle2 size={16} /> : <Clock size={16} />}</span>
+                            <span className="min-w-0"><b className="block text-[13.5px]">{m.name}</b>
+                              <span className="block text-[12px] text-ink-3">{m.status === "live" ? "Available now" : on ? "In your plan when released" : "Not in your plan"}</span></span>
+                          </Link>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        </Card>
+                );
+              })}
+            </div>
+          </Card>
+        ) : <FarmTools base={base} />}
         <div className="flex flex-col gap-4">
           <Card title="Get started" meta={`${steps.filter((s) => s.done).length} of ${steps.length} done`}>
             <ul className="flex flex-col">
@@ -119,5 +122,36 @@ function Home() {
       </div>
       <InviteDialog open={inviting} onClose={() => setInviting(false)} />
     </>
+  );
+}
+
+const BLURB: Record<string, string> = {
+  today: "The day's checklist and quick records: feed, deaths, eggs, weights, water.",
+  farm: "Your sites and every house, pond or pen, and what is in each.",
+  batches: "Each flock or stocking from arrival to sale: count, survival, growth.",
+  climate: "Tomorrow's heat, rain and storms, turned into jobs for your animals.",
+  health: "Vaccinations, treatments, sick animals and what may not be sold yet.",
+  stock: "Feed and drugs by delivery, what runs low, what each batch used.",
+  sales: "Invoices, payments and who owes you.",
+  finance: "Expenses, wages, cash and bank, and profit per batch.",
+};
+
+/** What this workspace can do today, in place of the roadmap while Oko is focused on farms. */
+function FarmTools({ base }: { base: string }) {
+  const ws = useCurrentWorkspace();
+  const tools = NAV.filter((n) => BLURB[n.key] && (!n.permission || ws.can(n.permission)) && (!n.feature || ws.has(n.feature))
+    && (!n.orgTypes || n.orgTypes.includes(ws.organization.type)));
+  return (
+    <Card title="Your farm in Oko" meta="Everything here works today, on any phone, even offline.">
+      <div className="grid gap-2 sm:grid-cols-2">
+        {tools.map((t) => (
+          <Link key={t.key} href={`${base}${t.path}`} className="flex items-start gap-2.5 rounded-xl border border-line p-3 hover:border-ink-3">
+            <t.icon size={17} className="mt-0.5 shrink-0 text-brand" />
+            <span className="min-w-0"><b className="block text-[13.5px]">{t.label}</b><span className="block text-[12px] text-ink-3">{BLURB[t.key]}</span></span>
+          </Link>
+        ))}
+      </div>
+      <p className="mt-3 text-[12.5px] text-ink-3">Coming soon: more animals, and your vet, suppliers and buyers connected to your farm.</p>
+    </Card>
   );
 }

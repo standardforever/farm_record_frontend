@@ -67,7 +67,7 @@ export default function SettingsPage() {
         <Card title="My profile">
           <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); saveProfile.mutate(); }}>
             <Field label="Full name" htmlFor="p-name"><Input id="p-name" value={profile.full_name} onChange={(e) => setProfile({ ...profile, full_name: e.target.value })} /></Field>
-            <Field label="Language" htmlFor="p-lang" hint="Translations roll out with Phase 1.">
+            <Field label="Language" htmlFor="p-lang" hint="More languages coming soon.">
               <Select id="p-lang" value={profile.language} onChange={(e) => setProfile({ ...profile, language: e.target.value })}>
                 <option value="en">English</option><option value="pcm">Pidgin</option><option value="ha">Hausa</option><option value="yo">Yorùbá</option><option value="ig">Igbo</option><option value="ff">Fulfulde</option>
               </Select></Field>

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Check, ShieldCheck } from "lucide-react";
 import { Logo } from "@/components/layout/Logo";
 import { Alert, Button, Field, Input } from "@/components/ui";
+import { LIVE_ORG_TYPES } from "@/config/focus";
 import { ORG_TYPES } from "@/config/orgTypes";
 import { RequireAuth, useAuth } from "@/features/auth";
 import { rememberWorkspace, useCreateWorkspace } from "@/features/workspaces";
@@ -50,7 +51,7 @@ function CreateWorkspace() {
         {step === 1 ? (
           <>
             <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {ORG_TYPES.map((t) => (
+              {ORG_TYPES.filter((t) => LIVE_ORG_TYPES.includes(t.key)).map((t) => (
                 <button key={t.key} type="button" onClick={() => setType(t.key)} aria-pressed={type === t.key}
                   className={cn("relative flex cursor-pointer items-start gap-3 rounded-[14px] border bg-surface p-4 text-left transition-colors",
                     type === t.key ? "border-brand shadow-[inset_0_0_0_1px_var(--brand)]" : "border-line hover:border-ink-3")}>
@@ -61,6 +62,18 @@ function CreateWorkspace() {
               ))}
             </div>
             <div className="mt-6 flex justify-end"><Button variant="primary" size="lg" onClick={() => setStep(2)}>Continue</Button></div>
+            <section className="mt-8" aria-label="Coming soon">
+              <div className="eyebrow">Coming soon</div>
+              <p className="mt-1 text-[13.5px] text-ink-3">Oko is open to farms first. These will open once farms are running well on it.</p>
+              <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {ORG_TYPES.filter((t) => !LIVE_ORG_TYPES.includes(t.key)).map((t) => (
+                  <li key={t.key} className="flex items-center gap-2.5 rounded-[12px] border border-dashed border-line px-3 py-2.5 text-ink-3">
+                    <t.icon size={17} className="shrink-0" /><span className="min-w-0 flex-1 truncate text-[13.5px]">{t.label}</span>
+                    <span className="shrink-0 rounded-full bg-surface-2 px-2 py-0.5 text-[11px] font-semibold">Soon</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
           </>
         ) : (
           <form onSubmit={submit} className="mt-6 flex max-w-[520px] flex-col gap-4">

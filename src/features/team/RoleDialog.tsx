@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { SHOW_ROADMAP } from "@/config/focus";
 import { Alert, Badge, Button, Checkbox, Dialog, Field, Input, Segmented, Select, Textarea, useToast } from "@/components/ui";
 import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
@@ -75,7 +76,7 @@ export function RoleDialog({ open, role, onClose }: { open: boolean; role: Role 
           </div>
         )}
         <div className="flex flex-col gap-4">
-          {(cat.data ?? []).map((g) => (
+          {(cat.data ?? []).filter((g) => SHOW_ROADMAP || g.status !== "planned").map((g) => (
             <fieldset key={g.module} className="rounded-xl border border-line p-3.5">
               <legend className="flex items-center gap-2 px-1.5 text-[13.5px] font-semibold">{g.name}
                 {g.status === "planned" && <Badge tone="neutral">Coming {g.phase.replace("phase-", "phase ")}</Badge>}</legend>

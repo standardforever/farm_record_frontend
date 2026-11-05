@@ -71,7 +71,7 @@ export default function Landing() {
         <div className="mx-auto flex max-w-[1180px] flex-wrap items-center gap-x-8 gap-y-2 px-4 py-5 text-[14px] text-ink-2 sm:px-6">
           <b className="text-ink">Built today for</b>
           <span>Broilers</span><span>Layers</span><span>Catfish</span>
-          <span className="text-ink-3">Next: cattle, goats, sheep, pigs and dairy</span>
+          <span className="text-ink-3">Coming soon: cattle, goats, sheep, pigs and dairy</span>
         </div>
       </section>
 

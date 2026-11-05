@@ -4,6 +4,7 @@ import { use } from "react";
 import Link from "next/link";
 import { Clock, ExternalLink } from "lucide-react";
 import { Badge, Card, PageHeader, PageLoader } from "@/components/ui";
+import { SHOW_ROADMAP } from "@/config/focus";
 import { PHASE_LABEL } from "@/config/navigation";
 import { useMeta } from "@/features/meta/api";
 import { useCurrentWorkspace } from "@/features/workspaces";
@@ -20,6 +21,15 @@ export default function ModulePage({ params }: { params: Promise<{ key: string }
   const perms = data?.permissions.find((g) => g.module === key)?.permissions ?? [];
   const inPlan = !m.feature || ws.has(m.feature);
 
+  if (!SHOW_ROADMAP) {
+    return (
+      <>
+        <PageHeader eyebrow="Coming soon" title={m.name} sub={m.description} />
+        <Card><p className="flex items-center gap-2 text-[14px] text-ink-2"><Clock size={16} className="text-warn" />
+          This is not open yet. Oko is focused on farm records first; this part opens once farms are running well on it.</p></Card>
+      </>
+    );
+  }
   return (
     <>
       <PageHeader eyebrow={`${PHASE_LABEL[m.phase]} · coming soon`} title={m.name} sub={m.description} />

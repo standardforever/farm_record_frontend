@@ -2,7 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import { Banknote, Bird, Building2, Egg, Handshake, Landmark, Shield, ShoppingBasket, Stethoscope, Store, Truck, Users } from "lucide-react";
 
 export const ORG_TYPES: { key: string; label: string; icon: LucideIcon; blurb: string }[] = [
-  { key: "farm", label: "Farm", icon: Bird, blurb: "Poultry, fish, goats, cattle, pigs and more" },
+  { key: "farm", label: "Farm", icon: Bird, blurb: "Broilers, layers and catfish today. More animals coming soon." },
   { key: "cooperative", label: "Cooperative or association", icon: Users, blurb: "Members, group buying and selling" },
   { key: "hatchery", label: "Hatchery or breeder", icon: Egg, blurb: "Day-old chicks, fingerlings, breeding stock" },
   { key: "vet_practice", label: "Vet practice", icon: Stethoscope, blurb: "Client farms, cases, bookings" },

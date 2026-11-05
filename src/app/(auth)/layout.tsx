@@ -3,7 +3,7 @@ import { Logo } from "@/components/layout/Logo";
 
 const POINTS = [
   "Daily records in under five minutes, even offline",
-  "Vets, suppliers and buyers who know your farm",
+  "Health, stock, sales and profit for every batch",
   "Your data stays yours: share it only when you choose",
 ];
 

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { ChevronDown, Clock, LogOut, Menu, Plus, Shield, X } from "lucide-react";
+import { SHOW_ROADMAP } from "@/config/focus";
 import { FARM_ORG_TYPES, NAV, PHASE_LABEL, SIMPLE_NAV } from "@/config/navigation";
 import { orgTypeLabel } from "@/config/orgTypes";
 import { useAuth } from "@/features/auth";
@@ -31,7 +32,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const simple = useSimpleMode(ws.my_role.key) && ws.has("farm") && ws.can("farm.view") && FARM_ORG_TYPES.includes(ws.organization.type);
   const items = NAV.filter((n) => (!n.permission || ws.can(n.permission)) && (!n.feature || ws.has(n.feature))
     && (!n.orgTypes || n.orgTypes.includes(ws.organization.type)) && (!simple || SIMPLE_NAV.includes(n.key)));
-  const planned = simple ? [] : (meta?.modules ?? []).filter((m) => m.status === "planned");
+  const planned = simple || !SHOW_ROADMAP ? [] : (meta?.modules ?? []).filter((m) => m.status === "planned");
   const current = (p: string) => (p === "" ? path === base : path === base + p || (p !== "/team" && path.startsWith(base + p)));
   const others = (me?.workspaces ?? []).filter((w) => w.organization_id !== ws.orgId);
 

@@ -10,7 +10,7 @@ import { Alert, Button, Field, Input, Segmented } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "./AuthProvider";
 
-export function nextUrl(params: URLSearchParams, fallback = "/") {
+export function nextUrl(params: URLSearchParams, fallback = "/app") {
   const n = params.get("next");
   return n && n.startsWith("/") && !n.startsWith("//") ? n : fallback;
 }

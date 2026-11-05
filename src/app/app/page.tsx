@@ -6,7 +6,8 @@ import { PageLoader } from "@/components/ui";
 import { useAuth } from "@/features/auth";
 import { lastWorkspace } from "@/features/workspaces";
 
-export default function Root() {
+/** /app: opens the right place (sign-in, onboarding or the last workspace). The installed app starts here. */
+export default function OpenApp() {
   const { status, me } = useAuth();
   const router = useRouter();
   useEffect(() => {

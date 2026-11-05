@@ -42,4 +42,4 @@ export function keepPagesOffline(orgId: string) {
   }
   navigator.serviceWorker.controller.postMessage({ type: "keep", urls: pages(orgId) });
 }
-const pages = (orgId: string) => ["", "/today", "/farm", "/batches"].map((p) => `/w/${orgId}${p}`);
+const pages = (orgId: string) => ["/app", ...["", "/today", "/farm", "/batches"].map((p) => `/w/${orgId}${p}`)];

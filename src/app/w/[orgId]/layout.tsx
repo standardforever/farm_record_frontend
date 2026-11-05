@@ -29,7 +29,7 @@ function Loaded({ orgId, children }: { orgId: string; children: ReactNode }) {
     return (
       <div className="mx-auto mt-24 flex max-w-md flex-col gap-4 px-4">
         <Alert tone="crit" title="Cannot open workspace">{msg}</Alert>
-        <Link href="/"><Button>Go to my workspaces</Button></Link>
+        <Link href="/app"><Button>Go to my workspaces</Button></Link>
       </div>
     );
   }

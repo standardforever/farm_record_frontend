@@ -31,7 +31,7 @@ function Inner() {
       <PageHeader eyebrow="Farm" title="Weather and alerts"
         sub="The forecast for each site, checked against your animals. Risky days put the right jobs on Today, a day ahead."
         actions={ws.can("farm.edit") ? <Button loading={refresh.isPending} onClick={async () => { await refresh.mutateAsync(undefined); toast("Forecast checked"); }}><RefreshCw size={16} /> Check now</Button> : undefined} />
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
         <section className="flex flex-col gap-3" aria-label="Alerts">
           <h2 className="text-[15px] font-bold">Next three days</h2>
           {live.length === 0 ? (

@@ -16,7 +16,7 @@ export default function ScreenError({ error, reset }: { error: Error & { digest?
       <p className="mt-2 text-[14px] text-ink-2">The Oko team has been told. Anything you saved is safe, including records waiting to send.</p>
       <div className="mt-5 flex justify-center gap-2">
         <Button variant="primary" onClick={reset}><RotateCw size={16} /> Try again</Button>
-        <Link href="/" className="inline-flex items-center rounded-xl border border-line px-4 font-semibold">Go home</Link>
+        <Link href="/app" className="inline-flex items-center rounded-xl border border-line px-4 font-semibold">Go home</Link>
       </div>
     </div>
   );

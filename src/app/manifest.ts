@@ -6,7 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Oko: farm records",
     short_name: "Oko",
     description: "Run your farm: daily records, health, stock, sales and money. Works without network.",
-    start_url: "/?source=app",
+    start_url: "/app?source=app",
     scope: "/",
     display: "standalone",
     orientation: "portrait",

@@ -6,6 +6,7 @@ import { useBatches } from "@/features/batches";
 import { localDay } from "@/features/daily/api";
 import { newId } from "@/features/offline/queue";
 import { useCurrentWorkspace } from "@/features/workspaces";
+import { useFormEvidence } from "@/features/evidence/useFormEvidence";
 import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/format";
 import { type Product, PRODUCT_LABEL, planHold, shortDay, useCreateTreatment, useHealthCatalog, useProductHints } from "./api";
@@ -28,10 +29,11 @@ export function TreatmentDialog({ open, onClose, batchId, caseId }: { open: bool
   const [filledFrom, setFilledFrom] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const set = (k: keyof typeof blank, v: string) => setF((x) => ({ ...x, [k]: v }));
+  const evidence = useFormEvidence("treatment", { hint: "The vet's prescription, the product label or a photo of the vaccination. Optional." });
 
   useEffect(() => {
     if (!open) return;
-    setF({ ...blank, batch: batchId ?? "" }); setError(null); setFilledFrom(null);
+    setF({ ...blank, batch: batchId ?? "" }); setError(null); setFilledFrom(null); evidence.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, batchId]);
 
@@ -61,6 +63,7 @@ export function TreatmentDialog({ open, onClose, batchId, caseId }: { open: bool
         course_days: Math.max(1, Number(f.course) || 1), animals: int(f.animals), given_by: f.given_by || null, product_lot: f.lot || null,
         withdrawal_meat_days: int(f.meat), withdrawal_eggs_days: int(f.eggs), withdrawal_milk_days: int(f.milk), notes: f.notes || null, client_id: newId(),
       });
+      await evidence.attach({ record_id: t.id }, `${t.product} for ${t.batch_code}`);
       const last = Object.values(t.held_until).sort().pop();
       toast(last ? `Recorded. ${t.batch_code} is held until ${shortDay(last)}` : `Recorded ${t.product} for ${t.batch_code}`);
       onClose();
@@ -136,6 +139,7 @@ export function TreatmentDialog({ open, onClose, batchId, caseId }: { open: bool
           <Field label="Animals treated" htmlFor="t-animals" hint="Optional"><Input id="t-animals" inputMode="numeric" value={f.animals} onChange={(e) => set("animals", e.target.value.replace(/\D/g, ""))} /></Field>
         </div>
         <Field label="Notes" htmlFor="t-notes" hint="Optional"><Textarea id="t-notes" rows={2} value={f.notes} onChange={(e) => set("notes", e.target.value)} /></Field>
+        {evidence.field}
       </div>
     </Dialog>
   );

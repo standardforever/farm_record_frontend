@@ -8,7 +8,9 @@ import { useBatches } from "@/features/batches";
 import { useQueryClient } from "@tanstack/react-query";
 import { localDay } from "@/features/daily/api";
 import { shrinkPhoto } from "@/features/daily/device";
-import { save as saveOffline } from "@/features/offline/queue";
+import { newId, save as saveOffline } from "@/features/offline/queue";
+import { refOf } from "@/features/evidence/api";
+import { useFormEvidence } from "@/features/evidence/useFormEvidence";
 import { ProofPhoto } from "@/features/daily/TaskSheets";
 import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
@@ -31,12 +33,14 @@ export function ReportCaseDialog({ open, onClose, batchId, unitId }: { open: boo
   const [photo, setPhoto] = useState<{ blob: Blob; url: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const evidence = useFormEvidence("health_case", { hint: "More photos, a lab result or the vet's note (PDF). Optional." });
+  const resetEvidence = evidence.reset;
 
   useEffect(() => {
     if (!open) return;
     setF({ batch: batchId ?? "", unit: unitId ?? "", on: localDay(), affected: "", description: "", suspected: "", hold: false });
-    setSigns([]); setPhoto(null); setError(null);
-  }, [open, batchId, unitId]);
+    setSigns([]); setPhoto(null); setError(null); resetEvidence();
+  }, [open, batchId, unitId, resetEvidence]);
 
   const batch = batches.data?.find((b) => b.id === f.batch);
   const units = (batch?.units ?? []).filter((u) => !u.ended_on);
@@ -51,9 +55,11 @@ export function ReportCaseDialog({ open, onClose, batchId, unitId }: { open: boo
     setBusy(true); setError(null);
     try {
       const code = batches.data?.find((b) => b.id === f.batch)?.code ?? "the batch";
+      const cid = newId();
       const r = await saveOffline(ws.orgId, "health.case", { batch_id: f.batch, unit_id: f.unit || (units.length === 1 ? units[0].unit_id : null), opened_on: f.on, signs,
         affected: f.affected ? Number(f.affected) : null, description: f.description || null, suspected: f.suspected || null, hold_sales: f.hold },
-        `Sick animals in ${code}`, { photo: photo?.blob });
+        `Sick animals in ${code}`, { photo: photo?.blob, clientId: cid });
+      await evidence.attach(refOf(r, cid), `sick animals in ${code}`);
       qc.invalidateQueries({ queryKey: ["health", ws.orgId] }); qc.invalidateQueries({ queryKey: ["farm", ws.orgId] });
       toast(r.status === "queued" ? `Saved on this phone. The report for ${code} sends when you are back online.`
         : f.hold ? `Reported. Sales from ${code} are on hold` : `Reported for ${code}`);
@@ -115,6 +121,7 @@ export function ReportCaseDialog({ open, onClose, batchId, unitId }: { open: boo
           <Checkbox checked={f.hold} onChange={(v) => setF({ ...f, hold: v })} label="Hold all sales from this batch"
             description="Nothing from it can be sold or eaten until a supervisor or vet closes this case or lifts the hold." />
         </div>
+        {evidence.field}
       </div>
     </Dialog>
   );

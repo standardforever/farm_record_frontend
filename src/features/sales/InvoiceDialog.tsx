@@ -5,6 +5,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { Alert, Button, Checkbox, Dialog, Field, Input, Segmented, Select, Textarea, useToast } from "@/components/ui";
 import { useBatches } from "@/features/batches";
 import { localDay } from "@/features/daily/api";
+import { useFormEvidence } from "@/features/evidence/useFormEvidence";
 import { newId } from "@/features/offline/queue";
 import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
@@ -35,12 +36,14 @@ export function InvoiceDialog({ open, onClose, batchId, customerId, onCreated }:
   const [notes, setNotes] = useState("");
   const [override, setOverride] = useState(false);
   const [error, setError] = useState<{ message: string; code?: string } | null>(null);
+  const evidence = useFormEvidence("invoice", { hint: "The buyer's order, a signed delivery note or a photo of the goods collected. Optional." });
+  const resetEvidence = evidence.reset;
 
   useEffect(() => {
     if (!open) return;
     setWho({ id: customerId ?? "", name: "" }); setOn(localDay()); setDue(""); setRows([blankRow("animals", batchId ?? "")]);
-    setDiscount(""); setPay({ mode: "full", amount: "", channel: "cash", reference: "" }); setNotes(""); setOverride(false); setError(null);
-  }, [open, batchId, customerId]);
+    setDiscount(""); setPay({ mode: "full", amount: "", channel: "cash", reference: "" }); setNotes(""); setOverride(false); setError(null); resetEvidence();
+  }, [open, batchId, customerId, resetEvidence]);
 
   const cust = customers.data?.find((c) => c.id === who.id);
   useEffect(() => { if (cust && cust.terms_days > 0) setPay((p) => ({ ...p, mode: "credit" })); }, [cust]);
@@ -64,6 +67,7 @@ export function InvoiceDialog({ open, onClose, batchId, customerId, onCreated }:
         paid_now: paidNow > 0 ? { amount: paidNow, channel: pay.channel, reference: pay.reference || null } : null,
         notes: notes || null, override_credit_limit: override, client_id: newId(),
       });
+      await evidence.attach({ record_id: inv.id }, inv.number);
       toast(`${inv.number}: ${naira(inv.total)}${inv.status === "paid" ? ", paid" : inv.balance ? `, ${naira(inv.balance)} owed` : ""}`);
       onCreated?.(inv);
       onClose();
@@ -158,6 +162,7 @@ export function InvoiceDialog({ open, onClose, batchId, customerId, onCreated }:
         )}
         {pay.mode !== "full" && total > 0 && <p className="text-[13px] text-ink-2">{naira(total - paidNow)} will be owed, due {day(dueOn)}.</p>}
         <Field label="Notes on the invoice" htmlFor="s-notes" hint="Optional"><Textarea id="s-notes" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
+        {evidence.field}
       </div>
     </Dialog>
   );

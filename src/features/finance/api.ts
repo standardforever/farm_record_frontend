@@ -65,7 +65,7 @@ function useFinanceMutation<V, R>(orgId: string, fn: (v: V) => Promise<R>) {
 
 export const useSaveAccount = (orgId: string) =>
   useFinanceMutation(orgId, ({ id, ...b }: Partial<Account> & { id?: string }) => (id ? patch<Account>(`${base(orgId)}/accounts/${id}`, b) : post<Account>(`${base(orgId)}/accounts`, b)));
-export const useTransfer = (orgId: string) => useFinanceMutation(orgId, (b: Record<string, unknown>) => post(`${base(orgId)}/transfers`, b));
+export const useTransfer = (orgId: string) => useFinanceMutation(orgId, (b: Record<string, unknown>) => post<{ id: string }>(`${base(orgId)}/transfers`, b));
 export const useReconcile = (orgId: string) =>
   useFinanceMutation(orgId, ({ id, ...b }: { id: string; as_of: string; statement_balance: number; note?: string | null }) => post<Reconciliation>(`${base(orgId)}/accounts/${id}/reconcile`, b));
 export const useAddExpense = (orgId: string) => useFinanceMutation(orgId, (b: Record<string, unknown>) => post<Expense>(`${base(orgId)}/expenses`, b));

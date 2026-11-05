@@ -29,6 +29,9 @@ export type Op = {
   /** A photo kept on the phone until it can be uploaded; its server id goes into body[photo_field]. */
   photo?: boolean;
   photo_field?: string;
+  /** Where the photo (or PDF) is uploaded, and its file name. Defaults to the farm's proof-photo upload. */
+  photo_path?: string;
+  photo_name?: string;
   attempts?: number;
   /** Who saved it: only sent while that person is signed in on this phone. */
   user_id?: string | null;
@@ -66,11 +69,12 @@ export const queued = async (orgId?: string) =>
 
 const offlineError = (e: unknown) => e instanceof ApiError && (e.status === 0 || e.status >= 500 || e.status === 429 || e.status === 401);
 
-async function uploadPhoto(orgId: string, blob: Blob, clientId: string): Promise<string> {
+async function uploadPhoto(orgId: string, blob: Blob, clientId: string, path = "farm/media", name?: string): Promise<string> {
   const form = new FormData();
-  form.append("file", blob, "photo.jpg");
+  form.append("file", blob, name ?? "photo.jpg");
   form.append("client_id", clientId);
-  return (await upload<{ id: string }>(`/organizations/${orgId}/farm/media`, form)).id;
+  if (name) form.append("name", name);
+  return (await upload<{ id: string }>(`/organizations/${orgId}/${path}`, form)).id;
 }
 
 /** A stable id for the photo of an operation, so a re-upload is recognised by the server. */
@@ -90,12 +94,15 @@ export type Saved = { status: "sent"; id: string | null; duplicate: boolean } | 
  * A conflict while the person is still on the form is thrown as an ApiError (so the form shows it).
  */
 export async function save(orgId: string, kind: string, body: Record<string, unknown>, label: string,
-  opts: { params?: Record<string, string>; photo?: Blob | null; photoField?: string; clientId?: string } = {}): Promise<Saved> {
+  opts: { params?: Record<string, string>; photo?: Blob | null; photoField?: string; photoPath?: string; photoName?: string; clientId?: string } = {}): Promise<Saved> {
   const op: Op = { client_id: opts.clientId ?? (body.client_id as string) ?? newId(), org_id: orgId, kind, params: opts.params ?? {},
     body: { ...body }, label, saved_at: new Date().toISOString(), status: "waiting", user_id: currentUser };
   delete op.body.client_id;
   const photoField = opts.photoField ?? "media_id";
-  if (opts.photo) { await idbSet("queue", PHOTO(op.client_id), opts.photo); op.photo = true; op.photo_field = photoField; }
+  if (opts.photo) {
+    await idbSet("queue", PHOTO(op.client_id), opts.photo);
+    Object.assign(op, { photo: true, photo_field: photoField, photo_path: opts.photoPath, photo_name: opts.photoName });
+  }
   const offline = typeof navigator !== "undefined" && navigator.onLine === false;
   await idbSet("queue", OP(op.client_id), { ...op, sending_since: offline ? null : Date.now() });
   const keep = async () => { await idbSet("queue", OP(op.client_id), { ...op, sending_since: null }); changed(); return { status: "queued" } as const; };
@@ -103,7 +110,7 @@ export async function save(orgId: string, kind: string, body: Record<string, unk
   if (offline) { changed(); return { status: "queued" }; }
   try {
     if (opts.photo) {
-      op.body[photoField] = await uploadPhoto(orgId, opts.photo, photoClientId(op.client_id));
+      op.body[photoField] = await uploadPhoto(orgId, opts.photo, photoClientId(op.client_id), op.photo_path, op.photo_name);
       await idbSet("queue", OP(op.client_id), { ...op, sending_since: Date.now() });
     }
     const out = await sendOps(orgId, [op]);
@@ -147,7 +154,7 @@ async function doFlush(): Promise<FlushResult> {
           if (o.photo && !o.body[o.photo_field ?? "media_id"]) {
             const blob = await idbGet<Blob>("queue", PHOTO(o.client_id));
             if (blob) {
-              o.body[o.photo_field ?? "media_id"] = await uploadPhoto(orgId, blob, photoClientId(o.client_id));
+              o.body[o.photo_field ?? "media_id"] = await uploadPhoto(orgId, blob, photoClientId(o.client_id), o.photo_path, o.photo_name);
               await idbSet("queue", OP(o.client_id), o);
             }
           }

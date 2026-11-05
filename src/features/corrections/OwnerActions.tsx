@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, Pencil, Trash2 } from "lucide-react";
 import { Alert, Button, Checkbox, Dialog, Field, Input, PageLoader, Select, Textarea, Toggle, useToast } from "@/components/ui";
+import { EvidenceButton } from "@/features/evidence/EvidenceButton";
 import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/format";
@@ -11,21 +12,23 @@ import { type CorrectionField, type CorrectionKind, useCorrectionForm, useDelete
 export const CAN_CORRECT = "records.correct";
 
 /**
- * Edit and Delete for any record, shown only to the workspace's Owner or Co-owner.
- * Put it next to a record: <OwnerActions kind="expense" id={e.id} />.
+ * The actions on any record: its evidence (anyone who can see the record) and Edit and Delete (only the
+ * workspace's Owner or Co-owner). Put it next to a record: <OwnerActions kind="expense" id={e.id} />.
  */
-export function OwnerActions({ kind, id, edit = true, compact, onDeleted, className }: {
-  kind: CorrectionKind; id: string; edit?: boolean; compact?: boolean; onDeleted?: () => void; className?: string;
+export function OwnerActions({ kind, id, edit = true, evidence = kind !== "task", compact, onDeleted, className }: {
+  kind: CorrectionKind; id: string; edit?: boolean; evidence?: boolean; compact?: boolean; onDeleted?: () => void; className?: string;
 }) {
   const ws = useCurrentWorkspace();
   const [open, setOpen] = useState<"edit" | "delete" | null>(null);
-  if (!ws.can(CAN_CORRECT)) return null;
+  const owner = ws.can(CAN_CORRECT);
+  if (!owner && !evidence) return null;
   return (
     <span className={cn("inline-flex shrink-0 items-center gap-1", className)} onClick={(e) => e.stopPropagation()}>
-      {edit && <Button size="sm" variant="ghost" onClick={() => setOpen("edit")} aria-label="Edit (owner)" title="Edit (owner)">
+      {evidence && <EvidenceButton kind={kind} id={id} compact={compact} />}
+      {owner && edit && <Button size="sm" variant="ghost" onClick={() => setOpen("edit")} aria-label="Edit (owner)" title="Edit (owner)">
         <Pencil size={14} />{!compact && " Edit"}</Button>}
-      <Button size="sm" variant="ghost" className="!text-crit" onClick={() => setOpen("delete")} aria-label="Delete (owner)" title="Delete (owner)">
-        <Trash2 size={14} />{!compact && " Delete"}</Button>
+      {owner && <Button size="sm" variant="ghost" className="!text-crit" onClick={() => setOpen("delete")} aria-label="Delete (owner)" title="Delete (owner)">
+        <Trash2 size={14} />{!compact && " Delete"}</Button>}
       {open === "edit" && <EditDialog kind={kind} id={id} onClose={() => setOpen(null)} />}
       {open === "delete" && <DeleteDialog kind={kind} id={id} onClose={() => setOpen(null)} onDeleted={onDeleted} />}
     </span>

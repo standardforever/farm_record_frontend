@@ -8,6 +8,7 @@ import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/format";
 import { usePacks } from "@/features/packs";
+import { useFormEvidence } from "@/features/evidence/useFormEvidence";
 import { today, useBatchCatalog, useStockBatch } from "./api";
 
 const num = (v: string) => (v.trim() === "" ? null : Number(v.replace(/,/g, "")));
@@ -28,11 +29,12 @@ export function StockBatchDialog({ open, onClose, presetUnit, onStocked }: {
   const [f, setF] = useState({ species: "", breed: "", breed_key: "", source_type: "purchased", source_name: "", started_on: today(), age: "", weight: "", cost: "", notes: "" });
   const [counts, setCounts] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
+  const evidence = useFormEvidence("batch", { hint: "The hatchery or supplier's receipt, the delivery note or a photo of the chicks or fingerlings on arrival. Optional." });
 
   const allUnits = useMemo(() => (farm.data?.sites ?? []).flatMap((s) => s.units.filter((u) => !u.archived_at).map((u) => ({ ...u, site: s.name }))), [farm.data]);
   useEffect(() => {
     if (!open) return;
-    setError(null);
+    setError(null); evidence.reset();
     const pre = allUnits.find((u) => u.id === presetUnit);
     setCounts(presetUnit ? { [presetUnit]: pre?.capacity ? String(pre.capacity) : "" } : {});
     setF((x) => ({ ...x, species: pre?.purpose && cat.data?.species[pre.purpose] ? pre.purpose : x.species, started_on: today() }));
@@ -56,6 +58,7 @@ export function StockBatchDialog({ open, onClose, presetUnit, onStocked }: {
         age_at_start_days: Number(f.age) || 0, avg_start_weight_g: num(f.weight), acquisition_cost: money ? num(f.cost) : null,
         units: chosen.map(([unit_id, v]) => ({ unit_id, count: Number(v) })), notes: f.notes || null,
       });
+      await evidence.attach({ record_id: b.id }, b.code);
       toast(`Stocked ${b.code}: ${b.current.toLocaleString("en-NG")} ${units.data?.purposes[b.species]?.toLowerCase() ?? ""}`);
       onClose();
       if (onStocked) onStocked(b.id); else router.push(`/w/${ws.orgId}/batches/${b.id}`);
@@ -124,6 +127,7 @@ export function StockBatchDialog({ open, onClose, presetUnit, onStocked }: {
           )}
         </div>
         <Field label="Notes" htmlFor="b-notes" hint="Optional"><Textarea id="b-notes" rows={2} value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} /></Field>
+        {evidence.field}
       </div>
     </Dialog>
   );

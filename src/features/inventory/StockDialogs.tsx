@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Alert, Button, Dialog, Field, Input, Segmented, Select, Textarea, useToast } from "@/components/ui";
 import { useBatches } from "@/features/batches";
 import { localDay } from "@/features/daily/api";
+import { useFormEvidence } from "@/features/evidence/useFormEvidence";
 import { newId } from "@/features/offline/queue";
 import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
@@ -107,16 +108,19 @@ export function ReceiveDialog({ open, onClose, itemId }: { open: boolean; onClos
   const [f, setF] = useState({ item: "", amount: "", price: "", priceMode: "total" as "total" | "unit", on: localDay(), supplier: "", reference: "", lot: "", expires: "" });
   const [mode, setMode] = useState<"packs" | "units">("packs");
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => { if (open) { setError(null); setF({ item: itemId ?? "", amount: "", price: "", priceMode: "total", on: localDay(), supplier: "", reference: "", lot: "", expires: "" }); } }, [open, itemId]);
+  const evidence = useFormEvidence("stock_lot", { hint: "The supplier's invoice or waybill, or a photo of the bags as they arrived. Optional." });
+  const resetEvidence = evidence.reset;
+  useEffect(() => { if (open) { setError(null); resetEvidence(); setF({ item: itemId ?? "", amount: "", price: "", priceMode: "total", on: localDay(), supplier: "", reference: "", lot: "", expires: "" }); } }, [open, itemId, resetEvidence]);
   const it = items.data?.find((i) => i.id === f.item);
   const packs = mode === "packs" && !!it?.pack_size && !!it.pack_name;
   const total = it && f.amount ? (packs ? Number(f.amount) * it.pack_size! : Number(f.amount)) : 0;
   const save = async () => {
     setError(null);
     try {
-      await receive.mutateAsync({ item_id: f.item, received_on: f.on, ...(packs ? { packs: n(f.amount) } : { quantity: n(f.amount) }),
+      const lot = await receive.mutateAsync({ item_id: f.item, received_on: f.on, ...(packs ? { packs: n(f.amount) } : { quantity: n(f.amount) }),
         ...(f.price ? (f.priceMode === "total" ? { total_cost: n(f.price) } : { unit_cost: n(f.price) }) : {}),
         supplier: f.supplier || null, reference: f.reference || null, lot_number: f.lot || null, expires_on: f.expires || null, client_id: newId() });
+      await evidence.attach({ record_id: lot.id }, `delivery of ${it!.name}`);
       toast(`Received ${qty(total, it!)} of ${it!.name}`);
       onClose();
     } catch (e) { setError(errMsg(e)); }
@@ -143,6 +147,7 @@ export function ReceiveDialog({ open, onClose, itemId }: { open: boolean; onClos
         <Field label="Invoice / waybill no." htmlFor="r-ref" hint="Optional"><Input id="r-ref" value={f.reference} onChange={(e) => setF({ ...f, reference: e.target.value })} /></Field>
         <Field label="Lot no. on pack" htmlFor="r-lot" hint="Optional"><Input id="r-lot" value={f.lot} onChange={(e) => setF({ ...f, lot: e.target.value })} /></Field>
       </div>
+      {evidence.field}
     </Shell>
   );
 }
@@ -156,7 +161,9 @@ export function IssueDialog({ open, onClose, itemId, batchId }: { open: boolean;
   const [f, setF] = useState({ item: "", amount: "", batch: "", on: localDay(), note: "" });
   const [mode, setMode] = useState<"packs" | "units">("units");
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => { if (open) { setError(null); setF({ item: itemId ?? "", amount: "", batch: batchId ?? "", on: localDay(), note: "" }); } }, [open, itemId, batchId]);
+  const evidence = useFormEvidence("stock_move", { hint: "A photo of what was used, or the vet's instruction. Optional." });
+  const resetEvidence = evidence.reset;
+  useEffect(() => { if (open) { setError(null); resetEvidence(); setF({ item: itemId ?? "", amount: "", batch: batchId ?? "", on: localDay(), note: "" }); } }, [open, itemId, batchId, resetEvidence]);
   const it = items.data?.find((i) => i.id === f.item);
   const packs = mode === "packs" && !!it?.pack_size && !!it.pack_name;
   const save = async () => {
@@ -165,6 +172,7 @@ export function IssueDialog({ open, onClose, itemId, batchId }: { open: boolean;
       const r = await issue.mutateAsync({ item_id: f.item, occurred_on: f.on, ...(packs ? { packs: n(f.amount) } : { quantity: n(f.amount) }),
         batch_id: f.batch || null, note: f.note || null, client_id: newId() });
       const b = batches.data?.find((x) => x.id === f.batch);
+      if (r.moves[0]) await evidence.attach({ record_id: r.moves[0].id }, `use of ${it!.name}`);
       toast(`Used ${qty(r.quantity, it!)} of ${it!.name}${b ? ` for ${b.code}` : ""}` + (r.cost_amount != null && ws.can("finance.view") ? ` · ${naira(r.cost_amount)}` : ""));
       onClose();
     } catch (e) { setError(errMsg(e)); }
@@ -183,6 +191,7 @@ export function IssueDialog({ open, onClose, itemId, batchId }: { open: boolean;
         <Field label="On" htmlFor="u-on"><Input id="u-on" type="date" max={localDay()} value={f.on} onChange={(e) => setF({ ...f, on: e.target.value })} /></Field>
       </div>
       <Field label="Note" htmlFor="u-note" hint="Optional"><Input id="u-note" value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} /></Field>
+      {evidence.field}
     </Shell>
   );
 }
@@ -226,7 +235,9 @@ export function WriteOffDialog({ open, onClose, item, lotId }: { open: boolean; 
   const toast = useToast();
   const [f, setF] = useState({ amount: "", lot: "", reason: "Expired", note: "" });
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => { if (open) { setError(null); setF({ amount: "", lot: lotId ?? "", reason: lotId ? "Expired" : "Spoilt or wet", note: "" }); } }, [open, lotId]);
+  const evidence = useFormEvidence("stock_move", { hint: "A photo of the spoilt or expired stock helps whoever approves it. Optional." });
+  const resetEvidence = evidence.reset;
+  useEffect(() => { if (open) { setError(null); resetEvidence(); setF({ amount: "", lot: lotId ?? "", reason: lotId ? "Expired" : "Spoilt or wet", note: "" }); } }, [open, lotId, resetEvidence]);
   const lots = useMemo(() => (detail.data?.lots ?? []).filter((l) => !l.voided_at && l.remaining > 0), [detail.data]);
   useEffect(() => {
     const l = lots.find((x) => x.id === f.lot);
@@ -237,6 +248,8 @@ export function WriteOffDialog({ open, onClose, item, lotId }: { open: boolean; 
     setError(null);
     try {
       const r = await writeOff.mutateAsync({ item_id: item.id, quantity: n(f.amount), lot_id: f.lot || null, occurred_on: localDay(), reason: f.reason, note: f.note || null });
+      if (r[0]) await evidence.attach({ record_id: r[0].id }, `write-off of ${item.name}`);
+      if (r[0]) await evidence.attach({ record_id: r[0].id }, `write-off of ${item.name}`);
       toast(r[0]?.status === "pending" ? "Write-off saved. It waits for a supervisor to approve." : `Wrote off ${qty(Number(f.amount), item)} of ${item.name}`);
       onClose();
     } catch (e) { setError(errMsg(e)); }
@@ -255,6 +268,7 @@ export function WriteOffDialog({ open, onClose, item, lotId }: { open: boolean; 
           {cat.data?.write_off_reasons.map((r) => <option key={r}>{r}</option>)}</Select></Field>
       </div>
       <Field label="Note" htmlFor="w-note" hint="Optional"><Input id="w-note" value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} /></Field>
+      {evidence.field}
     </Shell>
   );
 }

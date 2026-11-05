@@ -5,6 +5,7 @@ import { OwnerActions } from "@/features/corrections";
 import { Wrench } from "lucide-react";
 import { Alert, Badge, Button, Dialog, EmptyState, Field, Input, Select, Textarea, useToast } from "@/components/ui";
 import { localDay } from "@/features/daily/api";
+import { useFormEvidence } from "@/features/evidence/useFormEvidence";
 import { useFarmMap } from "@/features/farm";
 import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
@@ -110,18 +111,25 @@ function ServicedDialog({ e, onClose }: { e: Equipment | null; onClose: () => vo
   const serviced = useServiced(ws.orgId);
   const toast = useToast();
   const [f, setF] = useState({ on: localDay(), next: "", note: "" });
-  useEffect(() => { if (e) setF({ on: localDay(), next: "", note: "" }); }, [e]);
+  const evidence = useFormEvidence("equipment", { hint: "The mechanic's receipt or a photo of the work. Kept with the equipment. Optional." });
+  const resetEvidence = evidence.reset;
+  useEffect(() => { if (e) { setF({ on: localDay(), next: "", note: "" }); resetEvidence(); } }, [e, resetEvidence]);
   if (!e) return null;
   return (
     <Dialog open={!!e} onClose={onClose} title={`Serviced ${e.name}`} eyebrow="Equipment"
       footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button variant="primary" loading={serviced.isPending} onClick={async () => {
-        try { await serviced.mutateAsync({ id: e.id, on: f.on, next_on: f.next || null, note: f.note || null }); toast(`Serviced: ${e.name}`); onClose(); }
+        try {
+          await serviced.mutateAsync({ id: e.id, on: f.on, next_on: f.next || null, note: f.note || null });
+          await evidence.attach({ record_id: e.id }, `${e.name} service`);
+          toast(`Serviced: ${e.name}`); onClose();
+        }
         catch (err) { toast(err instanceof ApiError ? err.message : "Could not save", "crit"); }
       }}>Save</Button></>}>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Serviced on" htmlFor="sv-on"><Input id="sv-on" type="date" max={localDay()} value={f.on} onChange={(x) => setF({ ...f, on: x.target.value })} /></Field>
         <Field label="Next service" htmlFor="sv-next" hint="Optional"><Input id="sv-next" type="date" value={f.next} onChange={(x) => setF({ ...f, next: x.target.value })} /></Field>
         <Field label="What was done" htmlFor="sv-note" hint="Optional" className="sm:col-span-2"><Input id="sv-note" value={f.note} onChange={(x) => setF({ ...f, note: x.target.value })} placeholder="Oil and filter changed" /></Field>
+        <div className="sm:col-span-2">{evidence.field}</div>
       </div>
     </Dialog>
   );

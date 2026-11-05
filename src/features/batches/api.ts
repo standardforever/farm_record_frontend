@@ -61,7 +61,7 @@ export type StockInput = {
   species: string; breed?: string | null; breed_key?: string; code?: string; source_type: string; source_name?: string | null; started_on: string;
   age_at_start_days: number; avg_start_weight_g?: number | null; acquisition_cost?: number | null; units: { unit_id: string; count: number }[]; notes?: string | null;
 };
-export type RecordInput = { kind: string; unit_id?: string; quantity: number; occurred_on: string; amount?: number | null; weight_kg?: number | null; reason?: string | null; note?: string | null };
+export type RecordInput = { kind: string; unit_id?: string; quantity: number; occurred_on: string; amount?: number | null; weight_kg?: number | null; reason?: string | null; note?: string | null; client_id?: string };
 
 export const useStockBatch = (orgId: string) => useBatchMutation(orgId, (b: StockInput) => post<BatchDetail>(base(orgId), b));
 export const useUpdateBatch = (orgId: string, id: string) => useBatchMutation(orgId, (b: Record<string, unknown>) => patch<BatchDetail>(`${base(orgId)}/${id}`, b));

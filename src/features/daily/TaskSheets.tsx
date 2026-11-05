@@ -8,7 +8,9 @@ import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError, blobUrl } from "@/lib/api";
 import { cn } from "@/lib/format";
 import { useQueryClient } from "@tanstack/react-query";
-import { save as saveOffline } from "@/features/offline/queue";
+import { newId, save as saveOffline } from "@/features/offline/queue";
+import { refOf } from "@/features/evidence/api";
+import { useFormEvidence } from "@/features/evidence/useFormEvidence";
 import { type TodayTask, useCreateTask, useDailyCatalog, useSuggest, useTasks, useUpdateTask } from "./api";
 import { type Fix, locate, shrinkPhoto } from "./device";
 
@@ -27,12 +29,14 @@ export function CompleteSheet({ task, on, onClose }: { task: TodayTask | null; o
   const [locating, setLocating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const evidence = useFormEvidence("task_completion", { hint: "More photos or a document about the job. Optional, and sent with it even with no network." });
+  const resetEvidence = evidence.reset;
   const needPhoto = task?.proof === "photo" || task?.proof === "photo_gps";
   const needGps = task?.proof === "gps" || task?.proof === "photo_gps";
 
   useEffect(() => {
     if (!task) return;
-    setMode("done"); setNote(""); setPhoto(null); setFix(null); setError(null);
+    setMode("done"); setNote(""); setPhoto(null); setFix(null); setError(null); resetEvidence();
     if (task.proof === "gps" || task.proof === "photo_gps") getFix();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [task?.id]);
@@ -52,9 +56,11 @@ export function CompleteSheet({ task, on, onClose }: { task: TodayTask | null; o
   const save = async () => {
     setBusy(true); setError(null);
     try {
+      const cid = newId();
       const r = await saveOffline(ws.orgId, "farm.task_done",
         { on: task.due_on ?? on, status: mode, note: note.trim() || null, ...(mode === "done" && fix ? fix : {}) },
-        `${mode === "done" ? "Done" : "Skipped"}: ${task.title}`, { params: { task_id: task.id }, photo: mode === "done" ? photo?.blob : null });
+        `${mode === "done" ? "Done" : "Skipped"}: ${task.title}`, { params: { task_id: task.id }, photo: mode === "done" ? photo?.blob : null, clientId: cid });
+      await evidence.attach(refOf(r, cid), task.title);
       qc.invalidateQueries({ queryKey: ["farm", ws.orgId] });
       toast(r.status === "queued" ? `Saved on this phone: ${task.title}. It will send when you are back online.`
         : r.duplicate ? `${task.title} was already ticked off` : mode === "done" ? `Done: ${task.title}` : `Skipped: ${task.title}`);
@@ -96,6 +102,7 @@ export function CompleteSheet({ task, on, onClose }: { task: TodayTask | null; o
         <Field label={mode === "skipped" ? "Why? (required)" : "Note"} htmlFor="c-note" hint={mode === "skipped" ? undefined : "Optional"}>
           <Textarea id="c-note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder={mode === "skipped" ? "No feed left in store" : ""} />
         </Field>
+        {evidence.field}
       </div>
     </Dialog>
   );
@@ -127,7 +134,9 @@ export function HandoverDialog({ open, onClose }: { open: boolean; onClose: () =
   const [issue, setIssue] = useState("");
   const [issues, setIssues] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => { if (open) { setNote(""); setIssues([]); setIssue(""); setError(null); } }, [open]);
+  const evidence = useFormEvidence("handover", { hint: "A photo of the problem for the next shift: the leaking drinker, the broken fence." });
+  const resetEvidence = evidence.reset;
+  useEffect(() => { if (open) { setNote(""); setIssues([]); setIssue(""); setError(null); resetEvidence(); } }, [open, resetEvidence]);
   const add = () => { if (issue.trim()) { setIssues([...issues, issue.trim()]); setIssue(""); } };
   return (
     <Dialog open={open} onClose={onClose} title="Hand over to the next shift" eyebrow="Today"
@@ -135,7 +144,9 @@ export function HandoverDialog({ open, onClose }: { open: boolean; onClose: () =
         onClick={async () => {
           setSaving(true); setError(null);
           try {
-            const r = await saveOffline(ws.orgId, "farm.handover", { shift, note: note.trim(), issues }, `Handover (${shift})`);
+            const cid = newId();
+            const r = await saveOffline(ws.orgId, "farm.handover", { shift, note: note.trim(), issues }, `Handover (${shift})`, { clientId: cid });
+            await evidence.attach(refOf(r, cid), `handover (${shift})`);
             qc.invalidateQueries({ queryKey: ["farm", ws.orgId] });
             toast(r.status === "queued" ? "Handover saved on this phone. It will send when you are back online." : "Handover saved"); onClose();
           } catch (e) { setError(errMsg(e)); } finally { setSaving(false); }
@@ -153,6 +164,7 @@ export function HandoverDialog({ open, onClose }: { open: boolean; onClose: () =
             <li key={k} className="flex items-center gap-1 rounded-full bg-warn-soft px-3 py-1 text-[13px] text-warn">{i}
               <button type="button" aria-label={`Remove ${i}`} onClick={() => setIssues(issues.filter((_, j) => j !== k))}><X size={13} /></button></li>))}</ul>}
         </div>
+        {evidence.field}
       </div>
     </Dialog>
   );

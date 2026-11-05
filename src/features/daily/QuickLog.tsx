@@ -7,7 +7,9 @@ import { useFarmMap } from "@/features/farm";
 import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError, get } from "@/lib/api";
 import { cn } from "@/lib/format";
-import { save as saveOffline } from "@/features/offline/queue";
+import { newId, save as saveOffline } from "@/features/offline/queue";
+import { refOf } from "@/features/evidence/api";
+import { useFormEvidence } from "@/features/evidence/useFormEvidence";
 
 export type QuickKind = "feed" | "deaths" | "weight" | "eggs" | "water" | "note";
 export const QUICK: { kind: QuickKind; label: string; hint: string }[] = [
@@ -41,6 +43,8 @@ export function QuickLog({ kind, on, presetUnit, open, onClose, onSaved }: {
   const [feedMode, setFeedMode] = useState<"kg" | "bags">("bags");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const evidence = useFormEvidence("farm_record", { hint: "A photo of the feed bags, the dead birds, the scale or the water test. It is sent with the record, even with no network." });
+  const resetEvidence = evidence.reset;
   const set = (k: string, v: string) => setF((x) => ({ ...x, [k]: v }));
 
   // Feed from stock: the feed log takes it off its delivery lots and prices it onto the batch.
@@ -60,12 +64,12 @@ export function QuickLog({ kind, on, presetUnit, open, onClose, onSaved }: {
 
   useEffect(() => {
     if (!open) return;
-    setError(null); setBatch("");
+    setError(null); setBatch(""); resetEvidence();
     let last: Record<string, string> = {};
     try { last = JSON.parse(localStorage.getItem(LAST_FEED) ?? "{}"); } catch { /* ignore */ }
     setF({ bag_kg: last.bag_kg ?? "25", feed_name: last.feed_name ?? "", item: last.item ?? "", sample_size: "20" });
     setUnit(presetUnit ?? "");
-  }, [open, kind, presetUnit]);
+  }, [open, kind, presetUnit, resetEvidence]);
   useEffect(() => { if (open && !unit && units.length === 1) setUnit(units[0].id); }, [open, unit, units]);
   // Keep the remembered feed only if it is still in the list; with one feed, pick it.
   useEffect(() => {
@@ -119,7 +123,9 @@ export function QuickLog({ kind, on, presetUnit, open, onClose, onSaved }: {
         else if (kind === "water") { Object.assign(body, { ph: n(f.ph ?? ""), do_mg_l: n(f.do ?? ""), temp_c: n(f.temp ?? ""), ammonia: n(f.ammonia ?? ""), nitrite: n(f.nitrite ?? "") }); label = `Water in ${code}`; }
         else label = `Note on ${code}`;
       }
-      const res = await saveOffline(ws.orgId, op, body, label, { params });
+      const cid = newId();
+      const res = await saveOffline(ws.orgId, op, body, label, { params, clientId: cid });
+      await evidence.attach(refOf(res, cid), label, op === "farm.batch_event" ? "batch_event" : "farm_record");
       toast(res.status === "queued" ? `Saved on this phone: ${label}` : `${label} ✓`);
       qc.invalidateQueries({ queryKey: ["farm", ws.orgId] });
       onSaved?.(unit);
@@ -213,6 +219,7 @@ export function QuickLog({ kind, on, presetUnit, open, onClose, onSaved }: {
           {kind === "note" ? <Textarea id="q-note" rows={3} value={f.note ?? ""} onChange={(e) => set("note", e.target.value)} placeholder="Birds panting in H2 by noon" />
             : <Input id="q-note" value={f.note ?? ""} maxLength={300} onChange={(e) => set("note", e.target.value)} />}
         </Field>
+        {evidence.field}
       </div>
     </Dialog>
   );

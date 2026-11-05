@@ -15,6 +15,7 @@ import {
 import { useAuth } from "@/features/auth";
 import { save as saveOffline, useSync } from "@/features/offline";
 import { ReasonDialog } from "@/features/batches";
+import { EvidenceButton } from "@/features/evidence";
 import { HoldList, ReportCaseDialog } from "@/features/health";
 import { RequirePermission, useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
@@ -177,6 +178,7 @@ function Inner() {
                       </div>
                       {c?.media_id && <ProofPhoto mediaId={c.media_id} />}
                       {c && !("local" in c) && canLog && <button aria-label={`Undo ${t.title}`} className="text-ink-3 hover:text-ink" onClick={() => undo.mutate({ taskId: t.id, on })}><Undo2 size={16} /></button>}
+                      {t.completion && <EvidenceButton kind="task_completion" id={t.completion.id} label={t.title} compact />}
                       <OwnerActions kind="task" id={t.id} compact />
                     </li>
                   );

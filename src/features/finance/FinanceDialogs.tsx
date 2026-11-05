@@ -7,6 +7,7 @@ import { Alert, Badge, Button, Dialog, Field, Input, PageLoader, Pager, Segmente
 import { useBatches } from "@/features/batches";
 import { localDay, uploadPhoto } from "@/features/daily/api";
 import { shrinkPhoto } from "@/features/daily/device";
+import { useFormEvidence } from "@/features/evidence/useFormEvidence";
 import { newId } from "@/features/offline/queue";
 import { useFarmMap } from "@/features/farm";
 import { useCurrentWorkspace } from "@/features/workspaces";
@@ -50,9 +51,10 @@ export function ExpenseDialog({ open, onClose, batchId }: { open: boolean; onClo
   const [photo, setPhoto] = useState<{ blob: Blob; url: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const evidence = useFormEvidence("expense", { hint: "Anything beyond the receipt photo: the invoice as a PDF, a quotation, a link. Optional." });
   useEffect(() => {
     if (!open) return;
-    setError(null); setPhoto(null);
+    setError(null); setPhoto(null); evidence.reset();
     setF({ ...blank, charge: batchId ? "batch" : "farm", batch: batchId ?? "" });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, batchId]);
@@ -67,6 +69,7 @@ export function ExpenseDialog({ open, onClose, batchId }: { open: boolean; onClo
       const e = await add.mutateAsync({ spent_on: f.on, category: f.category, description: f.description.trim(), amount, payee: f.payee || null,
         batch_id: f.charge === "batch" ? f.batch || null : null, unit_id: f.charge === "unit" ? f.unit || null : null,
         account_id: f.paid === "now" ? f.account || null : null, reference: f.reference || null, media_id, client_id: newId() });
+      await evidence.attach({ record_id: e.id }, e.number);
       toast(e.status === "pending" ? `${e.number} saved. It waits for approval (over the limit).` : `${e.number}: ${naira(e.amount)} recorded`);
       onClose();
     } catch (err) { setError(errMsg(err)); } finally { setBusy(false); }
@@ -118,6 +121,7 @@ export function ExpenseDialog({ open, onClose, batchId }: { open: boolean; onClo
           </div> : <div><Button size="sm" onClick={() => fileRef.current?.click()}><Camera size={15} /> Photo of the receipt</Button></div>}
         </div>
       </div>
+      {evidence.field}
       {!ws.can("finance.approve") && limit != null && amount > limit && <Alert tone="warn">Over {naira(limit)}, so it waits for someone who can approve spending.</Alert>}
     </Shell>
   );
@@ -171,17 +175,23 @@ export function TransferDialog({ open, onClose }: { open: boolean; onClose: () =
   const toast = useToast();
   const [f, setF] = useState({ from: "", to: "", amount: "", on: localDay(), note: "" });
   const [error, setError] = useState<string | null>(null);
+  const evidence = useFormEvidence("account_transfer", { hint: "The bank teller or the transfer alert. Optional." });
+  const resetEvidence = evidence.reset;
   useEffect(() => {
     if (!open || !accounts.data) return;
-    setError(null);
+    setError(null); resetEvidence();
     const cash = accounts.data.find((a) => a.kind === "cash"), bank = accounts.data.find((a) => a.kind === "bank");
     setF({ from: cash?.id ?? "", to: bank?.id ?? "", amount: "", on: localDay(), note: "" });
-  }, [open, accounts.data]);
+  }, [open, accounts.data, resetEvidence]);
   return (
     <Shell open={open} onClose={onClose} title="Move money between accounts" saving={transfer.isPending} error={error} label="Save"
       disabled={!f.from || !f.to || f.from === f.to || !Number(f.amount)} save={async () => {
         setError(null);
-        try { await transfer.mutateAsync({ from_account_id: f.from, to_account_id: f.to, amount: Number(f.amount), moved_on: f.on, note: f.note || null }); toast("Moved"); onClose(); }
+        try {
+          const t = await transfer.mutateAsync({ from_account_id: f.from, to_account_id: f.to, amount: Number(f.amount), moved_on: f.on, note: f.note || null });
+          await evidence.attach({ record_id: t.id }, "transfer between accounts");
+          toast("Moved"); onClose();
+        }
         catch (e) { setError(errMsg(e)); }
       }}>
       <p className="text-[13px] text-ink-3">For example, cash taken to the bank. It is not income or a cost.</p>
@@ -192,6 +202,7 @@ export function TransferDialog({ open, onClose }: { open: boolean; onClose: () =
         <Field label="On" htmlFor="t-on"><Input id="t-on" type="date" max={localDay()} value={f.on} onChange={(e) => setF({ ...f, on: e.target.value })} /></Field>
       </div>
       <Field label="Note" htmlFor="t-note" hint="Optional"><Input id="t-note" value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} placeholder="Teller no. 0041" /></Field>
+      {evidence.field}
     </Shell>
   );
 }

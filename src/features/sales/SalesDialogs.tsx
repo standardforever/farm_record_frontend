@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Alert, Button, Dialog, Field, Input, Select, Textarea, useToast } from "@/components/ui";
 import { localDay } from "@/features/daily/api";
 import { useAccounts } from "@/features/finance/api";
+import { useFormEvidence } from "@/features/evidence/useFormEvidence";
 import { newId } from "@/features/offline/queue";
 import { LocationFields } from "@/features/geo";
 import { useCurrentWorkspace } from "@/features/workspaces";
@@ -30,9 +31,11 @@ export function PaymentDialog({ open, onClose, customerId, invoiceId, amount }: 
   const toast = useToast();
   const [f, setF] = useState({ customer: "", amount: "", channel: "transfer", on: localDay(), reference: "", note: "", account: "" });
   const [error, setError] = useState<string | null>(null);
+  const evidence = useFormEvidence("payment", { hint: "The transfer alert, POS slip or a photo of the cash count. Optional." });
+  const resetEvidence = evidence.reset;
   useEffect(() => {
-    if (open) { setError(null); setF({ customer: customerId ?? "", amount: amount ? String(amount) : "", channel: "transfer", on: localDay(), reference: "", note: "", account: "" }); }
-  }, [open, customerId, amount]);
+    if (open) { setError(null); resetEvidence(); setF({ customer: customerId ?? "", amount: amount ? String(amount) : "", channel: "transfer", on: localDay(), reference: "", note: "", account: "" }); }
+  }, [open, customerId, amount, resetEvidence]);
   const open_ = useInvoices(ws.orgId, { status: "open", customer_id: f.customer, page_size: 100 }, open && !!f.customer);
   const cust = customers.data?.find((c) => c.id === f.customer);
   const amt = Number(f.amount) || 0;
@@ -47,6 +50,7 @@ export function PaymentDialog({ open, onClose, customerId, invoiceId, amount }: 
         try {
           const p = await record.mutateAsync({ customer_id: f.customer || null, invoice_id: invoiceId ?? null, received_on: f.on, amount: amt, channel: f.channel,
             reference: f.reference || null, note: f.note || null, account_id: f.account || null, client_id: newId() });
+          await evidence.attach({ record_id: p.id }, p.number);
           toast(`${p.number}: ${naira(p.amount)} from ${p.payer_name}` + (p.unapplied ? ` (${naira(p.unapplied)} kept as credit)` : ""));
           onClose();
         } catch (e) { setError(errMsg(e)); }
@@ -81,6 +85,7 @@ export function PaymentDialog({ open, onClose, customerId, invoiceId, amount }: 
             {rest > 0 && plan.length > 0 && <p className="mt-1 text-ink-2">{naira(rest)} kept as credit for their next purchase.</p>}
           </div>
         )}
+        {evidence.field}
       </div>
     </Dialog>
   );

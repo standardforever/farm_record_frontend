@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Alert, Button, Dialog, Field, Input, Segmented, Select, Textarea, useToast } from "@/components/ui";
+import { useFormEvidence } from "@/features/evidence/useFormEvidence";
 import { useFarmMap } from "@/features/farm";
+import { newId } from "@/features/offline/queue";
 import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
 import { cn, naira } from "@/lib/format";
@@ -59,8 +61,9 @@ export function RecordDialog({ batch, open, onClose, mode, saleWarning }: {
   const [kind, setKind] = useState(kinds[0].value);
   const [f, setF] = useState({ unit: "", qty: "", date: today(), amount: "", weight: "", reason: "", note: "" });
   const [error, setError] = useState<string | null>(null);
+  const evidence = useFormEvidence("batch_event", { hint: mode === "loss" ? "A photo of the dead animals or the vet's report. Optional." : "The buyer's receipt, a waybill or a photo of the loading. Optional." });
   useEffect(() => {
-    if (open) { setKind(kinds[0].value); setError(null); setF({ unit: defaultUnit(batch), qty: "", date: today(), amount: "", weight: "", reason: "", note: "" }); }
+    if (open) { setKind(kinds[0].value); setError(null); evidence.reset(); setF({ unit: defaultUnit(batch), qty: "", date: today(), amount: "", weight: "", reason: "", note: "" }); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, mode]);
   const available = f.unit ? countIn(batch, f.unit) : batch.current;
@@ -69,8 +72,10 @@ export function RecordDialog({ batch, open, onClose, mode, saleWarning }: {
   const save = async () => {
     setError(null);
     try {
+      const cid = newId();
       await record.mutateAsync({ kind, unit_id: f.unit || undefined, quantity: qty, occurred_on: f.date, reason: f.reason || null, note: f.note || null,
-        ...(kind === "sold" ? { amount: num(f.amount), weight_kg: num(f.weight) } : {}) });
+        client_id: cid, ...(kind === "sold" ? { amount: num(f.amount), weight_kg: num(f.weight) } : {}) });
+      await evidence.attach({ record_client_id: cid }, `${batch.code}: ${qty} ${kind}`);
       toast(`${batch.code}: ${qty.toLocaleString("en-NG")} ${kinds.find((k) => k.value === kind)!.label.toLowerCase()}`);
       onClose();
     } catch (e) { setError(errMsg(e)); }
@@ -100,6 +105,7 @@ export function RecordDialog({ batch, open, onClose, mode, saleWarning }: {
       )}
       {kind === "sold" && <Field label="Buyer" htmlFor="r-reason" hint="Optional"><Input id="r-reason" value={f.reason} maxLength={80} onChange={(e) => setF({ ...f, reason: e.target.value })} /></Field>}
       <Field label="Note" htmlFor="r-note" hint="Optional"><Input id="r-note" value={f.note} maxLength={300} onChange={(e) => setF({ ...f, note: e.target.value })} /></Field>
+      {evidence.field}
     </ActionDialog>
   );
 }

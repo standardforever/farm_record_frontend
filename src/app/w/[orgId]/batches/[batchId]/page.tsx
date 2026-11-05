@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Fragment, use, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRightLeft, CheckCircle2, GitBranch, GitMerge, MinusCircle, PlusCircle, Receipt, RotateCcw, Undo2, Wallet } from "lucide-react";
+import { ArrowLeft, ArrowRightLeft, CheckCircle2, FileText, GitBranch, GitMerge, MinusCircle, PlusCircle, Receipt, RotateCcw, Undo2, Wallet } from "lucide-react";
 import { Alert, Badge, Button, Card, EmptyState, PageLoader, Pager, Stat, useSlice, useToast } from "@/components/ui";
 import {
   type BatchDetail, ageLabel, ageOn, CloseDialog, MergeDialog, MoveDialog, ReasonDialog, RecordDialog, SplitDialog,
@@ -74,7 +74,10 @@ function View({ b, checking }: { b: BatchDetail; checking?: boolean }) {
             <Badge tone={active ? "good" : "neutral"} dot>{active ? "Active" : `Closed ${formatDate(b.closed_on)}`}</Badge></h1>
           <p className="mt-1 text-ink-2">Stocked {formatDate(b.started_on)}{b.source_name ? ` from ${b.source_name}` : ""} · {ageLabel(age)} old
             {active && b.expected_end_on ? ` · expected end ${formatDate(b.expected_end_on)}` : ""}</p>
-          <OwnerActions kind="batch" id={b.id} className="mt-1 -ml-2" onDeleted={() => router.replace(`/w/${ws.orgId}/batches`)} />
+          <div className="mt-1 flex flex-wrap items-center gap-1">
+            {ws.can("reports.view") && <Link href={`/w/${ws.orgId}/reports?tab=batch&batch=${b.id}`} className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2 text-[12.5px] font-semibold text-brand hover:bg-surface-2"><FileText size={14} /> Report</Link>}
+            <OwnerActions kind="batch" id={b.id} onDeleted={() => router.replace(`/w/${ws.orgId}/batches`)} />
+          </div>
         </div>
         {active && (
           <fieldset disabled={checking} className="flex flex-wrap gap-2" aria-busy={checking} title={checking ? "Getting the latest counts…" : undefined}>

@@ -33,7 +33,7 @@ function CreateWorkspace() {
     const ws = await create.mutateAsync({ name, type, state: state || undefined, lga: lga || undefined });
     rememberWorkspace(ws.organization.id);
     await reload();
-    router.replace(`/w/${ws.organization.id}`);
+    router.replace(ws.organization.type === "farm" ? `/w/${ws.organization.id}/setup` : `/w/${ws.organization.id}`);
   };
 
   return (

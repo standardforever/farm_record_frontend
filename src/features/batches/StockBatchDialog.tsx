@@ -13,7 +13,9 @@ import { today, useBatchCatalog, useStockBatch } from "./api";
 const num = (v: string) => (v.trim() === "" ? null : Number(v.replace(/,/g, "")));
 
 /** Stock a new batch into one or more units. */
-export function StockBatchDialog({ open, onClose, presetUnit }: { open: boolean; onClose: () => void; presetUnit?: string }) {
+export function StockBatchDialog({ open, onClose, presetUnit, onStocked }: {
+  open: boolean; onClose: () => void; presetUnit?: string; onStocked?: (batchId: string) => void;
+}) {
   const ws = useCurrentWorkspace();
   const router = useRouter();
   const farm = useFarmMap(ws.orgId, false, open);
@@ -56,7 +58,7 @@ export function StockBatchDialog({ open, onClose, presetUnit }: { open: boolean;
       });
       toast(`Stocked ${b.code}: ${b.current.toLocaleString("en-NG")} ${units.data?.purposes[b.species]?.toLowerCase() ?? ""}`);
       onClose();
-      router.push(`/w/${ws.orgId}/batches/${b.id}`);
+      if (onStocked) onStocked(b.id); else router.push(`/w/${ws.orgId}/batches/${b.id}`);
     } catch (e) { setError(e instanceof ApiError ? e.message : "Could not stock the batch."); }
   };
 

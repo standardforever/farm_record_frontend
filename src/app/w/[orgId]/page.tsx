@@ -14,6 +14,7 @@ import { useMeta } from "@/features/meta/api";
 import { InviteDialog } from "@/features/team";
 import { ClimateHomeCard } from "@/features/climate";
 import { InstallOko } from "@/features/offline";
+import { FarmDashboard } from "@/features/reports";
 import { SimpleHome, setSimpleMode, useSimpleMode } from "@/features/simple";
 import { useCurrentWorkspace } from "@/features/workspaces";
 import { cn } from "@/lib/format";
@@ -61,13 +62,28 @@ function Home() {
       <div className="mb-3 empty:hidden"><InstallOko compact /></div>
 
       {farmOn && <div className="mb-4"><ClimateHomeCard /></div>}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+      {farmOn && unitCount > 0 && <div className="mb-4"><FarmDashboard /></div>}
+      {farmOn && farm.data && unitCount === 0 && ws.can("farm.setup") && (
+        <Link href={`${base}/setup`} className="mb-4 flex items-center gap-3 rounded-[14px] border border-brand bg-brand-soft/40 p-4 hover:shadow-[var(--shadow)]">
+          <span className="min-w-0 flex-1"><b className="block text-[16px]">Set up your farm</b>
+            <span className="text-[13.5px] text-ink-2">Six short steps: the site, houses or ponds, the animals, the feed store, the team and the phones.</span></span>
+          <ArrowRight size={18} className="text-brand" />
+        </Link>
+      )}
+      {!(farmOn && unitCount > 0) && <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <Stat hero label="Your role" value={ws.my_role.name} sub={`${ws.my_permissions.includes("*") ? "Full access" : ws.my_permissions.length + " permissions"}`} />
         <Stat label="Team members" value={ws.member_count} sub={`${ws.guest_count} guests`} />
         <Stat label="Pending invites" value={ws.pending_invites} sub="Waiting to join" />
         <Stat label="Plan" value={ws.organization.plan_code.replace("_", " ")} sub={VERIFY[ws.organization.verification_level]} />
-      </div>
+      </div>}
 
+      {farmOn && unitCount > 0 ? (steps.some((s) => !s.done) && (
+        <Card title="Finish setting up" meta={`${steps.filter((s) => s.done).length} of ${steps.length} done`}>
+          <ul className="flex flex-wrap gap-2">{steps.filter((s) => !s.done).map((s) => (
+            <li key={s.label}>{s.action ? <Button size="sm" onClick={s.action}>{s.label}</Button>
+              : <Link href={s.href!} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-line px-3 text-[12.5px] font-semibold hover:bg-surface-2">{s.label} <ArrowRight size={13} /></Link>}</li>))}</ul>
+        </Card>
+      )) : (
       <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         {SHOW_ROADMAP ? (
         <Card title="What Oko will do for you" meta="Built in phases. Each one goes live here as it is finished.">
@@ -120,6 +136,7 @@ function Home() {
           </Card>
         </div>
       </div>
+      )}
       <InviteDialog open={inviting} onClose={() => setInviting(false)} />
     </>
   );

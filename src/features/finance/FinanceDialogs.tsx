@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { type CorrectionKind, OwnerActions } from "@/features/corrections";
 import { Camera, X } from "lucide-react";
 import { Alert, Badge, Button, Dialog, Field, Input, PageLoader, Pager, Segmented, Select, Textarea, useSlice, useToast } from "@/components/ui";
 import { useBatches } from "@/features/batches";
@@ -15,6 +16,9 @@ import {
   type Account, type Employee, day, monthRange, useAccounts, useAddExpense, useFinance, useFinanceCatalog, useReconcile, useReconciliations, useSaveAccount,
   useSaveEmployee, useStatement, useTransfer,
 } from "./api";
+
+/** Which record each statement line is, for owner corrections. */
+const LINE_KIND: Record<string, CorrectionKind> = { receipt: "payment", expense: "expense", payroll: "pay_run", transfer_in: "account_transfer", transfer_out: "account_transfer" };
 
 const dec = (v: string) => v.replace(/[^\d.-]/g, "");
 const errMsg = (e: unknown) => (e instanceof ApiError ? e.message : "Could not save.");
@@ -252,6 +256,7 @@ export function AccountSheet({ account, onClose }: { account: Account | null; on
                   <span className="min-w-0 flex-1">{x.description}{x.reference && <span className="block text-[11.5px] text-ink-3">{x.reference}</span>}</span>
                   <span className="text-right"><span className={cn("block font-mono font-semibold tnum", x.amount > 0 ? "text-good" : "text-crit")}>{x.amount > 0 ? "+" : "−"}{naira(Math.abs(x.amount))}</span>
                     <span className="font-mono text-[11.5px] text-ink-3 tnum">{naira(x.balance)}</span></span>
+                  {LINE_KIND[x.kind] && <OwnerActions kind={LINE_KIND[x.kind]} id={x.source_id} compact edit={x.kind !== "payroll"} />}
                 </li>
               ))}
             </ul>

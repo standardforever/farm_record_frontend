@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { OwnerActions } from "@/features/corrections";
 import { Wrench } from "lucide-react";
 import { Alert, Badge, Button, Dialog, EmptyState, Field, Input, Select, Textarea, useToast } from "@/components/ui";
 import { localDay } from "@/features/daily/api";
@@ -42,6 +43,7 @@ export function EquipmentPanel() {
               <div className="mt-2 flex gap-1.5">
                 {canService && <Button size="sm" onClick={() => setServicing(e)}>Mark serviced</Button>}
                 {edit && <Button size="sm" variant="ghost" onClick={() => setEditing(e)}>Edit</Button>}
+                <OwnerActions kind="equipment" id={e.id} compact edit={false} />
               </div>
             </li>
           ))}

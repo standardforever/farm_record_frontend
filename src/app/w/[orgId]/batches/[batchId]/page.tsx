@@ -9,6 +9,7 @@ import {
   type BatchDetail, ageLabel, ageOn, CloseDialog, MergeDialog, MoveDialog, ReasonDialog, RecordDialog, SplitDialog,
   useBatch, useBatchCatalog, useVoidAndReopen,
 } from "@/features/batches";
+import { OwnerActions } from "@/features/corrections";
 import { useCatalog } from "@/features/farm";
 import { BatchHealthCard, HoldList, useBatchHealth } from "@/features/health";
 import { BatchStockCard, useInventoryCatalog } from "@/features/inventory";
@@ -73,6 +74,7 @@ function View({ b, checking }: { b: BatchDetail; checking?: boolean }) {
             <Badge tone={active ? "good" : "neutral"} dot>{active ? "Active" : `Closed ${formatDate(b.closed_on)}`}</Badge></h1>
           <p className="mt-1 text-ink-2">Stocked {formatDate(b.started_on)}{b.source_name ? ` from ${b.source_name}` : ""} · {ageLabel(age)} old
             {active && b.expected_end_on ? ` · expected end ${formatDate(b.expected_end_on)}` : ""}</p>
+          <OwnerActions kind="batch" id={b.id} className="mt-1 -ml-2" onDeleted={() => router.replace(`/w/${ws.orgId}/batches`)} />
         </div>
         {active && (
           <fieldset disabled={checking} className="flex flex-wrap gap-2" aria-busy={checking} title={checking ? "Getting the latest counts…" : undefined}>
@@ -122,7 +124,7 @@ function View({ b, checking }: { b: BatchDetail; checking?: boolean }) {
             )}
           </Card>
 
-          <Card title="Records" meta="Every change to the count. Wrong entries are voided, never deleted.">
+          <Card title="Records" meta={ws.can("records.correct") ? "Every change to the count. As owner you can correct or delete any of them; each change is kept in Corrections." : "Every change to the count. Wrong entries are voided, so the history stays."}>
             <ol className="flex flex-col">
               {events.rows.map((e) => (
                 <li key={e.id} className={cn("flex flex-wrap items-start gap-x-3 gap-y-1 border-t border-line py-2.5 first:border-0", e.voided_at && "opacity-50")}>
@@ -139,6 +141,7 @@ function View({ b, checking }: { b: BatchDetail; checking?: boolean }) {
                     <div className="text-[12px] text-ink-3">{formatDate(e.occurred_on)} · {e.created_by_name ?? "Oko"}</div>
                   </div>
                   {e.can_void && <Button size="sm" variant="ghost" onClick={() => setVoiding(e.id)}><Undo2 size={14} /> Void</Button>}
+                  {!e.voided_at && <OwnerActions kind="batch_event" id={e.id} compact />}
                 </li>
               ))}
             </ol>

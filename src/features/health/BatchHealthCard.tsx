@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { OwnerActions } from "@/features/corrections";
 import { Plus, Stethoscope } from "lucide-react";
 import { Alert, Badge, Button, Card, Dialog, Field, Input, useToast } from "@/components/ui";
 import { useCurrentWorkspace } from "@/features/workspaces";
@@ -42,6 +43,7 @@ export function TreatmentRows({ rows, showBatch = true }: { rows: Treatment[]; s
               {!t.voided_at && ws.can("health.edit") && (
                 <Button size="sm" variant="ghost" aria-label={`Void ${t.product}`} onClick={() => setVoiding(t)}>Void</Button>
               )}
+              {!t.voided_at && <OwnerActions kind="treatment" id={t.id} compact />}
             </li>
           );
         })}

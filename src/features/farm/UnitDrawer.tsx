@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Archive, History, Layers, Pencil, Plus, RotateCcw } from "lucide-react";
 import { Alert, Badge, Button, Dialog, Field, Input, Select, Pager, Textarea, usePager, useToast } from "@/components/ui";
+import { OwnerActions } from "@/features/corrections";
 import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
 import { cn, relative } from "@/lib/format";
@@ -69,6 +70,7 @@ export function UnitDrawer({ unit, sites, batches = [], onClose, onStock }: {
         {archived
           ? <Button loading={restore.isPending} onClick={() => run(() => restore.mutateAsync(unit.id), `Restored ${unit.code}`, true)}><RotateCcw size={16} /> Restore</Button>
           : <Button variant="ghost" loading={archive.isPending} onClick={() => run(() => archive.mutateAsync(unit.id), `Archived ${unit.code}`, true)}><Archive size={16} /> Archive</Button>}
+        <OwnerActions kind="unit" id={unit.id} compact edit={false} onDeleted={onClose} />
         {!archived && <Button variant="primary" onClick={() => setEditing(true)}><Pencil size={16} /> Edit</Button>}
       </> : undefined}>
       <div className="flex flex-col gap-5">

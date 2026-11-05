@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Alert, Badge, Button, Dialog, Field, Input, PageLoader, Pager, usePager, useSlice, useToast } from "@/components/ui";
+import { OwnerActions } from "@/features/corrections";
 import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
 import { cn, naira } from "@/lib/format";
@@ -37,6 +38,7 @@ export function ItemSheet({ itemId, onClose, onAction }: {
               <div className="font-display text-[20px] font-bold tnum">{money ? (it.value != null ? naira(it.value) : "—") : it.open_lots}</div>
               {money && it.avg_unit_cost != null && <div className="text-[12px] text-ink-3">{naira(it.avg_unit_cost)} per {it.unit} on average</div>}</div>
           </div>
+          <OwnerActions kind="stock_item" id={it.id} className="-ml-2 -mt-2" onDeleted={onClose} />
           {it.unrecorded > 0 && <Alert tone="warn" title={`${qty(it.unrecorded, it)} used but not in stock`}>Record the delivery it came from. It will cover this first and price it.</Alert>}
           {edit && (
             <div className="flex flex-wrap gap-1.5">
@@ -98,6 +100,7 @@ function LotRow({ l, it, onPrice, onWriteOff }: { l: Lot; it: StockItem; onPrice
           try { await voidLot.mutateAsync({ id: l.id, reason: "Entered by mistake" }); toast("Delivery voided"); }
           catch (e) { toast(e instanceof ApiError ? e.message : "Could not void", "crit"); }
         }}>Void</Button>}
+        {!l.voided_at && <OwnerActions kind="stock_lot" id={l.id} compact />}
       </div>
     </li>
   );
@@ -118,6 +121,7 @@ function MoveRow({ m, it }: { m: Move; it: StockItem }) {
         <div className={cn("font-mono text-[13px] font-semibold tnum", neg ? "text-crit" : "text-good")}>{neg ? "" : "+"}{qty(m.quantity, { ...it, pack_name: null })}</div>
         {m.cost_amount != null && <div className="font-mono text-[11.5px] text-ink-3">{naira(m.cost_amount)}</div>}
       </div>
+      {!m.voided_at && !m.record_id && m.kind !== "receive" && <OwnerActions kind="stock_move" id={m.id} compact edit={m.kind === "issue" || m.kind === "write_off"} />}
     </li>
   );
 }

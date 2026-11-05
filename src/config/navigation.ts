@@ -7,7 +7,7 @@
  * "Coming next" from GET /api/v1/meta, so the menu always matches the roadmap.
  */
 import type { LucideIcon } from "lucide-react";
-import { ClipboardCheck, HeartPulse, Home, KeyRound, Layers, Map, Package, Receipt, ScrollText, Settings, ThermometerSun, Users, Wallet } from "lucide-react";
+import { ClipboardCheck, HeartPulse, History, Home, KeyRound, Layers, Map, Package, Receipt, ScrollText, Settings, ThermometerSun, Users, Wallet } from "lucide-react";
 
 /** Workspace types that keep animals and so get the farm screens. */
 export const FARM_ORG_TYPES = ["farm", "cooperative", "hatchery", "integrator", "programme"];
@@ -38,6 +38,7 @@ export const NAV: NavItem[] = [
   { key: "team", label: "Team and access", path: "/team", icon: Users, permission: "members.view", group: "Workspace" },
   { key: "roles", label: "Roles", path: "/team/roles", icon: KeyRound, permission: "members.view", group: "Workspace" },
   { key: "audit", label: "Audit trail", path: "/audit", icon: ScrollText, permission: "audit.view", group: "Workspace" },
+  { key: "corrections", label: "Corrections", path: "/corrections", icon: History, permission: "audit.view", group: "Workspace" },
   { key: "settings", label: "Settings", path: "/settings", icon: Settings, group: "Workspace" },
 ];
 

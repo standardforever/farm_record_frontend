@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { OwnerActions } from "@/features/corrections";
 import { Camera, X } from "lucide-react";
 import { Alert, Badge, Button, Checkbox, Dialog, Field, Input, Select, Textarea, useToast } from "@/components/ui";
 import { useBatches } from "@/features/batches";
@@ -154,6 +155,7 @@ export function CaseSheet({ c, onClose, onTreat }: { c: Case | null; onClose: ()
         <Button onClick={() => onTreat(c)}>Record treatment</Button>
         <Button variant="primary" loading={update.isPending} onClick={() => run(() => update.mutateAsync({ id: c.id, diagnosis: f.diagnosis || null, diagnosed_by: f.by || null }), "Saved")}>Save</Button>
       </>) : <Button variant="ghost" onClick={onClose}>Close</Button>}>
+      <OwnerActions kind="health_case" id={c.id} className="-mt-1 mb-2 -ml-2" onDeleted={onClose} />
       <div className="flex flex-col gap-4">
         {error && <Alert tone="crit">{error}</Alert>}
         <div className="flex flex-wrap gap-1.5">

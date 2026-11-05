@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useState } from "react";
+import { OwnerActions } from "@/features/corrections";
 import Link from "next/link";
 import { Printer } from "lucide-react";
 import { Alert, Badge, Button, Dialog, Field, Input, PageLoader, useToast } from "@/components/ui";
@@ -30,6 +31,7 @@ export function InvoiceSheet({ id, onClose }: { id: string | null; onClose: () =
           <div className="flex flex-wrap items-center gap-2">
             <Badge tone={STATUS[inv.status].tone}>{STATUS[inv.status].label}{inv.status === "overdue" ? ` · ${inv.days_overdue} days` : ""}</Badge>
             <span className="text-[13px] text-ink-3">Issued {day(inv.issued_on)} · due {day(inv.due_on)}</span>
+            {!inv.voided_at && <OwnerActions kind="invoice" id={inv.id} className="ml-auto" onDeleted={onClose} />}
           </div>
           {inv.voided_at && <Alert tone="info" title="Void">{inv.void_reason}</Alert>}
           <ul className="flex flex-col divide-y divide-line rounded-xl border border-line px-3">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { OwnerActions } from "@/features/corrections";
 import {
   AlertTriangle, Camera, CheckCircle2, ChevronLeft, ChevronRight, Circle, CloudOff, Droplets, Egg, MessageSquareText,
   NotebookPen, Scale, Settings2, Skull, Stethoscope, ThermometerSun, Undo2, Wheat,
@@ -112,6 +113,7 @@ function Inner() {
         <div key={h.id} className="mb-3"><Alert tone="info" title={`Handover from ${h.from_name ?? "the last shift"} · ${cat.data?.shifts[h.shift] ?? h.shift}`}
           action={canLog ? <Button size="sm" variant="primary" loading={ack.isPending} onClick={() => ack.mutate(h.id)}>Got it</Button> : undefined}>
           <span className="whitespace-pre-line">{h.note}</span>
+          <OwnerActions kind="handover" id={h.id} compact className="float-right" />
           {h.issues?.length ? <span className="mt-1.5 flex flex-wrap gap-1.5">{h.issues.map((i) => <Badge key={i} tone="warn">{i}</Badge>)}</span> : null}
         </Alert></div>
       ))}
@@ -175,6 +177,7 @@ function Inner() {
                       </div>
                       {c?.media_id && <ProofPhoto mediaId={c.media_id} />}
                       {c && !("local" in c) && canLog && <button aria-label={`Undo ${t.title}`} className="text-ink-3 hover:text-ink" onClick={() => undo.mutate({ taskId: t.id, on })}><Undo2 size={16} /></button>}
+                      <OwnerActions kind="task" id={t.id} compact />
                     </li>
                   );
                 })}
@@ -194,6 +197,7 @@ function Inner() {
                     <span className="block text-[12px] text-ink-3">{r.created_by_name} · {relative(r.created_at)}</span>
                   </span>
                   {r.can_void && <Button size="sm" variant="ghost" onClick={() => setVoiding(r.id)}>Void</Button>}
+                  <OwnerActions kind="farm_record" id={r.id} compact />
                 </li>
               ))}
             </ul>

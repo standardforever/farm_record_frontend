@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { OwnerActions } from "@/features/corrections";
 import { Banknote, Plus, Settings2, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { Badge, Button, Card, EmptyState, Input, PageHeader, PageLoader, Pager, Segmented, Stat, useDebounced, usePager, useSlice } from "@/components/ui";
@@ -125,6 +126,7 @@ function Customers({ onEdit, onSell, onPay }: { onEdit: (c: Customer | "new") =>
                 {c.outstanding > 0 && <Button size="sm" variant="ghost" onClick={() => onPay(c.id)}>Paid</Button>}
                 <Button size="sm" variant="ghost" onClick={() => onEdit(c)}>Edit</Button>
               </div>}
+              <OwnerActions kind="customer" id={c.id} compact />
             </li>
           ))}
         </ul>
@@ -152,6 +154,7 @@ function Payments() {
               </div>
               <span className="font-mono text-[13.5px] font-semibold tnum">{naira(p.amount)}</span>
               <Link className="text-[12.5px] font-semibold text-brand" href={`/w/${ws.orgId}/sales/payments/${p.id}/print`} target="_blank">Receipt</Link>
+              {!p.voided_at && <OwnerActions kind="payment" id={p.id} compact />}
             </li>
           ))}
         </ul>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { OwnerActions } from "@/features/corrections";
 import Link from "next/link";
 import { ArrowRightLeft, Check, Plus, UserPlus, X } from "lucide-react";
 import { Alert, Badge, Button, Card, Dialog, Field, Input, PageLoader, Pager, Select, Textarea, usePager, useSlice, useToast } from "@/components/ui";
@@ -74,6 +75,7 @@ function ExpenseRow({ e, onPay, onVoid }: { e: Expense; onPay?: (e: Expense) => 
         </>}
         {onPay && e.status === "approved" && !e.voided_at && !e.account_id && ws.can("finance.edit") && <Button size="sm" onClick={() => onPay(e)}>Pay</Button>}
         {onVoid && !e.voided_at && ws.can("finance.edit") && <Button size="sm" variant="ghost" onClick={() => onVoid(e)}>Void</Button>}
+        {!e.voided_at && <OwnerActions kind="expense" id={e.id} compact />}
       </div>
     </li>
   );
@@ -300,6 +302,7 @@ export function CashPanel() {
               </button>
               <b className="font-mono text-[15px] tnum">{signed(a.balance)}</b>
               {edit && <Button size="sm" variant="ghost" onClick={() => setEditing(a)}>Edit</Button>}
+              <OwnerActions kind="money_account" id={a.id} compact />
             </li>))}</ul>
         )}
       </Card>
@@ -412,6 +415,7 @@ export function PayrollPanel() {
               <div className="min-w-0 flex-1"><b className="text-[14px]">{e.name}</b><span className="block text-[12.5px] text-ink-3">{e.job_title ?? "—"}{e.bank_name ? ` · ${e.bank_name} ${e.account_number ?? ""}` : ""}</span></div>
               <span className="font-mono text-[13.5px] tnum">{naira(e.rate)}<span className="text-ink-3">/{e.pay_basis === "daily" ? "day" : "month"}</span></span>
               {ws.can("finance.edit") && <Button size="sm" variant="ghost" onClick={() => setEditing(e)}>Edit</Button>}
+              <OwnerActions kind="employee" id={e.id} compact edit={false} />
             </li>))}</ul>
         )}
       </Card>
@@ -422,7 +426,7 @@ export function PayrollPanel() {
           <ul className="flex flex-col divide-y divide-line">{history.data!.items.map((r) => (
             <li key={r.id} className="flex items-center justify-between gap-3 py-2 text-[13.5px]">
               <span>{monthLabel(r.period)} · {r.lines.length} people · {r.status === "paid" ? `paid ${day(r.paid_on)}` : <Badge tone="warn">Not paid yet</Badge>}</span>
-              <b className="font-mono tnum">{naira(r.net)}</b></li>
+              <span className="flex items-center gap-1"><b className="font-mono tnum">{naira(r.net)}</b><OwnerActions kind="pay_run" id={r.id} compact edit={false} /></span></li>
           ))}</ul>
           <Pager {...hpg.bind(history.data?.total, history.isFetching)} noun="pay runs" />
         </Card>

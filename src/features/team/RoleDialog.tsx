@@ -8,6 +8,9 @@ import { ApiError } from "@/lib/api";
 import type { Role } from "@/lib/types";
 import { useCreateRole, useDeleteRole, usePermissionCatalogue, useRoles, useUpdateRole } from "./api";
 
+/** Only the built-in Owner and Co-owner roles may correct or delete records; never a custom role. */
+const OWNER_ONLY = "records.correct";
+
 /** Create a custom role, or view/edit one. Built-in roles open read-only. */
 export function RoleDialog({ open, role, onClose }: { open: boolean; role: Role | null; onClose: () => void }) {
   const ws = useCurrentWorkspace();
@@ -28,7 +31,7 @@ export function RoleDialog({ open, role, onClose }: { open: boolean; role: Role 
     setName(role?.name ?? "");
     setDesc(role?.description ?? "");
     setKind(role?.kind ?? "member");
-    setPerms(new Set(role?.permissions.includes("*") ? (cat.data ?? []).flatMap((g) => g.permissions.map((p) => p.key)) : role?.permissions ?? ["workspace.view"]));
+    setPerms(new Set((role?.permissions.includes("*") ? (cat.data ?? []).flatMap((g) => g.permissions.map((p) => p.key)) : role?.permissions ?? ["workspace.view"])));
   }, [open, role, cat.data]);
 
   const mine = (p: string) => ws.my_permissions.includes("*") || ws.my_permissions.includes(p);
@@ -38,7 +41,7 @@ export function RoleDialog({ open, role, onClose }: { open: boolean; role: Role 
   const close = () => { create.reset(); update.reset(); remove.reset(); onClose(); };
 
   const save = async () => {
-    const body = { name, description: desc, permissions: [...perms] };
+    const body = { name, description: desc, permissions: [...perms].filter((k) => k !== OWNER_ONLY) };
     if (role) await update.mutateAsync({ id: role.id, ...body });
     else await create.mutateAsync({ ...body, kind });
     toast(role ? `Saved ${name}` : `Created role ${name}`);
@@ -82,8 +85,9 @@ export function RoleDialog({ open, role, onClose }: { open: boolean; role: Role 
                 {g.status === "planned" && <Badge tone="neutral">Coming {g.phase.replace("phase-", "phase ")}</Badge>}</legend>
               <div className="grid gap-x-4 sm:grid-cols-2">
                 {g.permissions.map((p) => (
-                  <Checkbox key={p.key} label={p.label} description={p.key} checked={perms.has(p.key)}
-                    disabled={readOnly || !mine(p.key)} onChange={(v) => toggle(p.key, v)} />
+                  <Checkbox key={p.key} label={p.label} description={p.key === OWNER_ONLY ? "Owner and Co-owner only" : p.key}
+                    checked={perms.has(p.key)}
+                    disabled={readOnly || !mine(p.key) || p.key === OWNER_ONLY} onChange={(v) => toggle(p.key, v)} />
                 ))}
               </div>
             </fieldset>

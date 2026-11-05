@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { OwnerActions } from "@/features/corrections";
 import { Map as MapIcon, MapPin, Pencil, Plus, Search } from "lucide-react";
 import { Alert, Badge, Button, Card, EmptyState, Input, PageHeader, PageLoader, Select, Toggle } from "@/components/ui";
 import { AddUnitsDialog, kindIcon, SiteDialog, STATUS_LOOK, STATUS_ORDER, UnitDrawer, useCatalog, useFarmMap } from "@/features/farm";
@@ -94,6 +95,7 @@ function FarmMapView() {
                   action={canSetup ? <div className="flex gap-1">
                     <Button size="sm" variant="ghost" onClick={() => setAdding({ site: site.id })}><Plus size={14} /> Units</Button>
                     <Button size="sm" variant="ghost" aria-label={`Edit ${site.name}`} onClick={() => setSiteDialog({ site })}><Pencil size={14} /></Button>
+                    <OwnerActions kind="site" id={site.id} compact edit={false} />
                   </div> : undefined}>
                   {site.units.length === 0 ? (
                     <EmptyState title="No units here yet" body={canSetup ? "Add your ponds, houses or pens. You can add several at once, like P1–P4." : undefined}

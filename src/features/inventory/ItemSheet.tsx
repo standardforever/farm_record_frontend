@@ -139,7 +139,7 @@ function PayLotDialog({ lot, item, onClose }: { lot: Lot | null; item?: StockIte
         }}>Save</Button></>}>
       <div className="flex flex-col gap-3">
         <p className="text-[13.5px] text-ink-2">For deliveries recorded before payments were linked, or saved without one. Paid takes the money out of the account; the feed still counts as a cost only when it is used.</p>
-        <PaymentFields value={p} onChange={setP} amount={amount} what="this delivery" />
+        <PaymentFields value={p} onChange={setP} amount={amount} what="this delivery" purchasedOn={lot?.received_on} />
         {error && <Alert tone="crit" title={error} />}
       </div>
     </Dialog>

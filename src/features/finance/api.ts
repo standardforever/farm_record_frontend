@@ -7,7 +7,8 @@ export type Account = {
   opening_on: string; active: boolean; balance: number; last_reconciled_on: string | null; last_difference: number | null;
 };
 export type StatementLine = { on: string; kind: string; description: string; reference: string | null; amount: number; balance: number; source_id: string };
-export type Statement = { account: Account; start: string; end: string; opening: number; money_in: number; money_out: number; closing: number; lines: StatementLine[]; unassigned_receipts: number };
+export type Statement = { account: Account; start: string; end: string; opening: number; money_in: number; money_out: number; closing: number; lines: StatementLine[]; unassigned_receipts: number;
+  before_start?: { kind: "expense" | "money_in"; id: string; number: string; on: string; description: string; amount: number }[] };
 export type Reconciliation = { id: string; account_id: string; as_of: string; statement_balance: number; book_balance: number; difference: number; note: string | null; created_at: string; created_by_name: string | null };
 export type Expense = {
   id: string; number: string; spent_on: string; category: string; description: string; amount: number; payee: string | null; account_id: string | null;

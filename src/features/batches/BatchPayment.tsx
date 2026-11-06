@@ -41,7 +41,7 @@ function PayBatchDialog({ b, onClose }: { b: BatchDetail; onClose: () => void })
         }}>Save</Button></>}>
       <div className="flex flex-col gap-3">
         <p className="text-[13.5px] text-ink-2">Paid takes the money out of the account. The animals are already counted once in the batch&apos;s cost and the profit; this does not count them again.</p>
-        <PaymentFields value={p} onChange={setP} amount={Number(b.acquisition_cost)} what="the animals" />
+        <PaymentFields value={p} onChange={setP} amount={Number(b.acquisition_cost)} what="the animals" purchasedOn={b.started_on} />
         {error && <Alert tone="crit" title={error} />}
       </div>
     </Dialog>

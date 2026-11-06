@@ -6,15 +6,18 @@ import { Button, Input, Segmented, Select } from "@/components/ui";
 import { useCurrentWorkspace } from "@/features/workspaces";
 import { naira } from "@/lib/format";
 import { useAccounts } from "./api";
+import { localDay } from "@/features/daily/api";
+import { AccountStartNote } from "./AccountStartNote";
 import { AccountDialog } from "./FinanceDialogs";
 
-export type PaymentChoice = { status: "paid" | "owed" | "none"; account: string; reference: string };
-export const noPayment = (): PaymentChoice => ({ status: "paid", account: "", reference: "" });
+export type PaymentChoice = { status: "paid" | "owed" | "none"; account: string; reference: string; paidOn: string };
+export const noPayment = (): PaymentChoice => ({ status: "paid", account: "", reference: "", paidOn: "" });
 
 /** The API's `payment` for a purchase, or undefined when nothing is to be recorded. */
 export function paymentBody(p: PaymentChoice, show: boolean) {
   if (!show || p.status === "none") return undefined;
-  return p.status === "owed" ? { status: "owed" as const } : { status: "paid" as const, account_id: p.account, reference: p.reference || null };
+  return p.status === "owed" ? { status: "owed" as const }
+    : { status: "paid" as const, account_id: p.account, reference: p.reference || null, ...(p.paidOn ? { paid_on: p.paidOn } : {}) };
 }
 export const paymentReady = (p: PaymentChoice, show: boolean) => !show || p.status !== "paid" || !!p.account;
 
@@ -29,8 +32,10 @@ export function useCanPay() {
  * not recorded here. Paid takes the money out of that account; Oko counts the cost in profit when the stock is used
  * (or as the batch's purchase), so it is never counted twice. An account can be added without leaving the form.
  */
-export function PaymentFields({ value, onChange, amount, what = "it" }: {
+export function PaymentFields({ value, onChange, amount, what = "it", purchasedOn }: {
   value: PaymentChoice; onChange: (p: PaymentChoice) => void; amount: number | null; what?: string;
+  /** The day of the purchase: the payment date unless another is given. */
+  purchasedOn?: string;
 }) {
   const ws = useCurrentWorkspace();
   const can = useCanPay();
@@ -51,12 +56,14 @@ export function PaymentFields({ value, onChange, amount, what = "it" }: {
       <Segmented value={value.status} onChange={(v) => onChange({ ...value, status: v as PaymentChoice["status"], account: value.account || list[0]?.id || "" })}
         options={[{ value: "paid", label: "Paid" }, { value: "owed", label: "Owe the supplier" }, { value: "none", label: "Don't record" }]} />
       {value.status === "paid" && (list.length ? (
-        <div className="grid gap-2 sm:grid-cols-2">
+        <div className="grid gap-2 sm:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)]">
           <Select aria-label="Paid from" value={known.has(value.account) ? value.account : ""} onChange={(e) => onChange({ ...value, account: e.target.value })}>
             {list.map((a) => <option key={a.id} value={a.id}>From {a.name} ({naira(a.balance)})</option>)}</Select>
+          <Input aria-label="Paid on" type="date" max={localDay()} value={value.paidOn || purchasedOn || ""} onChange={(e) => onChange({ ...value, paidOn: e.target.value })} />
           <Input aria-label="Payment reference" value={value.reference} onChange={(e) => onChange({ ...value, reference: e.target.value })} placeholder="Transfer ref (optional)" />
         </div>
       ) : null)}
+      {value.status === "paid" && <AccountStartNote accountId={value.account} on={value.paidOn || purchasedOn} flow="out" />}
       <p className="text-[12px] text-ink-3">
         {value.status === "paid" ? (list.length ? (what === "the animals" ? "Taken out of that account now. The animals count once, as the batch's cost."
           : "Taken out of that account now. It counts as a cost when it is used, not twice.") : "Add the account it was paid from: a bank account, a cash box or mobile money.")

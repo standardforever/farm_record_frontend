@@ -101,7 +101,7 @@ export function StockBatchDialog({ open, onClose, presetUnit, onStocked }: {
           <Field label="Average weight (g)" htmlFor="b-weight" hint="Optional"><Input id="b-weight" inputMode="decimal" value={f.weight} onChange={(e) => setF({ ...f, weight: e.target.value })} /></Field>
           {money && <Field label="Total purchase cost (₦)" htmlFor="b-cost" hint="Whole bill, paid or not"><Input id="b-cost" inputMode="decimal" value={f.cost} onChange={(e) => setF({ ...f, cost: e.target.value })} /></Field>}
         </div>
-        {showPay && <PaymentFields value={pay} onChange={setPay} amount={cost} what="the animals" />}
+        {showPay && <PaymentFields value={pay} onChange={setPay} amount={cost} what="the animals" purchasedOn={f.started_on} />}
         {cycle ? <p className="-mt-1 text-[12.5px] text-ink-3">A typical {units.data?.purposes[f.species]?.toLowerCase()} cycle is about {cycle} days; the expected end date is set from that.</p> : null}
         {pack && (pack.vaccinations > 0 || pack.phases > 1) && <p className="-mt-2 text-[12.5px] text-ink-3">Vaccinations and feed changes from the {pack.name.toLowerCase()} pack will appear in Today on their dates.</p>}
 

@@ -12,6 +12,7 @@ import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
 import { cn, naira } from "@/lib/format";
 import { type Loan, type LoansOwed, useAccounts, useAddLoan, useAddMoneyIn, useFinanceCatalog, useLoan, useLoans, useMoneyIn, useRepayLoan } from "./api";
+import { AccountStartNote } from "./AccountStartNote";
 import { AccountDialog } from "./FinanceDialogs";
 
 const day = (iso: string) => new Date(iso + "T12:00:00").toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" });
@@ -41,16 +42,6 @@ function AccountField({ id, label, value, onChange }: { id: string; label: strin
       }} />
     </Field>
   );
-}
-
-/** Money dated before the account starts counting is already inside its opening balance: say so. */
-function BeforeStart({ accountId, on, what }: { accountId: string; on: string; what: string }) {
-  const ws = useCurrentWorkspace();
-  const acc = useAccounts(ws.orgId).data?.find((a) => a.id === accountId);
-  if (!acc || !on || on >= acc.opening_on) return null;
-  return <Alert tone="info" title={`${acc.name} starts counting on ${day(acc.opening_on)}`}>
-    {what} came in before that, so it is taken as already in the account&apos;s opening balance: the balance will not go up again. {what === "The loan" ? "What you owe is still kept." : ""}
-  </Alert>;
 }
 
 function Foot({ onClose, save, saving, disabled, label = "Save" }: { onClose: () => void; save: () => void; saving: boolean; disabled?: boolean; label?: string }) {
@@ -102,7 +93,7 @@ export function MoneyInDialog({ open, onClose, onLoan }: { open: boolean; onClos
           <Field label="Date" htmlFor="mi-on"><Input id="mi-on" type="date" max={localDay()} value={f.on} onChange={(e) => setF({ ...f, on: e.target.value })} /></Field>
         </div>
         <AccountField id="mi-account" label="Into which account" value={f.account} onChange={(v) => setF((x) => ({ ...x, account: v }))} />
-        <BeforeStart accountId={f.account} on={f.on} what="This money" />
+        <AccountStartNote accountId={f.account} on={f.on} flow="in" />
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="From" htmlFor="mi-source" hint="Who it came from"><Input id="mi-source" value={f.source} onChange={(e) => setF({ ...f, source: e.target.value })} /></Field>
           <Field label="Reference" htmlFor="mi-ref" hint="Optional"><Input id="mi-ref" value={f.reference} onChange={(e) => setF({ ...f, reference: e.target.value })} placeholder="Transfer ref" /></Field>
@@ -175,7 +166,7 @@ export function LoanDialog({ open, onClose }: { open: boolean; onClose: () => vo
           <Field label="Received on" htmlFor="ln-on"><Input id="ln-on" type="date" max={localDay()} value={f.on} onChange={(e) => setF({ ...f, on: e.target.value })} /></Field>
         </div>
         <AccountField id="ln-account" label="Paid into which account" value={f.account} onChange={(v) => setF((x) => ({ ...x, account: v }))} />
-        <BeforeStart accountId={f.account} on={f.on} what="The loan" />
+        <AccountStartNote accountId={f.account} on={f.on} flow="in" what="The loan" />
         <fieldset className="grid gap-4 rounded-xl border border-line p-3.5 sm:grid-cols-2">
           <legend className="px-1 text-[12.5px] font-semibold text-ink-2">Repayment terms (optional, for reminders)</legend>
           <Field label="Interest rate (% a year)" htmlFor="ln-rate"><Input id="ln-rate" inputMode="decimal" value={f.rate} onChange={(e) => setF({ ...f, rate: dec(e.target.value) })} /></Field>
@@ -235,6 +226,7 @@ export function RepayDialog({ loan, onClose }: { loan: Loan | null; onClose: () 
           <Field label="Reference" htmlFor="rp-ref" hint="Optional"><Input id="rp-ref" value={f.reference} onChange={(e) => setF({ ...f, reference: e.target.value })} /></Field>
         </div>
         <AccountField id="rp-account" label="Paid from" value={f.account} onChange={(v) => setF((x) => ({ ...x, account: v }))} />
+        <AccountStartNote accountId={f.account} on={f.on} flow="out" />
         {p > loan.outstanding + 0.009 && <Alert tone="warn">Only {naira(loan.outstanding)} is still owed. Put the rest under interest and charges if it was a charge.</Alert>}
       </div>
     </Dialog>

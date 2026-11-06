@@ -8,6 +8,7 @@ import { useBatches } from "@/features/batches";
 import { localDay, uploadPhoto } from "@/features/daily/api";
 import { shrinkPhoto } from "@/features/daily/device";
 import { useFormEvidence } from "@/features/evidence/useFormEvidence";
+import { AccountStartNote } from "./AccountStartNote";
 import { newId } from "@/features/offline/queue";
 import { useFarmMap } from "@/features/farm";
 import { useCurrentWorkspace } from "@/features/workspaces";
@@ -113,6 +114,7 @@ export function ExpenseDialog({ open, onClose, batchId }: { open: boolean; onClo
             <Button size="sm" onClick={() => setAddingAccount(true)}><Plus size={14} /> Add an account</Button>
           </div>
         ))}
+        {f.paid === "now" && <AccountStartNote accountId={f.account} on={f.on} flow="out" />}
         <AccountDialog open={addingAccount} onClose={async () => {
           setAddingAccount(false);
           const r = await accounts.refetch();
@@ -252,6 +254,15 @@ export function AccountSheet({ account, onClose }: { account: Account | null; on
               <div className="rounded-xl border border-line p-2.5"><dt className="text-ink-3">Money in</dt><dd className="font-mono font-semibold text-good tnum">+{naira(d.money_in)}</dd></div>
               <div className="rounded-xl border border-line p-2.5"><dt className="text-ink-3">Money out</dt><dd className="font-mono font-semibold text-crit tnum">−{naira(d.money_out)}</dd></div>
             </dl>
+            {!!d.before_start?.length && (
+              <Alert tone="warn" title={`${d.before_start.length} record${d.before_start.length > 1 ? "s are" : " is"} dated before this account starts counting (${d.account.opening_on})`}>
+                <p className="mb-1.5">They are taken as already in the opening balance, so they do not change it. If one happened on or after that day, correct its date.</p>
+                <ul className="flex flex-col gap-1">{d.before_start.map((x) => (
+                  <li key={x.id} className="flex flex-wrap items-center gap-2"><span className="font-mono text-[12px]">{x.on}</span>
+                    <span className="min-w-0 flex-1">{x.number} · {x.description}</span><span className="font-mono tnum">{naira(x.amount)}</span>
+                    <OwnerActions kind={x.kind} id={x.id} compact evidence={false} /></li>))}</ul>
+              </Alert>
+            )}
             {d.unassigned_receipts > 0 && <Alert tone="warn">{naira(d.unassigned_receipts)} of sales payments this month are not linked to any account. Choose the account when recording payments.</Alert>}
             <section className="rounded-xl border border-line p-3">
               <h3 className="text-[13.5px] font-bold">Check against the bank statement</h3>

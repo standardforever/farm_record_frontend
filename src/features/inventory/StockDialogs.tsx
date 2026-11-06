@@ -149,7 +149,7 @@ export function ReceiveDialog({ open, onClose, itemId }: { open: boolean; onClos
           </Field>
         </div>
       )}
-      {showPay && <PaymentFields value={pay} onChange={setPay} amount={price} what="this delivery" />}
+      {showPay && <PaymentFields value={pay} onChange={setPay} amount={price} what="this delivery" purchasedOn={f.on} />}
       <div className="grid gap-4 sm:grid-cols-3">
         <Field label="Supplier" htmlFor="r-supplier"><Input id="r-supplier" value={f.supplier} onChange={(e) => setF({ ...f, supplier: e.target.value })} /></Field>
         <Field label="Invoice / waybill no." htmlFor="r-ref" hint="Optional"><Input id="r-ref" value={f.reference} onChange={(e) => setF({ ...f, reference: e.target.value })} /></Field>

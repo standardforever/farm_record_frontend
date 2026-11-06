@@ -6,7 +6,7 @@ import type { Page, PageQuery } from "@/lib/types";
 export type CorrectionKind =
   | "batch" | "batch_event" | "farm_record" | "task" | "handover" | "site" | "unit" | "health_case" | "treatment"
   | "stock_item" | "stock_lot" | "stock_move" | "equipment" | "customer" | "invoice" | "payment" | "expense"
-  | "employee" | "pay_run" | "money_account" | "account_transfer" | "reconciliation";
+  | "employee" | "pay_run" | "money_account" | "account_transfer" | "reconciliation" | "money_in" | "loan";
 
 export type CorrectionField = {
   name: string; label: string; type: "text" | "textarea" | "int" | "number" | "money" | "date" | "select" | "bool";

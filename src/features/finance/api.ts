@@ -29,8 +29,24 @@ export type BatchProfit = {
 export type UnitProfit = { unit_id: string; code: string; site_name: string | null; batches: number; revenue: number; costs: number; unit_expenses: number; profit: number };
 export type CashMonth = { month: string; money_in: number; money_out: number; net: number; out_by_kind: Record<string, number>; in_by_channel: Record<string, number> };
 export type CashFlow = { start: string; end: string; opening: number; closing: number; months: CashMonth[]; unassigned_receipts: number };
-export type FinanceOverview = { on: string; month_revenue: number; month_costs: number; month_profit: number; cash: number; accounts: Account[]; pending: Expense[]; unpaid_bills: number; approval_limit: number };
-export type FinanceCatalog = { account_kinds: Record<string, string>; expense_categories: Record<string, string>; cash_only: Record<string, string>; pay_basis: Record<string, string>; enterprises: Record<string, string> };
+export type LoansOwed = { owed: number; loans: number; next_due_on: string | null; next_amount: number | null; next_lender: string | null; overdue: number; due_soon: number };
+export type FinanceOverview = { on: string; month_revenue: number; month_costs: number; month_profit: number; cash: number; accounts: Account[]; pending: Expense[]; unpaid_bills: number; approval_limit: number; loans?: LoansOwed | null };
+export type FinanceCatalog = {
+  account_kinds: Record<string, string>; expense_categories: Record<string, string>; cash_only: Record<string, string>; pay_basis: Record<string, string>; enterprises: Record<string, string>;
+  money_in_kinds: Record<string, string>; money_in_in_profit: string[]; loan_frequencies: Record<string, string>;
+};
+export type MoneyIn = {
+  id: string; number: string; kind: string; kind_label: string; received_on: string; amount: number; account_id: string; account_name: string | null;
+  source: string | null; reference: string | null; note: string | null; loan_id: string | null; in_profit: boolean; created_by_name: string | null;
+};
+export type Repayment = { group_id: string; paid_on: string | null; principal: number; interest: number; account_name: string | null; status: "approved" | "pending" | "rejected"; expense_ids: string[]; numbers: string[] };
+export type Loan = {
+  id: string; number: string; lender: string; amount: number; received_on: string; account_id: string | null; account_name: string | null;
+  interest_rate_pct: number | null; interest_total: number | null; repayment_amount: number | null; frequency: string; first_due_on: string | null;
+  final_due_on: string | null; note: string | null; repaid: number; interest_paid: number; outstanding: number; interest_left: number | null;
+  waiting_approval: number; payments_made: number; next_due_on: string | null; next_amount: number | null; overdue: boolean; due_soon: boolean;
+  repaid_on: string | null; repayments: Repayment[];
+};
 
 const base = (orgId: string) => `/organizations/${orgId}/finance`;
 const qs = (o: Record<string, string | boolean | undefined | null>) => {
@@ -57,6 +73,10 @@ export const usePnl = (orgId: string, start: string, end: string) => useQuery({ 
 export const useBatchProfits = (orgId: string, status?: string) => useQuery({ queryKey: ["finance", orgId, "batches", status ?? ""], queryFn: () => get<BatchProfit[]>(`${base(orgId)}/batches${qs({ status })}`) });
 export const useUnitProfits = (orgId: string) => useQuery({ queryKey: ["finance", orgId, "units"], queryFn: () => get<UnitProfit[]>(`${base(orgId)}/units`) });
 export const useCashFlow = (orgId: string) => useQuery({ queryKey: ["finance", orgId, "cashflow"], queryFn: () => get<CashFlow>(`${base(orgId)}/cashflow`) });
+
+export const useMoneyIn = (orgId: string) => useQuery({ queryKey: ["finance", orgId, "money-in"], queryFn: () => get<MoneyIn[]>(`${base(orgId)}/money-in`) });
+export const useLoans = (orgId: string) => useQuery({ queryKey: ["finance", orgId, "loans"], queryFn: () => get<Loan[]>(`${base(orgId)}/loans`) });
+export const useLoan = (orgId: string, id: string | null) => useQuery({ queryKey: ["finance", orgId, "loan", id], queryFn: () => get<Loan>(`${base(orgId)}/loans/${id}`), enabled: !!id });
 
 function useFinanceMutation<V, R>(orgId: string, fn: (v: V) => Promise<R>) {
   const qc = useQueryClient();
@@ -89,3 +109,10 @@ export const monthRange = (offset = 0) => {
   const iso = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
   return { start: iso(s), end: iso(e) };
 };
+
+export const useAddMoneyIn = (orgId: string) => useFinanceMutation(orgId, (b: Record<string, unknown>) => post<MoneyIn>(`${base(orgId)}/money-in`, b));
+export const useVoidMoneyIn = (orgId: string) => useFinanceMutation(orgId, ({ id, reason }: { id: string; reason: string }) => post<MoneyIn>(`${base(orgId)}/money-in/${id}/void`, { reason }));
+export const useAddLoan = (orgId: string) => useFinanceMutation(orgId, (b: Record<string, unknown>) => post<Loan>(`${base(orgId)}/loans`, b));
+export const useRepayLoan = (orgId: string) =>
+  useFinanceMutation(orgId, ({ id, ...b }: { id: string; paid_on: string; account_id: string; principal: number; interest: number; reference?: string | null; client_id?: string }) =>
+    post<Loan>(`${base(orgId)}/loans/${id}/repay`, b));

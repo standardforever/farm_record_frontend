@@ -15,6 +15,7 @@ import {
   useVoidExpense,
 } from "./api";
 import { AccountDialog, AccountSheet, EmployeeDialog, StatusBadge, TransferDialog } from "./FinanceDialogs";
+import { MoneyInList } from "./Funds";
 
 const errMsg = (e: unknown) => (e instanceof ApiError ? e.message : "Could not save.");
 const signed = (v: number) => <span className={cn("font-mono tnum", v < 0 ? "text-crit" : undefined)}>{naira(v)}</span>;
@@ -278,7 +279,7 @@ export function ProfitPanel() {
   );
 }
 
-export function CashPanel() {
+export function CashPanel({ onMoneyIn }: { onMoneyIn?: () => void }) {
   const ws = useCurrentWorkspace();
   const accounts = useAccounts(ws.orgId);
   const flow = useCashFlow(ws.orgId);
@@ -306,6 +307,7 @@ export function CashPanel() {
             </li>))}</ul>
         )}
       </Card>
+      {onMoneyIn && <MoneyInList onAdd={onMoneyIn} />}
       <Card title="Cash flow" meta={flow.data ? `${naira(flow.data.opening)} at the start, ${naira(flow.data.closing)} now` : undefined}>
         {!flow.data ? <PageLoader /> : (
           <>

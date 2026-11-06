@@ -19,7 +19,7 @@ import {
 } from "./api";
 
 /** Which record each statement line is, for owner corrections. */
-const LINE_KIND: Record<string, CorrectionKind> = { receipt: "payment", expense: "expense", payroll: "pay_run", transfer_in: "account_transfer", transfer_out: "account_transfer" };
+const LINE_KIND: Record<string, CorrectionKind> = { receipt: "payment", expense: "expense", payroll: "pay_run", transfer_in: "account_transfer", transfer_out: "account_transfer", money_in: "money_in" };
 
 const dec = (v: string) => v.replace(/[^\d.-]/g, "");
 const errMsg = (e: unknown) => (e instanceof ApiError ? e.message : "Could not save.");

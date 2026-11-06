@@ -24,7 +24,7 @@ export type BatchEvent = {
   related_code: string | null; voided_at: string | null; void_reason: string | null; created_by_name: string | null; created_at: string; can_void: boolean;
 };
 export type Link = { kind: string; direction: "from" | "to"; batch_id: string; batch_code: string; quantity: number; occurred_on: string };
-export type BatchDetail = Batch & { links: Link[]; events: BatchEvent[] };
+export type BatchDetail = Batch & { links: Link[]; events: BatchEvent[]; payment?: import("@/features/inventory/api").Payment | null };
 export type BatchCatalog = {
   species: Record<string, { prefix: string; cycle_days: number | null }>;
   sources: Record<string, string>;
@@ -60,10 +60,13 @@ function useBatchMutation<V>(orgId: string, fn: (v: V) => Promise<BatchDetail>) 
 export type StockInput = {
   species: string; breed?: string | null; breed_key?: string; code?: string; source_type: string; source_name?: string | null; started_on: string;
   age_at_start_days: number; avg_start_weight_g?: number | null; acquisition_cost?: number | null; units: { unit_id: string; count: number }[]; notes?: string | null;
+  payment?: { status: "paid" | "owed"; account_id?: string; reference?: string | null };
 };
 export type RecordInput = { kind: string; unit_id?: string; quantity: number; occurred_on: string; amount?: number | null; weight_kg?: number | null; reason?: string | null; note?: string | null; client_id?: string };
 
 export const useStockBatch = (orgId: string) => useBatchMutation(orgId, (b: StockInput) => post<BatchDetail>(base(orgId), b));
+export const usePayBatch = (orgId: string, id: string) => useBatchMutation(orgId, (b: { status: "paid" | "owed"; account_id?: string; reference?: string | null }) =>
+  post<BatchDetail>(`${base(orgId)}/${id}/payment`, b));
 export const useUpdateBatch = (orgId: string, id: string) => useBatchMutation(orgId, (b: Record<string, unknown>) => patch<BatchDetail>(`${base(orgId)}/${id}`, b));
 export const useRecord = (orgId: string, id: string) => useBatchMutation(orgId, (b: RecordInput) => post<BatchDetail>(`${base(orgId)}/${id}/records`, b));
 export const useVoid = (orgId: string, id: string) =>

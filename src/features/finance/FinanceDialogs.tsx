@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { type CorrectionKind, OwnerActions } from "@/features/corrections";
-import { Camera, X } from "lucide-react";
+import { Camera, Plus, X } from "lucide-react";
 import { Alert, Badge, Button, Dialog, Field, Input, PageLoader, Pager, Segmented, Select, Textarea, useSlice, useToast } from "@/components/ui";
 import { useBatches } from "@/features/batches";
 import { localDay, uploadPhoto } from "@/features/daily/api";
@@ -51,6 +51,7 @@ export function ExpenseDialog({ open, onClose, batchId }: { open: boolean; onClo
   const [photo, setPhoto] = useState<{ blob: Blob; url: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [addingAccount, setAddingAccount] = useState(false);
   const evidence = useFormEvidence("expense", { hint: "Anything beyond the receipt photo: the invoice as a PDF, a quotation, a link. Optional." });
   useEffect(() => {
     if (!open) return;
@@ -106,7 +107,17 @@ export function ExpenseDialog({ open, onClose, batchId }: { open: boolean; onClo
               {accounts.data.map((a) => <option key={a.id} value={a.id}>From {a.name} ({naira(a.balance)})</option>)}</Select>
             <Input aria-label="Reference" value={f.reference} onChange={(e) => setF({ ...f, reference: e.target.value })} placeholder="Transfer ref (optional)" />
           </div>
-        ) : <Alert tone="warn">Add a money account (cash box or bank) first, under Cash and bank.</Alert>)}
+        ) : (
+          <div className="flex flex-wrap items-center gap-2 rounded-lg bg-maize-soft px-3 py-2 text-[13px]">
+            <span className="flex-1">Which account was it paid from? Add your bank account, cash box or mobile money once.</span>
+            <Button size="sm" onClick={() => setAddingAccount(true)}><Plus size={14} /> Add an account</Button>
+          </div>
+        ))}
+        <AccountDialog open={addingAccount} onClose={async () => {
+          setAddingAccount(false);
+          const r = await accounts.refetch();
+          if (r.data?.length) setF((x) => ({ ...x, account: x.account || r.data![0].id }));
+        }} />
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Paid to" htmlFor="x-payee" hint="Optional"><Input id="x-payee" value={f.payee} onChange={(e) => setF({ ...f, payee: e.target.value })} /></Field>

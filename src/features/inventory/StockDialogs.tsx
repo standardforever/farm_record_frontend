@@ -5,6 +5,7 @@ import { Alert, Button, Dialog, Field, Input, Segmented, Select, Textarea, useTo
 import { useBatches } from "@/features/batches";
 import { localDay } from "@/features/daily/api";
 import { useFormEvidence } from "@/features/evidence/useFormEvidence";
+import { type PaymentChoice, PaymentFields, noPayment, paymentBody, paymentReady, useCanPay } from "@/features/finance/PaymentFields";
 import { newId } from "@/features/offline/queue";
 import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
@@ -110,23 +111,29 @@ export function ReceiveDialog({ open, onClose, itemId }: { open: boolean; onClos
   const [error, setError] = useState<string | null>(null);
   const evidence = useFormEvidence("stock_lot", { hint: "The supplier's invoice or waybill, or a photo of the bags as they arrived. Optional." });
   const resetEvidence = evidence.reset;
-  useEffect(() => { if (open) { setError(null); resetEvidence(); setF({ item: itemId ?? "", amount: "", price: "", priceMode: "total", on: localDay(), supplier: "", reference: "", lot: "", expires: "" }); } }, [open, itemId, resetEvidence]);
+  const canPay = useCanPay();
+  const [pay, setPay] = useState<PaymentChoice>(noPayment);
+  useEffect(() => { if (open) { setError(null); resetEvidence(); setPay(noPayment()); setF({ item: itemId ?? "", amount: "", price: "", priceMode: "total", on: localDay(), supplier: "", reference: "", lot: "", expires: "" }); } }, [open, itemId, resetEvidence]);
   const it = items.data?.find((i) => i.id === f.item);
   const packs = mode === "packs" && !!it?.pack_size && !!it.pack_name;
   const total = it && f.amount ? (packs ? Number(f.amount) * it.pack_size! : Number(f.amount)) : 0;
+  const price = f.price ? (f.priceMode === "total" ? Number(f.price) : Number(f.price) * total) : 0;
+  const showPay = canPay && price > 0;
   const save = async () => {
     setError(null);
     try {
       const lot = await receive.mutateAsync({ item_id: f.item, received_on: f.on, ...(packs ? { packs: n(f.amount) } : { quantity: n(f.amount) }),
         ...(f.price ? (f.priceMode === "total" ? { total_cost: n(f.price) } : { unit_cost: n(f.price) }) : {}),
-        supplier: f.supplier || null, reference: f.reference || null, lot_number: f.lot || null, expires_on: f.expires || null, client_id: newId() });
+        supplier: f.supplier || null, reference: f.reference || null, lot_number: f.lot || null, expires_on: f.expires || null, client_id: newId(),
+        payment: paymentBody(pay, showPay) });
       await evidence.attach({ record_id: lot.id }, `delivery of ${it!.name}`);
-      toast(`Received ${qty(total, it!)} of ${it!.name}`);
+      const p = lot.payment;
+      toast(`Received ${qty(total, it!)} of ${it!.name}` + (p ? (p.status === "paid" ? `; ${naira(p.amount)} paid from ${p.account_name}` : p.status === "owed" ? `; ${naira(p.amount)} owed` : "; payment waiting for approval") : ""));
       onClose();
     } catch (e) { setError(errMsg(e)); }
   };
   return (
-    <Shell open={open} onClose={onClose} title="Receive a delivery" save={save} saving={receive.isPending} disabled={!f.item || !total} error={error}>
+    <Shell open={open} onClose={onClose} title="Receive a delivery" save={save} saving={receive.isPending} disabled={!f.item || !total || !paymentReady(pay, showPay)} error={error}>
       <Field label="Item" htmlFor="r-item"><ItemSelect id="r-item" items={items.data} value={f.item} onChange={(v) => setF({ ...f, item: v, supplier: f.supplier || items.data?.find((i) => i.id === v)?.supplier || "" })} /></Field>
       {it && <Amount item={it} value={f.amount} onChange={(v) => setF({ ...f, amount: v })} mode={mode} setMode={setMode} label="How much came" />}
       <div className="grid gap-4 sm:grid-cols-2">
@@ -142,6 +149,7 @@ export function ReceiveDialog({ open, onClose, itemId }: { open: boolean; onClos
           </Field>
         </div>
       )}
+      {showPay && <PaymentFields value={pay} onChange={setPay} amount={price} what="this delivery" />}
       <div className="grid gap-4 sm:grid-cols-3">
         <Field label="Supplier" htmlFor="r-supplier"><Input id="r-supplier" value={f.supplier} onChange={(e) => setF({ ...f, supplier: e.target.value })} /></Field>
         <Field label="Invoice / waybill no." htmlFor="r-ref" hint="Optional"><Input id="r-ref" value={f.reference} onChange={(e) => setF({ ...f, reference: e.target.value })} /></Field>

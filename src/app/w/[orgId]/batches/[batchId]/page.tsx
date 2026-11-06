@@ -9,6 +9,7 @@ import {
   type BatchDetail, ageLabel, ageOn, CloseDialog, MergeDialog, MoveDialog, ReasonDialog, RecordDialog, SplitDialog,
   useBatch, useBatchCatalog, useVoidAndReopen,
 } from "@/features/batches";
+import { BatchPayment } from "@/features/batches/BatchPayment";
 import { OwnerActions } from "@/features/corrections";
 import { useCatalog } from "@/features/farm";
 import { BatchHealthCard, HoldList, useBatchHealth } from "@/features/health";
@@ -78,6 +79,7 @@ function View({ b, checking }: { b: BatchDetail; checking?: boolean }) {
             {ws.can("reports.view") && <Link href={`/w/${ws.orgId}/reports?tab=batch&batch=${b.id}`} className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2 text-[12.5px] font-semibold text-brand hover:bg-surface-2"><FileText size={14} /> Report</Link>}
             <OwnerActions kind="batch" id={b.id} onDeleted={() => router.replace(`/w/${ws.orgId}/batches`)} />
           </div>
+          <BatchPayment b={b} />
         </div>
         {active && (
           <fieldset disabled={checking} className="flex flex-wrap gap-2" aria-busy={checking} title={checking ? "Getting the latest counts…" : undefined}>

@@ -9,6 +9,7 @@ import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/format";
 import { usePacks } from "@/features/packs";
 import { useFormEvidence } from "@/features/evidence/useFormEvidence";
+import { type PaymentChoice, PaymentFields, noPayment, paymentBody, paymentReady, useCanPay } from "@/features/finance/PaymentFields";
 import { today, useBatchCatalog, useStockBatch } from "./api";
 
 const num = (v: string) => (v.trim() === "" ? null : Number(v.replace(/,/g, "")));
@@ -29,12 +30,14 @@ export function StockBatchDialog({ open, onClose, presetUnit, onStocked }: {
   const [f, setF] = useState({ species: "", breed: "", breed_key: "", source_type: "purchased", source_name: "", started_on: today(), age: "", weight: "", cost: "", notes: "" });
   const [counts, setCounts] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
+  const canPay = useCanPay();
+  const [pay, setPay] = useState<PaymentChoice>(noPayment);
   const evidence = useFormEvidence("batch", { hint: "The hatchery or supplier's receipt, the delivery note or a photo of the chicks or fingerlings on arrival. Optional." });
 
   const allUnits = useMemo(() => (farm.data?.sites ?? []).flatMap((s) => s.units.filter((u) => !u.archived_at).map((u) => ({ ...u, site: s.name }))), [farm.data]);
   useEffect(() => {
     if (!open) return;
-    setError(null); evidence.reset();
+    setError(null); evidence.reset(); setPay(noPayment());
     const pre = allUnits.find((u) => u.id === presetUnit);
     setCounts(presetUnit ? { [presetUnit]: pre?.capacity ? String(pre.capacity) : "" } : {});
     setF((x) => ({ ...x, species: pre?.purpose && cat.data?.species[pre.purpose] ? pre.purpose : x.species, started_on: today() }));
@@ -43,7 +46,9 @@ export function StockBatchDialog({ open, onClose, presetUnit, onStocked }: {
 
   const chosen = Object.entries(counts).filter(([, v]) => v !== undefined);
   const total = chosen.reduce((n, [, v]) => n + (Number(v) || 0), 0);
-  const valid = f.species && chosen.length > 0 && chosen.every(([, v]) => Number(v) > 0);
+  const cost = money ? Number(f.cost) || 0 : 0;
+  const showPay = canPay && cost > 0 && f.source_type === "purchased";
+  const valid = f.species && chosen.length > 0 && chosen.every(([, v]) => Number(v) > 0) && paymentReady(pay, showPay);
   const occupied = farm.data?.unit_batches ?? {};
   const cycle = f.species ? cat.data?.species[f.species]?.cycle_days : null;
   const pack = packs.data?.find((p) => p.key === f.species) ?? null;
@@ -56,7 +61,7 @@ export function StockBatchDialog({ open, onClose, presetUnit, onStocked }: {
       const b = await stock.mutateAsync({
         species: f.species, breed: f.breed_key ? null : f.breed || null, breed_key: f.breed_key || undefined, source_type: f.source_type, source_name: f.source_name || null, started_on: f.started_on,
         age_at_start_days: Number(f.age) || 0, avg_start_weight_g: num(f.weight), acquisition_cost: money ? num(f.cost) : null,
-        units: chosen.map(([unit_id, v]) => ({ unit_id, count: Number(v) })), notes: f.notes || null,
+        units: chosen.map(([unit_id, v]) => ({ unit_id, count: Number(v) })), notes: f.notes || null, payment: paymentBody(pay, showPay),
       });
       await evidence.attach({ record_id: b.id }, b.code);
       toast(`Stocked ${b.code}: ${b.current.toLocaleString("en-NG")} ${units.data?.purposes[b.species]?.toLowerCase() ?? ""}`);
@@ -96,6 +101,7 @@ export function StockBatchDialog({ open, onClose, presetUnit, onStocked }: {
           <Field label="Average weight (g)" htmlFor="b-weight" hint="Optional"><Input id="b-weight" inputMode="decimal" value={f.weight} onChange={(e) => setF({ ...f, weight: e.target.value })} /></Field>
           {money && <Field label="Total purchase cost (₦)" htmlFor="b-cost" hint="Whole bill, paid or not"><Input id="b-cost" inputMode="decimal" value={f.cost} onChange={(e) => setF({ ...f, cost: e.target.value })} /></Field>}
         </div>
+        {showPay && <PaymentFields value={pay} onChange={setPay} amount={cost} what="the animals" />}
         {cycle ? <p className="-mt-1 text-[12.5px] text-ink-3">A typical {units.data?.purposes[f.species]?.toLowerCase()} cycle is about {cycle} days; the expected end date is set from that.</p> : null}
         {pack && (pack.vaccinations > 0 || pack.phases > 1) && <p className="-mt-2 text-[12.5px] text-ink-3">Vaccinations and feed changes from the {pack.name.toLowerCase()} pack will appear in Today on their dates.</p>}
 

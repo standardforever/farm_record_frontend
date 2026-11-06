@@ -10,7 +10,10 @@ export type StockItem = {
 export type Lot = {
   id: string; item_id: string; received_on: string; quantity: number; remaining: number; unit_cost: number | null; supplier: string | null;
   reference: string | null; lot_number: string | null; expires_on: string | null; notes: string | null; voided_at: string | null; created_at: string;
+  payment?: Payment | null;
 };
+/** What was paid for a purchase (a delivery, a batch's animals): the linked expense. */
+export type Payment = { expense_id: string; number: string; amount: number; status: "paid" | "owed" | "pending" | "rejected"; account_name: string | null; paid_on: string | null };
 export type Move = {
   id: string; item_id: string; item_name: string | null; item_unit: string | null; lot_id: string | null; lot_label: string | null; kind: string;
   quantity: number; occurred_on: string; cost_amount: number | null; batch_id: string | null; batch_code: string | null; unit_id: string | null;
@@ -70,6 +73,8 @@ export const useDecide = (orgId: string) =>
   useStockMutation(orgId, ({ id, ...b }: { id: string; approve: boolean; note?: string | null }) => post(`${base(orgId)}/pending/${id}`, b));
 export const usePriceLot = (orgId: string) =>
   useStockMutation(orgId, ({ id, ...b }: { id: string; unit_cost?: number; total_cost?: number }) => post<Lot>(`${base(orgId)}/lots/${id}/price`, b));
+export const usePayLot = (orgId: string) => useStockMutation(orgId, ({ id, ...b }: { id: string; status: "paid" | "owed"; account_id?: string; reference?: string | null }) =>
+  post<Lot>(`${base(orgId)}/lots/${id}/payment`, b));
 export const useVoidLot = (orgId: string) => useStockMutation(orgId, ({ id, reason }: { id: string; reason: string }) => post<Lot>(`${base(orgId)}/lots/${id}/void`, { reason }));
 export const useVoidIssue = (orgId: string) => useStockMutation(orgId, ({ group, reason }: { group: string; reason: string }) => post(`${base(orgId)}/moves/${group}/void`, { reason }));
 export const useSaveEquipment = (orgId: string) =>

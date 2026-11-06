@@ -3,10 +3,11 @@
 import { useState } from "react";
 import { Alert, Badge, Button, Dialog, Field, Input, PageLoader, Pager, usePager, useSlice, useToast } from "@/components/ui";
 import { OwnerActions } from "@/features/corrections";
+import { type PaymentChoice, PaymentFields, noPayment, paymentBody, paymentReady, useCanPay } from "@/features/finance/PaymentFields";
 import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
 import { cn, naira } from "@/lib/format";
-import { type Lot, type Move, type StockItem, qty, useItemMoves, usePriceLot, useStockItem, useVoidLot } from "./api";
+import { type Lot, type Move, type Payment, type StockItem, qty, useItemMoves, usePayLot, usePriceLot, useStockItem, useVoidLot } from "./api";
 
 const day = (iso: string) => new Date(iso + "T12:00:00").toLocaleDateString("en-NG", { day: "numeric", month: "short" });
 const KIND: Record<string, string> = { receive: "Received", issue: "Used", adjust: "Count", write_off: "Written off" };
@@ -18,6 +19,7 @@ export function ItemSheet({ itemId, onClose, onAction }: {
   const ws = useCurrentWorkspace();
   const q = useStockItem(ws.orgId, itemId);
   const [pricing, setPricing] = useState<Lot | null>(null);
+  const [paying, setPaying] = useState<Lot | null>(null);
   const it = q.data;
   const pg = usePager(20, [itemId]);
   const moves = useItemMoves(ws.orgId, itemId, pg.params);
@@ -53,7 +55,7 @@ export function ItemSheet({ itemId, onClose, onAction }: {
             <h3 className="eyebrow mb-2">Deliveries</h3>
             {it.lots.length === 0 ? <p className="text-[13.5px] text-ink-3">No deliveries recorded yet.</p> : (
               <ul className="flex flex-col divide-y divide-line">
-                {lots.rows.map((l) => <LotRow key={l.id} l={l} it={it} onPrice={() => setPricing(l)} onWriteOff={() => onAction("writeoff", it, l.id)} />)}
+                {lots.rows.map((l) => <LotRow key={l.id} l={l} it={it} onPrice={() => setPricing(l)} onPay={() => setPaying(l)} onWriteOff={() => onAction("writeoff", it, l.id)} />)}
               </ul>
             )}
             <Pager {...lots.pager} noun="deliveries" />
@@ -68,12 +70,14 @@ export function ItemSheet({ itemId, onClose, onAction }: {
         </div>
       )}
       <PriceDialog lot={pricing} item={it} onClose={() => setPricing(null)} />
+      <PayLotDialog lot={paying} item={it} onClose={() => setPaying(null)} />
     </Dialog>
   );
 }
 
-function LotRow({ l, it, onPrice, onWriteOff }: { l: Lot; it: StockItem; onPrice: () => void; onWriteOff: () => void }) {
+function LotRow({ l, it, onPrice, onPay, onWriteOff }: { l: Lot; it: StockItem; onPrice: () => void; onPay: () => void; onWriteOff: () => void }) {
   const ws = useCurrentWorkspace();
+  const canPay = useCanPay();
   const voidLot = useVoidLot(ws.orgId);
   const toast = useToast();
   const today = new Date().toISOString().slice(0, 10);
@@ -91,10 +95,12 @@ function LotRow({ l, it, onPrice, onWriteOff }: { l: Lot; it: StockItem; onPrice
           {expired && l.remaining > 0 && <Badge tone="crit">Expired {day(l.expires_on!)}</Badge>}
           {soon && l.remaining > 0 && <Badge tone="warn">Expires {day(l.expires_on!)}</Badge>}
           {ws.can("finance.view") && (l.unit_cost != null ? <Badge>{naira(l.unit_cost)} / {it.unit}</Badge> : <Badge tone="warn">No price</Badge>)}
+          {l.payment && !l.voided_at && <PaidBadge p={l.payment} />}
         </div>
       </div>
       <div className="flex gap-1">
         {ws.can("finance.edit") && !l.voided_at && <Button size="sm" variant="ghost" onClick={onPrice}>{l.unit_cost == null ? "Add price" : "Price"}</Button>}
+        {canPay && !l.voided_at && !l.payment && l.unit_cost != null && ws.can("finance.view") && <Button size="sm" variant="ghost" onClick={onPay}>Record payment</Button>}
         {expired && l.remaining > 0 && ws.can("inventory.edit") && <Button size="sm" variant="danger" onClick={onWriteOff}>Write off</Button>}
         {!used && !l.voided_at && ws.can("inventory.edit") && <Button size="sm" variant="ghost" loading={voidLot.isPending} onClick={async () => {
           try { await voidLot.mutateAsync({ id: l.id, reason: "Entered by mistake" }); toast("Delivery voided"); }
@@ -103,6 +109,40 @@ function LotRow({ l, it, onPrice, onWriteOff }: { l: Lot; it: StockItem; onPrice
         {!l.voided_at && <OwnerActions kind="stock_lot" id={l.id} compact />}
       </div>
     </li>
+  );
+}
+
+export function PaidBadge({ p }: { p: Payment }) {
+  return p.status === "paid" ? <Badge tone="good">Paid {naira(p.amount)}{p.account_name ? ` from ${p.account_name}` : ""}</Badge>
+    : p.status === "owed" ? <Badge tone="warn">{naira(p.amount)} owed to supplier</Badge>
+    : p.status === "pending" ? <Badge tone="warn">Payment waiting for approval</Badge> : <Badge>Payment rejected</Badge>;
+}
+
+function PayLotDialog({ lot, item, onClose }: { lot: Lot | null; item?: StockItem; onClose: () => void }) {
+  const ws = useCurrentWorkspace();
+  const pay = usePayLot(ws.orgId);
+  const toast = useToast();
+  const [p, setP] = useState<PaymentChoice>(noPayment);
+  const [error, setError] = useState<string | null>(null);
+  const [lastLot, setLastLot] = useState<string | null>(null);
+  if (lot && lot.id !== lastLot) { setLastLot(lot.id); setP(noPayment()); setError(null); }
+  const amount = lot && lot.unit_cost != null ? Math.round(lot.unit_cost * lot.quantity * 100) / 100 : 0;
+  const body = paymentBody(p, true);
+  return (
+    <Dialog open={!!lot} onClose={onClose} title="Record what was paid" eyebrow={item && lot ? `${item.name} · delivered ${day(lot.received_on)}` : undefined}
+      footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button>
+        <Button variant="primary" loading={pay.isPending} disabled={!body || !paymentReady(p, true)} onClick={async () => {
+          if (!lot || !body) return;
+          setError(null);
+          try { await pay.mutateAsync({ id: lot.id, ...body }); toast(body.status === "paid" ? "Payment recorded" : "Recorded as owed"); onClose(); }
+          catch (e) { setError(e instanceof ApiError ? e.message : "Could not record it"); }
+        }}>Save</Button></>}>
+      <div className="flex flex-col gap-3">
+        <p className="text-[13.5px] text-ink-2">For deliveries recorded before payments were linked, or saved without one. Paid takes the money out of the account; the feed still counts as a cost only when it is used.</p>
+        <PaymentFields value={p} onChange={setP} amount={amount} what="this delivery" />
+        {error && <Alert tone="crit" title={error} />}
+      </div>
+    </Dialog>
   );
 }
 

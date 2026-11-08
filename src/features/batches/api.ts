@@ -53,6 +53,7 @@ function useBatchMutation<V>(orgId: string, fn: (v: V) => Promise<BatchDetail>) 
       qc.setQueryData(["farm", orgId, "batch", data.id], data);
       qc.invalidateQueries({ queryKey: ["farm", orgId] });
       qc.invalidateQueries({ queryKey: ["audit", orgId] });
+      qc.invalidateQueries({ queryKey: ["planner", orgId] });
     },
   });
 }
@@ -60,7 +61,7 @@ function useBatchMutation<V>(orgId: string, fn: (v: V) => Promise<BatchDetail>) 
 export type StockInput = {
   species: string; breed?: string | null; breed_key?: string; code?: string; source_type: string; source_name?: string | null; started_on: string;
   age_at_start_days: number; avg_start_weight_g?: number | null; acquisition_cost?: number | null; units: { unit_id: string; count: number }[]; notes?: string | null;
-  payment?: { status: "paid" | "owed"; account_id?: string; reference?: string | null };
+  payment?: { status: "paid" | "owed"; account_id?: string; reference?: string | null }; plan_id?: string;
 };
 export type RecordInput = { kind: string; unit_id?: string; quantity: number; occurred_on: string; amount?: number | null; weight_kg?: number | null; reason?: string | null; note?: string | null; client_id?: string };
 

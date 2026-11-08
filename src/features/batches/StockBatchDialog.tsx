@@ -15,8 +15,11 @@ import { today, useBatchCatalog, useStockBatch } from "./api";
 const num = (v: string) => (v.trim() === "" ? null : Number(v.replace(/,/g, "")));
 
 /** Stock a new batch into one or more units. */
-export function StockBatchDialog({ open, onClose, presetUnit, onStocked }: {
-  open: boolean; onClose: () => void; presetUnit?: string; onStocked?: (batchId: string) => void;
+/** Stocking from a plan fills in what the plan already knows, and the batch follows the plan's days. */
+export type FromPlan = { id: string; name: string; species: string; breed_key: string | null; count: number; age: number; start_on: string; animal_price: number | null };
+
+export function StockBatchDialog({ open, onClose, presetUnit, onStocked, plan }: {
+  open: boolean; onClose: () => void; presetUnit?: string; onStocked?: (batchId: string) => void; plan?: FromPlan;
 }) {
   const ws = useCurrentWorkspace();
   const router = useRouter();
@@ -40,9 +43,15 @@ export function StockBatchDialog({ open, onClose, presetUnit, onStocked }: {
     setError(null); evidence.reset(); setPay(noPayment());
     const pre = allUnits.find((u) => u.id === presetUnit);
     setCounts(presetUnit ? { [presetUnit]: pre?.capacity ? String(pre.capacity) : "" } : {});
-    setF((x) => ({ ...x, species: pre?.purpose && cat.data?.species[pre.purpose] ? pre.purpose : x.species, started_on: today() }));
+    if (plan) {
+      setF((x) => ({ ...x, species: plan.species, breed_key: plan.breed_key ?? "", age: String(plan.age || ""),
+        started_on: plan.start_on < today() ? plan.start_on : today(),
+        cost: plan.animal_price != null ? String(Math.round(plan.animal_price * plan.count)) : x.cost }));
+    } else {
+      setF((x) => ({ ...x, species: pre?.purpose && cat.data?.species[pre.purpose] ? pre.purpose : x.species, started_on: today() }));
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, presetUnit]);
+  }, [open, presetUnit, plan?.id]);
 
   const chosen = Object.entries(counts).filter(([, v]) => v !== undefined);
   const total = chosen.reduce((n, [, v]) => n + (Number(v) || 0), 0);
@@ -53,7 +62,9 @@ export function StockBatchDialog({ open, onClose, presetUnit, onStocked }: {
   const cycle = f.species ? cat.data?.species[f.species]?.cycle_days : null;
   const pack = packs.data?.find((p) => p.key === f.species) ?? null;
   // Default to the pack's first breed when the species changes.
-  useEffect(() => { setF((x) => ({ ...x, breed_key: pack?.breeds[0]?.key ?? "" })); }, [pack]);
+  useEffect(() => {
+    setF((x) => ({ ...x, breed_key: plan && plan.species === x.species && plan.breed_key ? plan.breed_key : pack?.breeds[0]?.key ?? "" }));
+  }, [pack, plan]);
 
   const save = async () => {
     setError(null);
@@ -62,6 +73,7 @@ export function StockBatchDialog({ open, onClose, presetUnit, onStocked }: {
         species: f.species, breed: f.breed_key ? null : f.breed || null, breed_key: f.breed_key || undefined, source_type: f.source_type, source_name: f.source_name || null, started_on: f.started_on,
         age_at_start_days: Number(f.age) || 0, avg_start_weight_g: num(f.weight), acquisition_cost: money ? num(f.cost) : null,
         units: chosen.map(([unit_id, v]) => ({ unit_id, count: Number(v) })), notes: f.notes || null, payment: paymentBody(pay, showPay),
+        ...(plan && plan.species === f.species ? { plan_id: plan.id } : {}),
       });
       await evidence.attach({ record_id: b.id }, b.code);
       toast(`Stocked ${b.code}: ${b.current.toLocaleString("en-NG")} ${units.data?.purposes[b.species]?.toLowerCase() ?? ""}`);
@@ -78,6 +90,8 @@ export function StockBatchDialog({ open, onClose, presetUnit, onStocked }: {
       </>}>
       <div className="flex flex-col gap-4">
         {error && <Alert tone="crit">{error}</Alert>}
+        {plan && <Alert tone="info" title={`Following the plan “${plan.name}”`}>
+          The plan&apos;s days (feed changes, vaccines, checks and your own) become this batch&apos;s tasks in Today. The plan was for {plan.count.toLocaleString("en-NG")}; the batch uses what you stock below.</Alert>}
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Species" htmlFor="b-species"><Select id="b-species" value={f.species} onChange={(e) => setF({ ...f, species: e.target.value })}>
             <option value="">Choose…</option>
@@ -103,7 +117,7 @@ export function StockBatchDialog({ open, onClose, presetUnit, onStocked }: {
         </div>
         {showPay && <PaymentFields value={pay} onChange={setPay} amount={cost} what="the animals" purchasedOn={f.started_on} />}
         {cycle ? <p className="-mt-1 text-[12.5px] text-ink-3">A typical {units.data?.purposes[f.species]?.toLowerCase()} cycle is about {cycle} days; the expected end date is set from that.</p> : null}
-        {pack && (pack.vaccinations > 0 || pack.phases > 1) && <p className="-mt-2 text-[12.5px] text-ink-3">Vaccinations and feed changes from the {pack.name.toLowerCase()} pack will appear in Today on their dates.</p>}
+        {!plan && pack && (pack.vaccinations > 0 || pack.phases > 1) && <p className="-mt-2 text-[12.5px] text-ink-3">Vaccinations and feed changes from the {pack.name.toLowerCase()} pack will appear in Today on their dates.</p>}
 
         <div className="flex flex-col gap-1.5">
           <span className="text-[12.5px] font-semibold text-ink-2">Which units, and how many in each?</span>

@@ -17,6 +17,7 @@ import { BatchStockCard, useInventoryCatalog } from "@/features/inventory";
 import { ExpenseDialog, useFinanceCatalog } from "@/features/finance";
 import { InvoiceDialog } from "@/features/sales";
 import { StandardCard } from "@/features/packs";
+import { BatchPlanCard } from "@/features/planner";
 import { RequirePermission, useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
 import { cn, formatDate, naira } from "@/lib/format";
@@ -102,6 +103,7 @@ function View({ b, checking }: { b: BatchDetail; checking?: boolean }) {
       </div>
 
       {b.pack_key && <div className="mb-4"><StandardCard batchId={b.id} active={active} /></div>}
+      <div className="mb-4 empty:hidden"><BatchPlanCard b={b} /></div>
       {ws.has("health") && <div className="mb-4"><BatchHealthCard batchId={b.id} active={active} /></div>}
       {ws.has("inventory") && <div className="mb-4"><BatchStockCard batchId={b.id} active={active} /></div>}
 

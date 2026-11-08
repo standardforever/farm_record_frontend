@@ -6,6 +6,7 @@ import { Layers, Plus } from "lucide-react";
 import { Badge, Button, Card, EmptyState, PageHeader, PageLoader, Pager, Segmented, usePager } from "@/components/ui";
 import { type Batch, ageLabel, ageOn, StockBatchDialog, useBatchPage } from "@/features/batches";
 import { useCatalog } from "@/features/farm";
+import { PlansCard } from "@/features/planner";
 import { RequirePermission, useCurrentWorkspace } from "@/features/workspaces";
 import { cn, formatDate } from "@/lib/format";
 
@@ -25,6 +26,7 @@ function Inner() {
     <>
       <PageHeader eyebrow="Farm" title="Batches" sub="Every flock, stocking or herd from the day it arrives to close-out."
         actions={canStock ? <Button variant="primary" onClick={() => setStocking(true)}><Plus size={16} /> Stock a batch</Button> : undefined} />
+      {status === "active" && <div className="mb-4"><PlansCard /></div>}
       <div className="mb-4"><Segmented value={status} onChange={setStatus} options={[{ value: "active", label: "Active" }, { value: "closed", label: "Closed" }]} /></div>
       {batches.isLoading ? <PageLoader /> : !batches.data?.items.length ? (
         <Card><EmptyState icon={<Layers size={22} />} title={status === "active" ? "No active batches" : "No closed batches yet"}

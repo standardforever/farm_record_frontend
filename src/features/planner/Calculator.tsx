@@ -16,7 +16,7 @@ const n = (v: string) => (v.trim() === "" ? null : Number(v));
 type Row<K extends string> = Record<K, string>;
 type Form = {
   count: string; start_on: string; age: string; animal_price: string; mortality_pct: string; sell_price: string; spent_price: string; sell_day: string;
-  feeds: (Row<"phase" | "name" | "price" | "kg">)[];
+  feeds: (Row<"phase" | "name" | "price" | "kg" | "bags">)[];
   vaccines: (Row<"name" | "product" | "price" | "doses">)[];
   vitamins: (Row<"name" | "pack_size" | "price" | "days_per_pack" | "days_used">)[];
   others: (Row<"label" | "amount" | "day">)[];
@@ -27,7 +27,7 @@ function toForm(p: Plan): Form {
   return {
     count: String(p.count), start_on: p.start_on, age: String(p.age_at_start_days), animal_price: s(i.animal_price), mortality_pct: s(i.mortality_pct),
     sell_price: s(i.sell_price), spent_price: s(i.spent_price), sell_day: s(i.sell_day),
-    feeds: (i.feeds ?? []).map((f) => ({ phase: f.phase, name: f.name ?? "", price: s(f.price_per_bag), kg: s(f.kg_per_bag) })),
+    feeds: (i.feeds ?? []).map((f) => ({ phase: f.phase, name: f.name ?? "", price: s(f.price_per_bag), kg: s(f.kg_per_bag), bags: s(f.bags) })),
     vaccines: (i.vaccines ?? []).map((v) => ({ name: v.name, product: v.product ?? "", price: s(v.price_per_bottle), doses: s(v.doses_per_bottle) })),
     vitamins: (i.vitamins ?? []).map((v) => ({ name: v.name, pack_size: v.pack_size ?? "", price: s(v.price), days_per_pack: s(v.days_per_pack), days_used: s(v.days_used) })),
     others: (i.others ?? []).map((o) => ({ label: o.label, amount: s(o.amount), day: s(o.day) })),
@@ -38,7 +38,7 @@ function toInputs(f: Form, p: Plan): PlanInputs {
   return {
     animal_price: n(f.animal_price), mortality_pct: n(f.mortality_pct) ?? p.hints.mortality_pct, sell_price: n(f.sell_price), sell_unit: p.hints.sell_unit,
     spent_price: n(f.spent_price), sell_day: n(f.sell_day) ?? p.hints.sell_day,
-    feeds: f.feeds.map((x) => ({ phase: x.phase, name: x.name || null, price_per_bag: n(x.price), kg_per_bag: n(x.kg) || p.hints.bag_kg })),
+    feeds: f.feeds.map((x) => ({ phase: x.phase, name: x.name || null, price_per_bag: n(x.price), kg_per_bag: n(x.kg) || p.hints.bag_kg, bags: n(x.bags) })),
     vaccines: f.vaccines.map((v) => ({ name: v.name, product: v.product || null, price_per_bottle: n(v.price), doses_per_bottle: n(v.doses) || null })),
     vitamins: f.vitamins.filter((v) => v.name && n(v.price) != null && Number(v.days_per_pack) > 0)
       .map((v) => ({ name: v.name, pack_size: v.pack_size || null, price: Number(v.price), days_per_pack: Number(v.days_per_pack), days_used: n(v.days_used) || null })),
@@ -138,13 +138,21 @@ export function Calculator({ plan, onSaving }: { plan: Plan; onSaving: (s: "savi
       <Section id="c-feed" title="Feed" sub="One line for each feed the guide uses. Check the bag size on the bag.">
         {f.feeds.map((x, i) => {
           const ph = plan.pack.phases.find((p) => p.name === x.phase);
+          const line = plan.result?.feed?.find((l) => l.phase === x.phase);
+          const worked = line?.worked_out_bags;
           return (
             <div key={x.phase} className="rounded-xl border border-line p-3">
               <div className="mb-2 text-[13.5px]"><b>{x.phase}</b>{ph?.protein_pct ? <span className="text-ink-3"> · {ph.protein_pct}% protein{ph.form ? `, ${ph.form}` : ""}</span> : null}</div>
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <Field label="Feed name or brand" htmlFor={`c-feed-name-${i}`} hint="Optional"><Input id={`c-feed-name-${i}`} value={x.name} onChange={(e) => row("feeds", i, { name: e.target.value })} /></Field>
                 <Money id={`c-feed-price-${i}`} label="Price per bag (₦)" value={x.price} onChange={(v) => row("feeds", i, { price: v })} />
                 <Field label="Kg per bag" htmlFor={`c-feed-kg-${i}`}><Input id={`c-feed-kg-${i}`} inputMode="decimal" value={x.kg} onChange={(e) => row("feeds", i, { kg: dec(e.target.value) })} /></Field>
+                <Field label="Bags" htmlFor={`c-feed-bags-${i}`}
+                  hint={worked == null ? undefined : x.bags !== "" && Number(x.bags) !== worked
+                    ? <>Worked out: {worked}. <button type="button" className="font-semibold text-brand" onClick={() => row("feeds", i, { bags: "" })}>Use {worked}</button></>
+                    : `Worked out from the guide: ${worked}. Change it if you know better.`}>
+                  <Input id={`c-feed-bags-${i}`} inputMode="numeric" value={x.bags} placeholder={worked != null ? String(worked) : ""}
+                    onChange={(e) => row("feeds", i, { bags: int(e.target.value) })} /></Field>
               </div>
             </div>
           );

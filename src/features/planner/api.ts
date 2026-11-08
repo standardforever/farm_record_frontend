@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { del, get, patch, post } from "@/lib/api";
 
 export type SellUnit = "each" | "kg" | "crate";
-export type FeedPrice = { phase: string; name?: string | null; price_per_bag?: number | null; kg_per_bag: number };
+export type FeedPrice = { phase: string; name?: string | null; price_per_bag?: number | null; kg_per_bag: number; bags?: number | null };
 export type VaccinePrice = { name: string; product?: string | null; price_per_bottle?: number | null; doses_per_bottle?: number | null };
 export type Vitamin = { name: string; price: number; pack_size?: string | null; days_per_pack: number; days_used?: number | null };
 export type OtherCost = { label: string; amount: number; day: number };
@@ -15,7 +15,7 @@ export type PlanDay = {
   ref: string; usual_day: number | null; on: string; before_stock: boolean; moved_note: string | null;
   removed?: boolean; edited?: boolean; done?: boolean; task_id?: string;
 };
-export type FeedLine = { phase: string; name: string | null; kg: number; bags: number; kg_per_bag: number; price_per_bag: number | null; cost: number | null; from_day: number; to_day: number; from_on: string; to_on: string };
+export type FeedLine = { phase: string; name: string | null; kg: number; bags: number; worked_out_bags: number; own_bags: boolean; kg_per_bag: number; price_per_bag: number | null; cost: number | null; from_day: number; to_day: number; from_on: string; to_on: string };
 export type VaccineLine = { name: string; product: string | null; day: number; on: string; doses: number; bottles: number | null; doses_per_bottle: number | null; price_per_bottle: number | null; cost: number | null };
 export type PlanWeek = { week: number; label: string; from_on: string | null; out: number; in: number; spent_so_far: number; back_so_far: number; buy: string[] };
 export type PlanResult = {

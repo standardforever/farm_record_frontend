@@ -75,7 +75,8 @@ export function Results({ plan }: { plan: Plan }) {
             <li key={x.phase} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 px-4 py-2.5 text-[13.5px]">
               <span className="min-w-0 flex-1"><b>{x.name || x.phase}</b>
                 <span className="block text-[12px] text-ink-3">{x.name ? `${x.phase} · ` : ""}day {x.from_day}–{x.to_day} · {formatDate(x.from_on)} to {formatDate(x.to_on)}</span></span>
-              <span className="font-mono tnum"><b>{x.bags}</b> bags of {x.kg_per_bag} kg</span>
+              <span className="text-right font-mono tnum"><b>{x.bags}</b> bags of {x.kg_per_bag} kg
+                {x.own_bags && <span className="block font-sans text-[11.5px] text-ink-3">your number · guide says {x.worked_out_bags}</span>}</span>
               {money && <span className="w-[100px] text-right font-mono tnum">{x.cost != null ? naira(x.cost) : "—"}</span>}
             </li>))}
           </ul>

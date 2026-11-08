@@ -31,7 +31,15 @@ export type UnitProfit = { unit_id: string; code: string; site_name: string | nu
 export type CashMonth = { month: string; money_in: number; money_out: number; net: number; out_by_kind: Record<string, number>; in_by_channel: Record<string, number> };
 export type CashFlow = { start: string; end: string; opening: number; closing: number; months: CashMonth[]; unassigned_receipts: number };
 export type LoansOwed = { owed: number; loans: number; next_due_on: string | null; next_amount: number | null; next_lender: string | null; overdue: number; due_soon: number };
-export type FinanceOverview = { on: string; month_revenue: number; month_costs: number; month_profit: number; cash: number; accounts: Account[]; pending: Expense[]; unpaid_bills: number; approval_limit: number; loans?: LoansOwed | null };
+export type RentDue = { site_id: string; site_name: string; paid_until: string | null; due_on: string | null; amount: number | null; overdue: boolean };
+export type PaybackPlace = { id: string; name: string; invested: number; profit: number | null; recovered_pct: number | null };
+export type Payback = {
+  invested: number; sold: number; net_invested: number; since: string | null; profit_since: number; recovered: number; recovered_pct: number | null; left: number;
+  avg_monthly_profit: number | null; months_to_go: number | null; rent_per_month: number; by_site: PaybackPlace[]; by_unit: PaybackPlace[];
+  items: { expense_id: string; number: string; on: string; category: string; description: string; amount: number; site_name: string | null; units: string[]; status: string }[];
+  notes: string[];
+};
+export type FinanceOverview = { on: string; month_revenue: number; month_costs: number; month_profit: number; cash: number; accounts: Account[]; pending: Expense[]; unpaid_bills: number; approval_limit: number; loans?: LoansOwed | null; rent_due?: RentDue[] };
 export type FinanceCatalog = {
   account_kinds: Record<string, string>; expense_categories: Record<string, string>; cash_only: Record<string, string>; pay_basis: Record<string, string>; enterprises: Record<string, string>;
   money_in_kinds: Record<string, string>; money_in_in_profit: string[]; loan_frequencies: Record<string, string>;
@@ -75,6 +83,7 @@ export const useBatchProfits = (orgId: string, status?: string) => useQuery({ qu
 export const useUnitProfits = (orgId: string) => useQuery({ queryKey: ["finance", orgId, "units"], queryFn: () => get<UnitProfit[]>(`${base(orgId)}/units`) });
 export const useCashFlow = (orgId: string) => useQuery({ queryKey: ["finance", orgId, "cashflow"], queryFn: () => get<CashFlow>(`${base(orgId)}/cashflow`) });
 
+export const usePayback = (orgId: string) => useQuery({ queryKey: ["finance", orgId, "payback"], queryFn: () => get<Payback>(`${base(orgId)}/payback`) });
 export const useMoneyIn = (orgId: string) => useQuery({ queryKey: ["finance", orgId, "money-in"], queryFn: () => get<MoneyIn[]>(`${base(orgId)}/money-in`) });
 export const useLoans = (orgId: string) => useQuery({ queryKey: ["finance", orgId, "loans"], queryFn: () => get<Loan[]>(`${base(orgId)}/loans`) });
 export const useLoan = (orgId: string, id: string | null) => useQuery({ queryKey: ["finance", orgId, "loan", id], queryFn: () => get<Loan>(`${base(orgId)}/loans/${id}`), enabled: !!id });

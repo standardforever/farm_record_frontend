@@ -5,7 +5,9 @@ import { Alert, Button, Dialog, Field, Input, Textarea, useToast } from "@/compo
 import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
 import { LocationFields } from "@/features/geo";
+import { useCanPay } from "@/features/finance/PaymentFields";
 import { type Site, useArchiveSite, useCreateSite, useUpdateSite } from "./api";
+import { LandFields, type LandState, landBody, landReady, noLand } from "./CostFields";
 
 const num = (v: string) => (v.trim() === "" ? null : Number(v));
 
@@ -17,10 +19,12 @@ export function SiteDialog({ open, onClose, site }: { open: boolean; onClose: ()
   const toast = useToast();
   const [f, setF] = useState({ name: "", code: "", address: "", state: "", lga: "", ward: "", area: "", lat: "", lng: "", notes: "" });
   const [error, setError] = useState<string | null>(null);
+  const [land, setLand] = useState<LandState>(noLand);
+  const canPay = useCanPay();
 
   useEffect(() => {
     if (!open) return;
-    setError(null);
+    setError(null); setLand(noLand());
     setF(site ? {
       name: site.name, code: site.code, address: site.address ?? "", state: site.state ?? "", lga: site.lga ?? "", ward: site.ward ?? "",
       area: site.area_hectares?.toString() ?? "", lat: site.latitude?.toString() ?? "", lng: site.longitude?.toString() ?? "", notes: site.notes ?? "",
@@ -36,7 +40,11 @@ export function SiteDialog({ open, onClose, site }: { open: boolean; onClose: ()
     };
     try {
       if (site) { await update.mutateAsync({ id: site.id, ...body }); toast(`Saved ${body.name}`); }
-      else { const s = await create.mutateAsync(body); toast(`Added site ${s.name} (${s.code})`); }
+      else {
+        const s = await create.mutateAsync({ ...body, ...landBody(land, canPay) });
+        const pay = s.money?.land ?? null;
+        toast(`Added site ${s.name} (${s.code})` + (land.tenure && land.amount && (pay || s.money?.rent_paid_until) ? "; payment recorded in Finance" : ""));
+      }
       onClose();
     } catch (e) { setError(e instanceof ApiError ? e.message : "Could not save."); }
   };
@@ -48,7 +56,7 @@ export function SiteDialog({ open, onClose, site }: { open: boolean; onClose: ()
           try { await archive.mutateAsync(site.id); toast(`Archived ${site.name}`); onClose(); } catch (e) { setError((e as ApiError).message); }
         }}>Archive site</Button>}
         <Button variant="ghost" onClick={onClose}>Cancel</Button>
-        <Button variant="primary" loading={create.isPending || update.isPending} disabled={f.name.trim().length < 2} onClick={save}>{site ? "Save" : "Add site"}</Button>
+        <Button variant="primary" loading={create.isPending || update.isPending} disabled={f.name.trim().length < 2 || (!site && !landReady(land, canPay))} onClick={save}>{site ? "Save" : "Add site"}</Button>
       </>}>
       <div className="flex flex-col gap-4">
         {error && <Alert tone="crit">{error}</Alert>}
@@ -70,6 +78,7 @@ export function SiteDialog({ open, onClose, site }: { open: boolean; onClose: ()
           ? `The point saved now is the centre of the ${site.location_precision === "ward" ? "ward" : "LGA"}. Stand at the farm and tap “Use my location” for the exact spot.`
           : "Stand at the farm and tap “Use my location” for the exact spot. Without it, Oko uses the centre of the ward you choose."}</p>
         <Field label="Notes" htmlFor="site-notes"><Textarea id="site-notes" rows={2} value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} /></Field>
+        {!site && <LandFields value={land} onChange={setLand} />}
       </div>
     </Dialog>
   );

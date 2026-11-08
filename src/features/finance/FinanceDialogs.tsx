@@ -47,7 +47,7 @@ export function ExpenseDialog({ open, onClose, batchId }: { open: boolean; onClo
   const limit = useFinance(ws.orgId, open && ws.can("finance.view")).data?.approval_limit;
   const toast = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
-  const blank = { on: localDay(), category: "fuel", description: "", amount: "", payee: "", charge: "farm", batch: "", unit: "", account: "", paid: "now", reference: "" };
+  const blank = { on: localDay(), category: "fuel", description: "", amount: "", payee: "", charge: "farm", batch: "", unit: "", account: "", paid: "now", reference: "", from: "", to: "" };
   const [f, setF] = useState(blank);
   const [photo, setPhoto] = useState<{ blob: Blob; url: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -68,7 +68,8 @@ export function ExpenseDialog({ open, onClose, batchId }: { open: boolean; onClo
     setBusy(true); setError(null);
     try {
       const media_id = photo ? (await uploadPhoto(ws.orgId, photo.blob, newId())).id : null;
-      const e = await add.mutateAsync({ spent_on: f.on, category: f.category, description: f.description.trim(), amount, payee: f.payee || null,
+      const covers = f.category === "rent" && f.from && f.to ? { covers_from: f.from, covers_to: f.to } : {};
+      const e = await add.mutateAsync({ ...covers, spent_on: f.on, category: f.category, description: f.description.trim(), amount, payee: f.payee || null,
         batch_id: f.charge === "batch" ? f.batch || null : null, unit_id: f.charge === "unit" ? f.unit || null : null,
         account_id: f.paid === "now" ? f.account || null : null, reference: f.reference || null, media_id, client_id: newId() });
       await evidence.attach({ record_id: e.id }, e.number);
@@ -115,6 +116,16 @@ export function ExpenseDialog({ open, onClose, batchId }: { open: boolean; onClo
           </div>
         ))}
         {f.paid === "now" && <AccountStartNote accountId={f.account} on={f.on} flow="out" />}
+        {f.category === "rent" && (
+          <div className="flex flex-col gap-2 rounded-xl border border-line p-3">
+            <span className="text-[13px] font-semibold">Paid ahead for a period? <span className="font-normal text-ink-3">(optional)</span></span>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="It covers from" htmlFor="x-from"><Input id="x-from" type="date" value={f.from} onChange={(e) => setF({ ...f, from: e.target.value })} /></Field>
+              <Field label="Until" htmlFor="x-to"><Input id="x-to" type="date" min={f.from} value={f.to} onChange={(e) => setF({ ...f, to: e.target.value })} /></Field>
+            </div>
+            <p className="text-[12px] text-ink-3">Profit then counts it month by month over that time. For a site&apos;s rent, &ldquo;Pay rent&rdquo; on the farm map fills this in.</p>
+          </div>
+        )}
         <AccountDialog open={addingAccount} onClose={async () => {
           setAddingAccount(false);
           const r = await accounts.refetch();

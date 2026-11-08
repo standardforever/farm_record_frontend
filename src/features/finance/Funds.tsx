@@ -81,9 +81,11 @@ export function MoneyInDialog({ open, onClose, onLoan }: { open: boolean; onClos
         <div className="flex flex-col gap-1.5">
           <span className="text-[12.5px] font-semibold text-ink-2">What is it?</span>
           <Segmented value={f.kind} onChange={(v) => setF({ ...f, kind: v })}
-            options={[{ value: "capital", label: "My own money" }, { value: "grant", label: "Grant" }, { value: "other_income", label: "Other income" }]} />
+            options={[{ value: "capital", label: "My own money" }, { value: "grant", label: "Grant" }, { value: "other_income", label: "Other income" },
+              { value: "asset_sale", label: "Sold land or equipment" }]} />
           <p className="text-[12.5px] text-ink-3">
             {f.kind === "capital" ? "Money you put into the farm. It adds to the account; it is not income, so profit does not change."
+              : f.kind === "asset_sale" ? "Money from selling land, a building or equipment. Not income: it comes off what was invested, under Payback."
               : inProfit ? "Counts as income in profit, under the whole farm." : ""}
             {" "}Borrowed money? <button type="button" className="cursor-pointer font-semibold text-brand" onClick={() => { onClose(); onLoan(); }}>Record a loan</button> so what you owe is kept.
           </p>

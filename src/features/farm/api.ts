@@ -8,7 +8,21 @@ export type Site = {
   location_precision: "gps" | "ward" | "lga" | null;
   latitude: number | null; longitude: number | null; area_hectares: number | null; notes: string | null;
   status: "active" | "archived"; created_at: string; unit_count: number;
+  tenure: "bought" | "rented" | "own" | null; rent_amount: number | null; rent_period: RentPeriod | null;
+  money?: SiteMoney | null;
 };
+export type RentPeriod = "monthly" | "quarterly" | "half_yearly" | "yearly" | "two_years";
+export const RENT_PERIODS: Record<RentPeriod, { label: string; months: number }> = {
+  monthly: { label: "Every month", months: 1 }, quarterly: { label: "Every 3 months", months: 3 }, half_yearly: { label: "Every 6 months", months: 6 },
+  yearly: { label: "Every year", months: 12 }, two_years: { label: "Every 2 years", months: 24 },
+};
+export type SiteMoney = {
+  invested: number; rent_paid_until: string | null; rent_due_on: string | null; rent_next_amount: number | null; rent_overdue: boolean; rent_due_soon: boolean;
+  land: import("@/features/inventory/api").Payment | null;
+};
+/** What land or units cost: the amount and how it was paid (see finance PaymentFields). */
+export type CostInput = { amount: number; on: string; covers_from?: string; covers_to?: string; note?: string | null;
+  payment: { status: "paid" | "owed"; account_id?: string; reference?: string | null; paid_on?: string } };
 export type Unit = {
   id: string; site_id: string; code: string; name: string | null; kind: string; purpose: string | null;
   capacity: number | null; area_m2: number | null; volume_m3: number | null; latitude: number | null; longitude: number | null;
@@ -28,9 +42,9 @@ export type Catalog = {
 };
 export type UnitActivity = { action: string; summary: string; actor_name: string | null; data: Record<string, unknown>; created_at: string };
 
-export type SiteInput = Partial<Pick<Site, "name" | "code" | "address" | "state" | "lga" | "latitude" | "longitude" | "area_hectares" | "notes">>;
+export type SiteInput = Partial<Pick<Site, "name" | "code" | "address" | "state" | "lga" | "latitude" | "longitude" | "area_hectares" | "notes" | "tenure" | "rent_amount" | "rent_period">> & { cost?: CostInput };
 export type UnitInput = Partial<Pick<Unit, "site_id" | "kind" | "code" | "name" | "purpose" | "capacity" | "area_m2" | "volume_m3" | "latitude" | "longitude" | "notes" | "status" | "status_note">>;
-export type BulkInput = { site_id: string; kind: string; count: number; prefix?: string; start?: number; purpose?: string | null; capacity?: number | null; area_m2?: number | null; volume_m3?: number | null };
+export type BulkInput = { site_id: string; kind: string; count: number; prefix?: string; start?: number; purpose?: string | null; capacity?: number | null; area_m2?: number | null; volume_m3?: number | null; cost?: CostInput };
 
 const base = (orgId: string) => `/organizations/${orgId}/farm`;
 const key = (orgId: string) => ["farm", orgId];
@@ -53,6 +67,7 @@ function useFarmMutation<V, R>(orgId: string, fn: (v: V) => Promise<R>) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: key(orgId) });
       qc.invalidateQueries({ queryKey: ["audit", orgId] });
+      qc.invalidateQueries({ queryKey: ["finance", orgId] });
     },
   });
 }
@@ -65,3 +80,6 @@ export const useBulkUnits = (orgId: string) => useFarmMutation(orgId, (b: BulkIn
 export const useUpdateUnit = (orgId: string) => useFarmMutation(orgId, ({ id, ...b }: UnitInput & { id: string }) => patch<Unit>(`${base(orgId)}/units/${id}`, b));
 export const useArchiveUnit = (orgId: string) => useFarmMutation(orgId, (id: string) => post<Unit>(`${base(orgId)}/units/${id}/archive`));
 export const useRestoreUnit = (orgId: string) => useFarmMutation(orgId, (id: string) => post<Unit>(`${base(orgId)}/units/${id}/restore`));
+export const useSiteLand = (orgId: string) => useFarmMutation(orgId, ({ id, ...b }: CostInput & { id: string }) => post<Site>(`${base(orgId)}/sites/${id}/land`, b));
+export const useSiteRent = (orgId: string) => useFarmMutation(orgId, ({ id, ...b }: CostInput & { id: string }) => post<Site>(`${base(orgId)}/sites/${id}/rent`, b));
+export const useUnitCost = (orgId: string) => useFarmMutation(orgId, ({ id, ...b }: CostInput & { id: string }) => post<Unit>(`${base(orgId)}/units/${id}/cost`, b));

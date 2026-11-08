@@ -4,7 +4,8 @@ import { useState } from "react";
 import { ArrowDownLeft, Plus } from "lucide-react";
 import { Button, EmptyState, PageHeader, PageLoader, Segmented, Stat } from "@/components/ui";
 import {
-  AccountDialog, CashPanel, ExpenseDialog, ExpensesPanel, LoanDialog, LoansCard, LoansPanel, MoneyInDialog, OverviewPanel, PayrollPanel, ProfitPanel, useFinance,
+  AccountDialog, CashPanel, ExpenseDialog, ExpensesPanel, LoanDialog, LoansCard, LoansPanel, MoneyInDialog, OverviewPanel, PaybackCard, PaybackPanel,
+  PayrollPanel, ProfitPanel, RentDueCard, useFinance,
 } from "@/features/finance";
 import { RequirePermission, useCurrentWorkspace } from "@/features/workspaces";
 import { naira } from "@/lib/format";
@@ -13,7 +14,7 @@ export default function FinancePage() {
   return <RequirePermission permission="finance.view"><Inner /></RequirePermission>;
 }
 
-type Tab = "overview" | "expenses" | "profit" | "cash" | "loans" | "payroll";
+type Tab = "overview" | "expenses" | "profit" | "payback" | "cash" | "loans" | "payroll";
 
 function Inner() {
   const ws = useCurrentWorkspace();
@@ -41,14 +42,17 @@ function Inner() {
       </div>
       <div className="mb-4 overflow-x-auto">
         <Segmented value={tab} onChange={setTab} options={[{ value: "overview", label: "Overview" }, { value: "expenses", label: "Expenses" }, { value: "profit", label: "Profit" },
-          { value: "cash", label: "Cash and bank" }, { value: "loans", label: "Loans" }, { value: "payroll", label: "Payroll" }]} />
+          { value: "payback", label: "Payback" }, { value: "cash", label: "Cash and bank" }, { value: "loans", label: "Loans" }, { value: "payroll", label: "Payroll" }]} />
       </div>
+      {tab === "overview" && !!d.rent_due?.length && <div className="mb-4"><RentDueCard rent={d.rent_due} /></div>}
       {tab === "overview" && d.loans && d.loans.loans > 0 && <div className="mb-4"><LoansCard loans={d.loans} onOpen={() => setTab("loans")} /></div>}
+      {tab === "overview" && <div className="mb-4"><PaybackCard onOpen={() => setTab("payback")} /></div>}
       {tab === "overview" && <OverviewPanel onAddAccount={() => setAddingAccount(true)} />}
       {tab === "expenses" && <ExpensesPanel />}
       {tab === "profit" && <ProfitPanel />}
       {tab === "cash" && <CashPanel onMoneyIn={() => setMoneyIn(true)} />}
       {tab === "loans" && <LoansPanel />}
+      {tab === "payback" && <PaybackPanel />}
       {tab === "payroll" && <PayrollPanel />}
       <ExpenseDialog open={spending} onClose={() => setSpending(false)} />
       <AccountDialog open={addingAccount} onClose={() => setAddingAccount(false)} />

@@ -2,13 +2,15 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Archive, History, Layers, Pencil, Plus, RotateCcw } from "lucide-react";
+import { Archive, History, Layers, Pencil, Plus, RotateCcw, Wallet } from "lucide-react";
 import { Alert, Badge, Button, Dialog, Field, Input, Select, Pager, Textarea, usePager, useToast } from "@/components/ui";
 import { OwnerActions } from "@/features/corrections";
+import { useCanPay } from "@/features/finance/PaymentFields";
 import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
 import { cn, relative } from "@/lib/format";
-import { type Site, type Unit, type UnitBatch, type UnitStatus, useArchiveUnit, useCatalog, useRestoreUnit, useUnitActivity, useUpdateUnit } from "./api";
+import { type Site, type Unit, type UnitBatch, type UnitStatus, useArchiveUnit, useCatalog, useRestoreUnit, useUnitActivity, useUnitCost, useUpdateUnit } from "./api";
+import { UnitCostFields, type UnitCostState, noUnitCost, unitCostBody, unitCostReady } from "./CostFields";
 import { kindIcon, STATUS_LOOK, STATUS_ORDER } from "./look";
 
 const num = (v: string) => (v.trim() === "" ? null : Number(v));
@@ -29,6 +31,8 @@ export function UnitDrawer({ unit, sites, batches = [], onClose, onStock }: {
   const [pending, setPending] = useState<UnitStatus | null>(null);
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [costing, setCosting] = useState(false);
+  const canPay = useCanPay();
   const [f, setF] = useState({ code: "", name: "", site: "", kind: "", purpose: "", capacity: "", area: "", volume: "", notes: "" });
 
   useEffect(() => {
@@ -71,8 +75,10 @@ export function UnitDrawer({ unit, sites, batches = [], onClose, onStock }: {
           ? <Button loading={restore.isPending} onClick={() => run(() => restore.mutateAsync(unit.id), `Restored ${unit.code}`, true)}><RotateCcw size={16} /> Restore</Button>
           : <Button variant="ghost" loading={archive.isPending} onClick={() => run(() => archive.mutateAsync(unit.id), `Archived ${unit.code}`, true)}><Archive size={16} /> Archive</Button>}
         <OwnerActions kind="unit" id={unit.id} compact edit={false} onDeleted={onClose} />
+        {canPay && !archived && <Button variant="ghost" onClick={() => setCosting(true)}><Wallet size={16} /> What it cost</Button>}
         {!archived && <Button variant="primary" onClick={() => setEditing(true)}><Pencil size={16} /> Edit</Button>}
       </> : undefined}>
+      {costing && <UnitCostDialog unit={unit} onClose={() => setCosting(false)} />}
       <div className="flex flex-col gap-5">
         {error && <Alert tone="crit">{error}</Alert>}
         {archived && <Alert tone="warn">Archived {relative(unit.archived_at!)}. Its history is kept; it does not count against your plan.</Alert>}
@@ -168,6 +174,31 @@ export function UnitDrawer({ unit, sites, batches = [], onClose, onStock }: {
             </div>
           </>
         )}
+      </div>
+    </Dialog>
+  );
+}
+
+/** For a unit added before its cost was known: record what it cost to build or buy (or add an aerator, a roof). */
+function UnitCostDialog({ unit, onClose }: { unit: Unit; onClose: () => void }) {
+  const ws = useCurrentWorkspace();
+  const save = useUnitCost(ws.orgId);
+  const toast = useToast();
+  const [cost, setCost] = useState<UnitCostState>(noUnitCost);
+  const [error, setError] = useState<string | null>(null);
+  const body = unitCostBody(cost, true);
+  return (
+    <Dialog open onClose={onClose} title="What it cost" eyebrow={unit.code}
+      footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button>
+        <Button variant="primary" loading={save.isPending} disabled={!body || !unitCostReady(cost, true)} onClick={async () => {
+          if (!body) return;
+          setError(null);
+          try { await save.mutateAsync({ id: unit.id, ...body }); toast(`Cost recorded for ${unit.code}`); onClose(); }
+          catch (e) { setError(e instanceof ApiError ? e.message : "Could not save"); }
+        }}>Save</Button></>}>
+      <div className="flex flex-col gap-3">
+        {error && <Alert tone="crit">{error}</Alert>}
+        <UnitCostFields value={cost} onChange={setCost} open />
       </div>
     </Dialog>
   );

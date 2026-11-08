@@ -113,8 +113,9 @@ export function FarmDashboard() {
                 d.sales?.outstanding ? `${naira(d.sales.outstanding)} owed to you${d.sales.overdue ? `, ${naira(d.sales.overdue)} overdue` : ""}` : d.sales ? "Nobody owes you" : null,
                 d.money ? `${naira(d.money.cash)} in ${d.money.accounts} account${d.money.accounts === 1 ? "" : "s"}` : null,
                 d.money?.loans?.owed ? `${naira(d.money.loans.owed)} owed on loans` + (d.money.loans.next_due_on
-                  ? `; ${d.money.loans.overdue ? "a payment is overdue" : `next ${d.money.loans.next_amount ? naira(d.money.loans.next_amount) + " " : ""}on ${day(d.money.loans.next_due_on)}`}` : "") : null]}
-              warn={!!d.sales?.overdue || !!d.money?.loans?.overdue} />
+                  ? `; ${d.money.loans.overdue ? "a payment is overdue" : `next ${d.money.loans.next_amount ? naira(d.money.loans.next_amount) + " " : ""}on ${day(d.money.loans.next_due_on)}`}` : "") : null,
+                ...(d.money?.rent_due ?? []).map((r) => `Rent for ${r.site_name} ${r.overdue ? "ran out" : "runs out"}${r.paid_until ? ` ${day(r.paid_until)}` : ""}`)]}
+              warn={!!d.sales?.overdue || !!d.money?.loans?.overdue || !!d.money?.rent_due?.length} />
           )}
         </div>
       </div>

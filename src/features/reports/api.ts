@@ -18,7 +18,8 @@ export type Dashboard = {
   stock: { count: number; alerts: { kind: string; title: string; item_id: string }[] } | null;
   sales: { month_sales: number; month_received: number; outstanding: number; overdue: number } | null;
   money: { month_sales: number; month_costs: number; month_profit: number; cash: number; accounts: number;
-    loans?: { owed: number; next_due_on: string | null; next_amount: number | null; next_lender: string | null; overdue: number } | null } | null;
+    loans?: { owed: number; next_due_on: string | null; next_amount: number | null; next_lender: string | null; overdue: number } | null;
+    rent_due?: { site_name: string; paid_until: string | null; overdue: boolean; amount: number | null }[] } | null;
 };
 export type WeeklyBatch = {
   id: string; code: string; species: string; status: string; start_count: number; added: number; end_count: number; died: number; culled: number;

@@ -5,6 +5,7 @@ import { OwnerActions } from "@/features/corrections";
 import { Map as MapIcon, MapPin, Pencil, Plus, Search } from "lucide-react";
 import { Alert, Badge, Button, Card, EmptyState, Input, PageHeader, PageLoader, Select, Toggle } from "@/components/ui";
 import { AddUnitsDialog, kindIcon, SiteDialog, STATUS_LOOK, STATUS_ORDER, UnitDrawer, useCatalog, useFarmMap } from "@/features/farm";
+import { SiteLand } from "@/features/farm/SiteLand";
 import type { Site, Unit, UnitBatch, UnitStatus } from "@/features/farm";
 import { StockBatchDialog } from "@/features/batches";
 import { RequirePermission, useCurrentWorkspace } from "@/features/workspaces";
@@ -97,6 +98,7 @@ function FarmMapView() {
                     <Button size="sm" variant="ghost" aria-label={`Edit ${site.name}`} onClick={() => setSiteDialog({ site })}><Pencil size={14} /></Button>
                     <OwnerActions kind="site" id={site.id} compact edit={false} />
                   </div> : undefined}>
+                  <SiteLand site={site} />
                   {site.units.length === 0 ? (
                     <EmptyState title="No units here yet" body={canSetup ? "Add your ponds, houses or pens. You can add several at once, like P1–P4." : undefined}
                       action={canSetup ? <Button variant="primary" onClick={() => setAdding({ site: site.id })}><Plus size={16} /> Add units</Button> : undefined} />

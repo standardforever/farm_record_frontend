@@ -1,5 +1,8 @@
 export * from "./api";
 export { HoldList } from "./HoldList";
 export { TreatmentDialog } from "./TreatmentDialog";
-export { CaseSheet, ReportCaseDialog } from "./CaseDialogs";
-export { TreatmentRows, BatchHealthCard } from "./BatchHealthCard";
+export { ReportCaseDialog } from "./CaseDialogs";
+export { BatchHealthCard, CaseRows, TreatmentRows } from "./BatchHealthCard";
+export { CaseView, TreatmentView } from "./Details";
+export { DoNow } from "./DoNow";
+export { Vaccinations } from "./Vaccinations";

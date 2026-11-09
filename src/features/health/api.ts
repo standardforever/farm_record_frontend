@@ -25,6 +25,8 @@ export type Dose = {
   task_id: string; batch_id: string; batch_code: string; unit_id: string | null; unit_code: string | null; vaccine: string; route: string | null;
   due_on: string; status: "overdue" | "due" | "upcoming" | "done" | "skipped"; done_on: string | null; done_by_name: string | null; treatment_id: string | null;
 };
+export type TreatmentDetail = Treatment & { species: string | null; case: Case | null; course_day: number | null; course_days: number };
+export type CaseDetail = Case & { given: Treatment[] };
 export type ProductHint = {
   product: string; kind: string; active_ingredient: string | null; route: string | null; dose: string | null;
   withdrawal_meat_days: number | null; withdrawal_eggs_days: number | null; withdrawal_milk_days: number | null; last_used: string;
@@ -53,9 +55,17 @@ export const useBatchHealth = (orgId: string, batchId: string, enabled = true) =
   useQuery({ queryKey: ["health", orgId, "batch", batchId], queryFn: () => get<BatchHealth>(`${base(orgId)}/batches/${batchId}`), enabled: enabled && !!batchId });
 export const useProductHints = (orgId: string, enabled = true) =>
   useQuery({ queryKey: ["health", orgId, "products"], queryFn: () => get<ProductHint[]>(`${base(orgId)}/products`), enabled });
-export const useTreatments = (orgId: string, f: { include_void?: boolean; batch_id?: string } & Partial<PageQuery> = {}, enabled = true) =>
+export const useTreatments = (orgId: string, f: { include_void?: boolean; batch_id?: string; kind?: string } & Partial<PageQuery> = {}, enabled = true) =>
   useQuery({ queryKey: ["health", orgId, "treatments", f], placeholderData: (p) => p, enabled,
     queryFn: () => get<Page<Treatment>>(`${base(orgId)}/treatments${qsOf(f)}`) });
+
+export const useTreatment = (orgId: string, id: string) =>
+  useQuery({ queryKey: ["health", orgId, "treatment", id], queryFn: () => get<TreatmentDetail>(`${base(orgId)}/treatments/${id}`) });
+export const useCase = (orgId: string, id: string) =>
+  useQuery({ queryKey: ["health", orgId, "case", id], queryFn: () => get<CaseDetail>(`${base(orgId)}/cases/${id}`) });
+export const useCases = (orgId: string, f: { status?: "open" | "closed"; batch_id?: string } & Partial<PageQuery> = {}, enabled = true) =>
+  useQuery({ queryKey: ["health", orgId, "cases", f], placeholderData: (p) => p, enabled,
+    queryFn: () => get<Page<Case>>(`${base(orgId)}/cases${qsOf(f)}`) });
 
 function useHealthMutation<V, R>(orgId: string, fn: (v: V) => Promise<R>) {
   const qc = useQueryClient();
@@ -83,6 +93,16 @@ export const useCloseCase = (orgId: string) =>
 
 const dayFmt = new Intl.DateTimeFormat("en-NG", { day: "numeric", month: "short" });
 export const shortDay = (iso: string | null | undefined) => (iso ? dayFmt.format(new Date(iso + "T12:00:00")) : "");
+
+export const KIND_LABEL: Record<string, string> = { medication: "Medicine", dewormer: "Dewormer", vaccination: "Vaccine", supplement: "Vitamins", other: "Other" };
+export const today = (d = new Date()) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);  // the farm's local day
+
+/** A course still being given today: "day 2 of 5". */
+export function courseNow(t: Pick<Treatment, "given_on" | "end_on" | "voided_at">, on = today()) {
+  if (t.voided_at || t.end_on === t.given_on || on < t.given_on || on > t.end_on) return null;
+  const day = (a: string, b: string) => Math.round((new Date(b + "T12:00:00").getTime() - new Date(a + "T12:00:00").getTime()) / 86400000);
+  return { day: day(t.given_on, on) + 1, of: day(t.given_on, t.end_on) + 1 };
+}
 
 export const PRODUCT_LABEL: Record<Product | "all", string> = { meat: "Animals and meat", eggs: "Eggs", milk: "Milk", all: "All sales" };
 

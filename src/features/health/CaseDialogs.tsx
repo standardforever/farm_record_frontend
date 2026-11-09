@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { OwnerActions } from "@/features/corrections";
 import { Camera, X } from "lucide-react";
-import { Alert, Badge, Button, Checkbox, Dialog, Field, Input, Select, Textarea, useToast } from "@/components/ui";
+import { Alert, Button, Checkbox, Dialog, Field, Input, Select, Textarea, useToast } from "@/components/ui";
 import { useBatches } from "@/features/batches";
 import { useQueryClient } from "@tanstack/react-query";
 import { localDay } from "@/features/daily/api";
@@ -11,11 +10,10 @@ import { shrinkPhoto } from "@/features/daily/device";
 import { newId, save as saveOffline } from "@/features/offline/queue";
 import { refOf } from "@/features/evidence/api";
 import { useFormEvidence } from "@/features/evidence/useFormEvidence";
-import { ProofPhoto } from "@/features/daily/TaskSheets";
 import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/format";
-import { type Case, shortDay, useCloseCase, useHealthCatalog, useUpdateCase } from "./api";
+import { useHealthCatalog } from "./api";
 
 const groupOf = (groups: Record<string, string[]> | undefined, species?: string) =>
   (species && Object.entries(groups ?? {}).find(([, s]) => s.includes(species))?.[0]) || "other";
@@ -122,82 +120,6 @@ export function ReportCaseDialog({ open, onClose, batchId, unitId }: { open: boo
             description="Nothing from it can be sold or eaten until a supervisor or vet closes this case or lifts the hold." />
         </div>
         {evidence.field}
-      </div>
-    </Dialog>
-  );
-}
-
-/** Supervisor or vet: add the diagnosis, hold or release sales, close the case. Others just read it. */
-export function CaseSheet({ c, onClose, onTreat }: { c: Case | null; onClose: () => void; onTreat: (c: Case) => void }) {
-  const ws = useCurrentWorkspace();
-  const cat = useHealthCatalog();
-  const update = useUpdateCase(ws.orgId);
-  const close = useCloseCase(ws.orgId);
-  const toast = useToast();
-  const canEdit = ws.can("health.edit");
-  const [f, setF] = useState({ diagnosis: "", by: "", outcome: "recovered", on: localDay(), note: "" });
-  const [closing, setClosing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!c) return;
-    setF({ diagnosis: c.diagnosis ?? "", by: c.diagnosed_by ?? "", outcome: "recovered", on: localDay(), note: "" });
-    setClosing(false); setError(null);
-  }, [c]);
-  if (!c) return null;
-  const open = c.status === "open";
-
-  const run = async (fn: () => Promise<unknown>, msg: string, done = false) => {
-    setError(null);
-    try { await fn(); toast(msg); if (done) onClose(); } catch (e) { setError(e instanceof ApiError ? e.message : "Could not save."); }
-  };
-
-  return (
-    <Dialog open={!!c} onClose={onClose} title={`${c.batch_code}${c.unit_code ? ` · ${c.unit_code}` : ""}`} eyebrow={`Health case · since ${shortDay(c.opened_on)}`}
-      footer={open && canEdit ? (closing ? <>
-        <Button variant="ghost" onClick={() => setClosing(false)}>Back</Button>
-        <Button variant="primary" loading={close.isPending} onClick={() => run(() => close.mutateAsync({ id: c.id, closed_on: f.on, outcome: f.outcome, note: f.note || null, diagnosis: f.diagnosis || null }), "Case closed", true)}>Close case</Button>
-      </> : <>
-        <Button variant="ghost" className="mr-auto" onClick={() => setClosing(true)}>Close case…</Button>
-        <Button onClick={() => onTreat(c)}>Record treatment</Button>
-        <Button variant="primary" loading={update.isPending} onClick={() => run(() => update.mutateAsync({ id: c.id, diagnosis: f.diagnosis || null, diagnosed_by: f.by || null }), "Saved")}>Save</Button>
-      </>) : <Button variant="ghost" onClick={onClose}>Close</Button>}>
-      <OwnerActions kind="health_case" id={c.id} className="-mt-1 mb-2 -ml-2" onDeleted={onClose} />
-      <div className="flex flex-col gap-4">
-        {error && <Alert tone="crit">{error}</Alert>}
-        <div className="flex flex-wrap gap-1.5">
-          {c.status === "closed" ? <Badge tone="good">Closed · {cat.data?.outcomes[c.outcome ?? ""] ?? c.outcome}</Badge> : <Badge tone="crit" dot>Open</Badge>}
-          {c.hold_sales && open && <Badge tone="crit">Sales on hold</Badge>}
-          {c.signs.map((s) => <Badge key={s}>{s}</Badge>)}
-        </div>
-        <p className="text-[13.5px] text-ink-2">
-          {c.affected ? `${c.affected.toLocaleString()} look sick. ` : ""}{c.description}
-          <span className="block text-[12.5px] text-ink-3">Reported by {c.opened_by_name ?? "—"}{c.treatments ? ` · ${c.treatments} treatment${c.treatments > 1 ? "s" : ""} recorded` : ""}</span>
-        </p>
-        {c.media_id && <ProofPhoto mediaId={c.media_id} />}
-        {closing ? (
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="How did it end" htmlFor="cs-outcome"><Select id="cs-outcome" value={f.outcome} onChange={(e) => setF({ ...f, outcome: e.target.value })}>
-              {Object.entries(cat.data?.outcomes ?? {}).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</Select></Field>
-            <Field label="Closed on" htmlFor="cs-on"><Input id="cs-on" type="date" max={localDay()} min={c.opened_on} value={f.on} onChange={(e) => setF({ ...f, on: e.target.value })} /></Field>
-            <Field label="Note" htmlFor="cs-note" hint="Optional" className="sm:col-span-2"><Textarea id="cs-note" rows={2} value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} /></Field>
-            {c.hold_sales && <p className="text-[12.5px] text-ink-3 sm:col-span-2">Closing lifts this case’s sales hold. Medicine withdrawal periods still apply.</p>}
-          </div>
-        ) : canEdit && open ? (
-          <>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Diagnosis" htmlFor="cs-dx" hint="What the vet or lab found"><Input id="cs-dx" value={f.diagnosis} onChange={(e) => setF({ ...f, diagnosis: e.target.value })} /></Field>
-              <Field label="By" htmlFor="cs-by" hint="Vet or lab"><Input id="cs-by" value={f.by} onChange={(e) => setF({ ...f, by: e.target.value })} /></Field>
-            </div>
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line p-3">
-              <span className="text-[13.5px]">{c.hold_sales ? "All sales from this batch are on hold." : "Sales are not held by this case."}</span>
-              <Button size="sm" loading={update.isPending} onClick={() => run(() => update.mutateAsync({ id: c.id, hold_sales: !c.hold_sales }), c.hold_sales ? "Sales hold lifted" : "Sales on hold")}>
-                {c.hold_sales ? "Lift the hold" : "Hold all sales"}</Button>
-            </div>
-          </>
-        ) : (c.diagnosis || c.suspected) ? (
-          <p className="text-[13.5px]"><b>{c.diagnosis ? "Diagnosis" : "Suspected"}:</b> {c.diagnosis ?? c.suspected}{c.diagnosed_by ? ` (${c.diagnosed_by})` : ""}</p>
-        ) : null}
       </div>
     </Dialog>
   );

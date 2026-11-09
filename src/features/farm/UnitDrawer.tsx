@@ -6,6 +6,7 @@ import { Archive, History, Layers, Pencil, Plus, RotateCcw, Wallet } from "lucid
 import { Alert, Badge, Button, Dialog, Field, Input, Select, Pager, Textarea, usePager, useToast } from "@/components/ui";
 import { OwnerActions } from "@/features/corrections";
 import { useCanPay } from "@/features/finance/PaymentFields";
+import { canWorkAt, usePeople, useSetCaretaker } from "@/features/daily/api";
 import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
 import { cn, relative } from "@/lib/format";
@@ -116,6 +117,7 @@ export function UnitDrawer({ unit, sites, batches = [], onClose, onStock }: {
               <div><dt className="text-ink-3">Site</dt><dd className="font-semibold">{site ? `${site.name} (${site.code})` : "—"}</dd></div>
             </dl>
             {unit.notes && <p className="whitespace-pre-line text-[13.5px] text-ink-2">{unit.notes}</p>}
+            {!archived && <LooksAfter unit={unit} />}
 
             {!archived && (
               <div className="flex flex-col gap-2">
@@ -201,5 +203,31 @@ function UnitCostDialog({ unit, onClose }: { unit: Unit; onClose: () => void }) 
         <UnitCostFields value={cost} onChange={setCost} open />
       </div>
     </Dialog>
+  );
+}
+
+
+/** Who looks after this unit: its tasks go to them on Today. */
+function LooksAfter({ unit }: { unit: Unit }) {
+  const ws = useCurrentWorkspace();
+  const canSet = ws.can("farm.approve");
+  const people = usePeople(ws.orgId, canSet);
+  const set = useSetCaretaker(ws.orgId);
+  const toast = useToast();
+  if (!canSet) return null;
+  const team = (people.data ?? []).filter((p) => canWorkAt(p, unit.id));
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line px-3 py-2.5">
+      <label htmlFor="u-caretaker" className="text-[13.5px]"><b>Looked after by</b><span className="block text-[12px] text-ink-3">Its tasks show as theirs on Today</span></label>
+      <div className="w-full sm:w-[220px]"><Select id="u-caretaker" className="h-9 text-[13px]" value={unit.caretaker_id ?? ""} disabled={set.isPending}
+        onChange={async (e) => {
+          const id = e.target.value || null;
+          try { await set.mutateAsync({ unitId: unit.id, user_id: id }); toast(id ? `${unit.code} is looked after by ${team.find((p) => p.user_id === id)?.name}` : `${unit.code}: anyone on shift`); }
+          catch (er) { toast(er instanceof ApiError ? er.message : "Could not save", "crit"); }
+        }}>
+        <option value="">Anyone on shift</option>
+        {team.map((p) => <option key={p.user_id} value={p.user_id}>{p.me ? `Me (${p.name})` : p.name}</option>)}
+      </Select></div>
+    </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { del, get, patch, post, upload } from "@/lib/api";
+import { del, get, patch, post, put, upload } from "@/lib/api";
 
 export type FarmRecord = {
   id: string; kind: string; occurred_on: string; unit_id: string; unit_code: string | null; batch_id: string | null; batch_code: string | null;
@@ -10,6 +10,7 @@ export type Completion = { id: string; status: "done" | "skipped"; note: string 
 export type Task = {
   id: string; title: string; details: string | null; unit_id: string | null; site_id: string | null; repeat: string; weekdays: number[] | null;
   every_n: number | null; start_on: string; end_on: string | null; time_slot: string; proof: string; record_kind: string | null; assignee_id: string | null; active: boolean;
+  owner_id: string | null; owner_name: string | null; owner_from_unit: boolean;
   kind?: string | null; batch_id?: string | null;
 };
 export type TodayTask = Task & { due_on: string | null; overdue: boolean; unit_code: string | null; site_name: string | null; mine: boolean; completion: Completion | null };
@@ -41,6 +42,13 @@ export const useComplete = (orgId: string) =>
 export const useUndo = (orgId: string) => useFarmMutation(orgId, ({ taskId, on }: { taskId: string; on: string }) => del(`${base(orgId)}/tasks/${taskId}/complete?on=${on}`));
 export const useCreateTask = (orgId: string) => useFarmMutation(orgId, (b: Partial<Task>) => post<Task>(`${base(orgId)}/tasks`, b));
 export const useSuggest = (orgId: string) => useFarmMutation(orgId, (b: { species: string; unit_ids: string[] }) => post<Task[]>(`${base(orgId)}/tasks/suggested`, b));
+export type Person = { user_id: string; name: string; role: string; unit_ids: string[] | null; me: boolean };
+export const usePeople = (orgId: string, enabled = true) =>
+  useQuery({ queryKey: ["farm", orgId, "people"], enabled, queryFn: () => get<Person[]>(`${base(orgId)}/people`), staleTime: 60_000 });
+/** People who can be given work at a unit (or anywhere, for farm-wide work). */
+export const canWorkAt = (p: Person, unitId: string | null | undefined) => !unitId || p.unit_ids === null || p.unit_ids.includes(unitId);
+export const useSetCaretaker = (orgId: string) =>
+  useFarmMutation(orgId, ({ unitId, ...b }: { unitId: string; user_id: string | null; clear_task_assignees?: boolean }) => put(`${base(orgId)}/units/${unitId}/caretaker`, b));
 export const useUpdateTask = (orgId: string) => useFarmMutation(orgId, ({ id, ...b }: Partial<Task> & { id: string }) => patch<Task>(`${base(orgId)}/tasks/${id}`, b));
 export const useHandover = (orgId: string) => useFarmMutation(orgId, (b: { shift: string; note: string; issues?: string[]; client_id?: string }) => post<Handover>(`${base(orgId)}/handovers`, b));
 export const useAcknowledge = (orgId: string) => useFarmMutation(orgId, (id: string) => post<Handover>(`${base(orgId)}/handovers/${id}/acknowledge`));

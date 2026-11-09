@@ -27,7 +27,7 @@ export type Unit = {
   id: string; site_id: string; code: string; name: string | null; kind: string; purpose: string | null;
   capacity: number | null; area_m2: number | null; volume_m3: number | null; latitude: number | null; longitude: number | null;
   status: UnitStatus; status_note: string | null; status_changed_at: string | null; notes: string | null;
-  sort_order: number; archived_at: string | null; created_at: string; updated_at: string;
+  sort_order: number; caretaker_id?: string | null; archived_at: string | null; created_at: string; updated_at: string;
 };
 export type SiteWithUnits = Site & { units: Unit[] };
 export type FarmMap = {

@@ -11,7 +11,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { newId, save as saveOffline } from "@/features/offline/queue";
 import { refOf } from "@/features/evidence/api";
 import { useFormEvidence } from "@/features/evidence/useFormEvidence";
-import { type TodayTask, useCreateTask, useDailyCatalog, useSuggest, useTasks, useUpdateTask } from "./api";
+import { type TodayTask, canWorkAt, useCreateTask, useDailyCatalog, usePeople, useSetCaretaker, useSuggest, useTasks, useUpdateTask } from "./api";
 import { type Fix, locate, shrinkPhoto } from "./device";
 
 const errMsg = (e: unknown) => (e instanceof ApiError || e instanceof Error ? e.message : "Something went wrong.");
@@ -181,13 +181,19 @@ export function PlanDialog({ open, onClose }: { open: boolean; onClose: () => vo
   const create = useCreateTask(ws.orgId);
   const update = useUpdateTask(ws.orgId);
   const toast = useToast();
-  const [tab, setTab] = useState<"suggested" | "own" | "all">("suggested");
+  const people = usePeople(ws.orgId, open);
+  const setCaretaker = useSetCaretaker(ws.orgId);
+  const [handOver, setHandOver] = useState(false);
+  const [tab, setTab] = useState<"suggested" | "own" | "all" | "people">("suggested");
   const [species, setSpecies] = useState("");
   const [chosen, setChosen] = useState<Set<string>>(new Set());
-  const [t, setT] = useState({ title: "", where: "", repeat: "daily", days: [] as number[], every: "3", slot: "morning", proof: "none", kind: "" });
+  const [t, setT] = useState({ title: "", where: "", repeat: "daily", days: [] as number[], every: "3", slot: "morning", proof: "none", kind: "", who: "" });
   const [error, setError] = useState<string | null>(null);
   const units = useMemo(() => (farm.data?.sites ?? []).flatMap((s) => s.units.filter((u) => !u.archived_at)), [farm.data]);
   const unitCode = (id: string | null) => units.find((u) => u.id === id)?.code;
+  const team = people.data ?? [];
+  const nameOf = (id: string | null | undefined) => team.find((p) => p.user_id === id)?.name;
+  const caretakerOf = (unitId: string | null) => units.find((u) => u.id === unitId)?.caretaker_id ?? null;
   useEffect(() => {
     if (!open || !farm.data) return;
     setError(null);
@@ -204,7 +210,7 @@ export function PlanDialog({ open, onClose }: { open: boolean; onClose: () => vo
       footer={<Button variant="primary" onClick={onClose}>Done</Button>}>
       <div className="flex flex-col gap-4">
         {error && <Alert tone="crit">{error}</Alert>}
-        <Segmented value={tab} onChange={setTab} options={[{ value: "suggested", label: "Suggested" }, { value: "own", label: "Add your own" }, { value: "all", label: `All tasks${tasks.data ? ` (${tasks.data.length})` : ""}` }]} />
+        <Segmented value={tab} onChange={setTab} options={[{ value: "suggested", label: "Suggested" }, { value: "own", label: "Add your own" }, { value: "all", label: `All tasks${tasks.data ? ` (${tasks.data.length})` : ""}` }, { value: "people", label: "Who does what" }]} />
         {tab === "suggested" && (
           <div className="flex flex-col gap-3">
             <Field label="For" htmlFor="p-species"><Select id="p-species" value={species} onChange={(e) => setSpecies(e.target.value)}>
@@ -223,7 +229,11 @@ export function PlanDialog({ open, onClose }: { open: boolean; onClose: () => vo
         {tab === "own" && (
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Task" htmlFor="t-title" className="sm:col-span-2"><Input id="t-title" value={t.title} maxLength={120} onChange={(e) => setT({ ...t, title: e.target.value })} placeholder="Lock the feed store" /></Field>
-            <Field label="Where" htmlFor="t-where"><Select id="t-where" value={t.where} onChange={(e) => setT({ ...t, where: e.target.value })}>
+            <Field label="Where" htmlFor="t-where"><Select id="t-where" value={t.where} onChange={(e) => {
+              const where = e.target.value;
+              const p = team.find((x) => x.user_id === t.who);
+              setT({ ...t, where, who: p && !canWorkAt(p, where) ? "" : t.who });
+            }}>
               <option value="">Whole farm</option>{units.map((u) => <option key={u.id} value={u.id}>{u.code}{u.name ? ` · ${u.name}` : ""}</option>)}</Select></Field>
             <Field label="Time of day" htmlFor="t-slot"><Select id="t-slot" value={t.slot} onChange={(e) => setT({ ...t, slot: e.target.value })}>
               {Object.entries(cat.data?.time_slots ?? {}).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</Select></Field>
@@ -235,15 +245,46 @@ export function PlanDialog({ open, onClose }: { open: boolean; onClose: () => vo
               <button key={d} type="button" aria-pressed={t.days.includes(i)} onClick={() => setT({ ...t, days: t.days.includes(i) ? t.days.filter((x) => x !== i) : [...t.days, i] })}
                 className={cn("cursor-pointer rounded-full border px-3 py-1 text-[13px] font-semibold", t.days.includes(i) ? "border-brand bg-brand-soft text-brand" : "border-line")}>{d}</button>))}</div>}
             {t.repeat === "every_n" && <Field label="Every how many days" htmlFor="t-every"><Input id="t-every" inputMode="numeric" value={t.every} onChange={(e) => setT({ ...t, every: e.target.value.replace(/\D/g, "") })} /></Field>}
+            <Field label="Who does it" htmlFor="t-who" hint={!t.who && t.where && caretakerOf(t.where) ? `${nameOf(caretakerOf(t.where))} looks after ${unitCode(t.where)}` : undefined}>
+              <Select id="t-who" value={t.who} onChange={(e) => setT({ ...t, who: e.target.value })}>
+                <option value="">{t.where && caretakerOf(t.where) ? `Whoever looks after ${unitCode(t.where)}` : "Anyone on shift"}</option>
+                {team.filter((p) => canWorkAt(p, t.where)).map((p) => <option key={p.user_id} value={p.user_id}>{p.me ? `Me (${p.name})` : p.name}</option>)}
+              </Select></Field>
             <Field label="Opens a quick log" htmlFor="t-kind" hint="Optional: ticking it asks for the record"><Select id="t-kind" value={t.kind} onChange={(e) => setT({ ...t, kind: e.target.value })}>
               <option value="">No</option>{Object.entries(cat.data?.record_kinds ?? {}).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</Select></Field>
             <div className="sm:col-span-2"><Button variant="primary" loading={create.isPending} disabled={t.title.trim().length < 2 || (t.repeat === "weekly" && !t.days.length)} onClick={async () => {
               try {
                 await create.mutateAsync({ title: t.title.trim(), unit_id: t.where || null, repeat: t.repeat, weekdays: t.repeat === "weekly" ? t.days : null,
-                  every_n: t.repeat === "every_n" ? Number(t.every) : null, time_slot: t.slot, proof: t.proof, record_kind: t.kind || null });
+                  every_n: t.repeat === "every_n" ? Number(t.every) : null, time_slot: t.slot, proof: t.proof, record_kind: t.kind || null,
+                  assignee_id: t.who || null });
                 toast(`Added: ${t.title.trim()}`); setT({ ...t, title: "" });
               } catch (e) { setError(errMsg(e)); }
             }}><Plus size={16} /> Add task</Button></div>
+          </div>
+        )}
+        {tab === "people" && (
+          <div className="flex flex-col gap-3">
+            <p className="text-[13px] text-ink-2">Choose who looks after each house, pond or pen. Its tasks go to them, including ones added later (vaccines, feed changes, weather jobs), and they see them as <b>Yours</b> on Today. A task you give to someone else stays with that person.</p>
+            <label className="flex items-center gap-2 text-[13px]"><input type="checkbox" checked={handOver} onChange={(e) => setHandOver(e.target.checked)} className="h-4 w-4 accent-[var(--brand)]" />
+              Also hand over tasks there that were given to someone else</label>
+            <ul className="flex flex-col">
+              {units.map((u) => (
+                <li key={u.id} className="flex items-center gap-3 border-t border-line py-2 first:border-0">
+                  <span className="min-w-0 flex-1"><b className="font-mono">{u.code}</b>{u.name ? <span className="text-ink-3"> · {u.name}</span> : null}</span>
+                  <div className="w-[200px] shrink-0"><Select aria-label={`Who looks after ${u.code}`} className="h-9 text-[13px]" value={u.caretaker_id ?? ""}
+                    onChange={async (e) => {
+                      const id = e.target.value || null;
+                      try { await setCaretaker.mutateAsync({ unitId: u.id, user_id: id, clear_task_assignees: handOver }); toast(id ? `${u.code}: ${nameOf(id)}` : `${u.code}: anyone on shift`); }
+                      catch (er) { setError(errMsg(er)); }
+                    }}>
+                    <option value="">Anyone on shift</option>
+                    {team.filter((p) => canWorkAt(p, u.id)).map((p) => <option key={p.user_id} value={p.user_id}>{p.name}</option>)}
+                  </Select></div>
+                </li>
+              ))}
+              {units.length === 0 && <li className="py-3 text-ink-3">Add houses, ponds or pens on the farm map first.</li>}
+            </ul>
+            {team.length <= 1 && <p className="text-[12.5px] text-ink-3">Only you are on the team so far. Invite your staff under Team and access to give them work.</p>}
           </div>
         )}
         {tab === "all" && (
@@ -251,6 +292,11 @@ export function PlanDialog({ open, onClose }: { open: boolean; onClose: () => vo
             {(tasks.data ?? []).map((x) => (
               <li key={x.id} className="flex items-center gap-3 border-t border-line py-2 first:border-0">
                 <span className="min-w-0 flex-1"><b>{x.title}</b><span className="block text-[12.5px] text-ink-3">{unitCode(x.unit_id) ?? "Whole farm"} · {cat.data?.time_slots[x.time_slot]} · {cat.data?.repeats[x.repeat]}{x.proof !== "none" ? ` · ${cat.data?.proofs[x.proof]}` : ""}</span></span>
+                <div className="w-[150px] shrink-0"><Select aria-label={`Who does ${x.title}${x.unit_id ? ` in ${unitCode(x.unit_id)}` : ""}`} className="h-9 text-[13px]" value={x.assignee_id ?? ""}
+                  onChange={async (e) => { try { await update.mutateAsync({ id: x.id, assignee_id: e.target.value || null }); } catch (er) { setError(errMsg(er)); } }}>
+                  <option value="">{x.unit_id && caretakerOf(x.unit_id) ? `${nameOf(caretakerOf(x.unit_id))?.split(" ")[0]} (looks after)` : "Anyone"}</option>
+                  {team.filter((p) => canWorkAt(p, x.unit_id)).map((p) => <option key={p.user_id} value={p.user_id}>{p.name}</option>)}
+                </Select></div>
                 <Toggle checked={x.active} label={`Keep ${x.title}`} onChange={async (v) => { try { await update.mutateAsync({ id: x.id, active: v }); } catch (e) { setError(errMsg(e)); } }} />
               </li>
             ))}

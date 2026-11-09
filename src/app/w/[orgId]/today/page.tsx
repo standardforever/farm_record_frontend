@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { OwnerActions } from "@/features/corrections";
 import {
   AlertTriangle, Camera, CheckCircle2, ChevronLeft, ChevronRight, Circle, CloudOff, Droplets, Egg, MessageSquareText,
-  NotebookPen, Scale, Settings2, Skull, Stethoscope, ThermometerSun, Undo2, Wheat,
+  NotebookPen, Scale, Settings2, Skull, Stethoscope, ThermometerSun, Undo2, UserRound, Wheat,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Alert, Badge, Button, Card, EmptyState, PageLoader, useToast } from "@/components/ui";
@@ -53,11 +53,22 @@ function Inner() {
   const savedHere = useMemo(() => new Map(sync.ops.filter((o) => o.kind === "farm.task_done" && o.status === "waiting")
     .map((o) => [`${o.params.task_id}|${o.body.on}`, o])), [sync.ops]);
 
+  // Whose tasks to show. Staff with tasks of their own start on theirs; supervisors start on everyone's.
+  const [whoPicked, setWho] = useState<string | null>(null);
+  const all = useMemo(() => today.data?.tasks ?? [], [today.data]);
+  const anyMine = all.some((t) => t.mine);
+  const who = whoPicked ?? (anyMine && !ws.can("farm.approve") ? "mine" : "all");
+  const people = useMemo(() => {
+    const m = new Map<string, { name: string; n: number }>();
+    for (const t of all) if (t.owner_id && !t.mine) m.set(t.owner_id, { name: t.owner_name ?? "Someone", n: (m.get(t.owner_id)?.n ?? 0) + 1 });
+    return [...m.entries()].sort((a, b) => a[1].name.localeCompare(b[1].name));
+  }, [all]);
+  const shown = useMemo(() => all.filter((t) => who === "all" ? true : who === "mine" ? t.mine : who === "nobody" ? !t.owner_id : t.owner_id === who), [all, who]);
   const groups = useMemo(() => {
     const g = new Map<string, TodayTask[]>();
-    for (const t of today.data?.tasks ?? []) { const k = t.overdue ? "overdue" : t.time_slot; g.set(k, [...(g.get(k) ?? []), t]); }
+    for (const t of shown) { const k = t.overdue ? "overdue" : t.time_slot; g.set(k, [...(g.get(k) ?? []), t]); }
     return [...g.entries()];
-  }, [today.data]);
+  }, [shown]);
 
   if (!ws.has("farm")) return <EmptyState title="Farm records are not in your plan" />;
   if (today.isLoading || !today.data) return <PageLoader />;
@@ -151,7 +162,20 @@ function Inner() {
           {d.total === 0 ? (
             <EmptyState title="Nothing planned for this day" body={ws.can("farm.approve") ? "Plan a daily routine: feeding, water checks, removing dead animals and more." : "A supervisor plans the routine."}
               action={ws.can("farm.approve") ? <Button variant="primary" onClick={() => setPlan(true)}>Plan routine</Button> : undefined} />
-          ) : groups.map(([slot, tasks]) => (
+          ) : <>
+          {(anyMine || people.length > 0) && (
+            <div className="mb-2 flex gap-1.5 overflow-x-auto pb-1" role="group" aria-label="Whose tasks">
+              {([["all", "Everyone", all.length], ...(anyMine ? [["mine", "Mine", all.filter((t) => t.mine).length]] : []),
+                ...(ws.can("farm.approve") ? people.map(([id, p]) => [id, p.name.split(" ")[0], p.n]) : []),
+                ...(all.some((t) => !t.owner_id) ? [["nobody", "Anyone", all.filter((t) => !t.owner_id).length]] : [])] as [string, string, number][]).map(([k, label, n]) => (
+                <button key={k} type="button" aria-pressed={who === k} onClick={() => setWho(k)}
+                  className={cn("shrink-0 cursor-pointer rounded-full border px-3 py-1 text-[13px] font-semibold", who === k ? "border-brand bg-brand-soft text-brand" : "border-line text-ink-2 hover:bg-surface-2")}>
+                  {label} <span className="font-normal opacity-75">{n}</span></button>
+              ))}
+            </div>
+          )}
+          {shown.length === 0 && <p className="py-3 text-[13.5px] text-ink-3">{who === "mine" ? "Nothing given to you for this day." : "No tasks here for this day."}</p>}
+          {groups.map(([slot, tasks]) => (
             <div key={slot} className="mb-2">
               <div className={cn("eyebrow mb-1 mt-2", slot === "overdue" && "text-crit")}>{slot === "overdue" ? "Missed — still to do" : cat.data?.time_slots[slot] ?? slot}</div>
               <ul className="flex flex-col">
@@ -173,6 +197,8 @@ function Inner() {
                           {c && "local" in c && <Badge tone="warn"><CloudOff size={11} /> Saved on this phone</Badge>}
                           {t.kind === "climate" && <Badge tone="info"><ThermometerSun size={11} /> Weather</Badge>}
                           {t.mine && !c && <Badge tone="brand">Yours</Badge>}
+                          {!t.mine && t.owner_name && <span className="flex items-center gap-1" title={t.owner_from_unit ? `${t.owner_name} looks after ${t.unit_code}` : undefined}>
+                            <UserRound size={12} /> {t.owner_name}</span>}
                           {t.overdue && <Badge tone="crit">Overdue · was due {formatDate(t.due_on)}</Badge>}
                         </div>
                       </div>
@@ -186,6 +212,7 @@ function Inner() {
               </ul>
             </div>
           ))}
+          </>}
         </Card>
 
         <Card title={isToday ? "Logged today" : `Logged on ${formatDate(on)}`} meta={`${d.records.length} record${d.records.length === 1 ? "" : "s"}`}>

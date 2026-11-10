@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { OwnerActions } from "@/features/corrections";
 import {
   AlertTriangle, Camera, CheckCircle2, ChevronLeft, ChevronRight, Circle, CloudOff, Droplets, Egg, MessageSquareText,
-  NotebookPen, Scale, Settings2, Skull, Stethoscope, ThermometerSun, Undo2, UserRound, Wheat,
+  NotebookPen, Scale, Settings2, Skull, Stethoscope, ThermometerSun, Undo2, UserRound, Wheat, Wrench,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Alert, Badge, Button, Card, EmptyState, PageLoader, useToast } from "@/components/ui";
@@ -17,6 +17,7 @@ import { save as saveOffline, useSync } from "@/features/offline";
 import { ReasonDialog } from "@/features/batches";
 import { EvidenceButton } from "@/features/evidence";
 import { HoldList, ReportCaseDialog } from "@/features/health";
+import { BreakdownDialog } from "@/features/inventory";
 import { RequirePermission, useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
 import { cn, formatDate, relative } from "@/lib/format";
@@ -42,6 +43,7 @@ function Inner() {
   const [log, setLog] = useState<{ kind: QuickKind; unit?: string | null; task?: TodayTask } | null>(null);
   const [ticking, setTicking] = useState<TodayTask | null>(null);
   const [handover, setHandover] = useState(false);
+  const [machine, setMachine] = useState(false);
   const [plan, setPlan] = useState(false);
   const [sick, setSick] = useState(false);
   const sync = useSync(ws.orgId);
@@ -110,6 +112,7 @@ function Inner() {
         </div>
         <div className="flex flex-wrap gap-2">
           {canLog && ws.has("health") && <Button onClick={() => setSick(true)}><Stethoscope size={16} /> Report sick</Button>}
+          {canLog && ws.has("inventory") && ws.can("inventory.view") && <Button onClick={() => setMachine(true)}><Wrench size={16} /> Machine problem</Button>}
           {canLog && <Button onClick={() => setHandover(true)}><MessageSquareText size={16} /> Handover</Button>}
           {ws.can("farm.approve") && <Button onClick={() => setPlan(true)}><Settings2 size={16} /> Plan routine</Button>}
         </div>
@@ -237,6 +240,7 @@ function Inner() {
       <QuickLog kind={log?.kind ?? null} open={!!log} on={on} presetUnit={log?.unit} onClose={() => setLog(null)} onSaved={afterLog} />
       <CompleteSheet task={ticking} on={on} onClose={() => setTicking(null)} />
       <HandoverDialog open={handover} onClose={() => setHandover(false)} />
+      <BreakdownDialog open={machine} onClose={() => setMachine(false)} />
       <ReportCaseDialog open={sick} onClose={() => setSick(false)} />
       <PlanDialog open={plan} onClose={() => setPlan(false)} />
       <ReasonDialog title="Void this record" open={!!voiding} onClose={() => setVoiding(null)} saveLabel="Void record" loading={voidRec.isPending}

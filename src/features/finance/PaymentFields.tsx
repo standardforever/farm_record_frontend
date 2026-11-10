@@ -32,8 +32,10 @@ export function useCanPay() {
  * not recorded here. Paid takes the money out of that account; Oko counts the cost in profit when the stock is used
  * (or as the batch's purchase), so it is never counted twice. An account can be added without leaving the form.
  */
-export function PaymentFields({ value, onChange, amount, what = "it", purchasedOn }: {
+export function PaymentFields({ value, onChange, amount, what = "it", purchasedOn, paidNote }: {
   value: PaymentChoice; onChange: (p: PaymentChoice) => void; amount: number | null; what?: string;
+  /** What paying means here, under the account; the default is for stock bought to be used later. */
+  paidNote?: string;
   /** The day of the purchase: the payment date unless another is given. */
   purchasedOn?: string;
 }) {
@@ -65,8 +67,8 @@ export function PaymentFields({ value, onChange, amount, what = "it", purchasedO
       ) : null)}
       {value.status === "paid" && <AccountStartNote accountId={value.account} on={value.paidOn || purchasedOn} flow="out" />}
       <p className="text-[12px] text-ink-3">
-        {value.status === "paid" ? (list.length ? (what === "the animals" ? "Taken out of that account now. The animals count once, as the batch's cost."
-          : "Taken out of that account now. It counts as a cost when it is used, not twice.") : "Add the account it was paid from: a bank account, a cash box or mobile money.")
+        {value.status === "paid" ? (list.length ? (paidNote ?? (what === "the animals" ? "Taken out of that account now. The animals count once, as the batch's cost."
+          : "Taken out of that account now. It counts as a cost when it is used, not twice.")) : "Add the account it was paid from: a bank account, a cash box or mobile money.")
           : value.status === "owed" ? "Shows under money owed in Finance until you mark it paid."
           : "Nothing goes out of your accounts. Use this if you already recorded the payment as an expense."}
       </p>

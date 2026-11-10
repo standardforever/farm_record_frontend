@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { AlertTriangle, Check, Clock, PackagePlus, Wrench, X } from "lucide-react";
 import { Badge, Button, Card, EmptyState, PageHeader, PageLoader, Segmented, useToast } from "@/components/ui";
 import {
@@ -11,7 +13,7 @@ import { ApiError } from "@/lib/api";
 import { cn, naira } from "@/lib/format";
 
 export default function StockPage() {
-  return <RequirePermission permission="inventory.view"><Inner /></RequirePermission>;
+  return <RequirePermission permission="inventory.view"><Suspense fallback={<PageLoader />}><Inner /></Suspense></RequirePermission>;
 }
 
 type Act = { kind: "receive" | "use" | "count" | "writeoff" | "edit" | "new"; item?: StockItem; lotId?: string } | null;
@@ -23,7 +25,8 @@ function Inner() {
   const cat = useInventoryCatalog();
   const decide = useDecide(ws.orgId);
   const toast = useToast();
-  const [tab, setTab] = useState<"stock" | "equipment">("stock");
+  const params = useSearchParams();
+  const [tab, setTab] = useState<"stock" | "equipment">(params.get("tab") === "equipment" ? "equipment" : "stock");
   const [open, setOpen] = useState<string | null>(null);
   const [act, setAct] = useState<Act>(null);
   const [category, setCategory] = useState("");
@@ -56,11 +59,19 @@ function Inner() {
                       const Icon = ALERT_ICON[a.kind];
                       return (
                         <li key={i}>
-                          <button type="button" disabled={!a.item_id} onClick={() => a.item_id ? setOpen(a.item_id) : setTab("equipment")}
+                          {a.equipment_id ? (
+                            <Link href={`/w/${ws.orgId}/stock/equipment/${a.equipment_id}`}
+                              className="flex w-full items-start gap-2.5 rounded-xl border border-line p-2.5 text-left hover:border-ink-3">
+                              <Icon size={17} className={cn("mt-0.5 shrink-0", a.title.endsWith("is broken") ? "text-crit" : "text-warn")} />
+                              <span className="min-w-0"><b className="text-[13.5px]">{a.title}</b><span className="block text-[12.5px] text-ink-3">{a.detail}</span></span>
+                            </Link>
+                          ) : (
+                          <button type="button" disabled={!a.item_id} onClick={() => a.item_id && setOpen(a.item_id)}
                             className="flex w-full items-start gap-2.5 rounded-xl border border-line p-2.5 text-left hover:border-ink-3 disabled:cursor-default">
                             <Icon size={17} className={cn("mt-0.5 shrink-0", a.kind === "unrecorded" || a.kind === "expired" ? "text-crit" : "text-warn")} />
                             <span className="min-w-0"><b className="text-[13.5px]">{a.title}</b><span className="block text-[12.5px] text-ink-3">{a.detail}</span></span>
                           </button>
+                          )}
                         </li>
                       );
                     })}

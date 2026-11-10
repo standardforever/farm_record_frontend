@@ -96,7 +96,8 @@ export function LandFields({ value: s, onChange }: { value: LandState; onChange:
         </>
       )}
       {canPay && amount > 0 && (s.tenure === "bought" || s.tenure === "rented") && (
-        <PaymentFields value={s.pay} onChange={(pay) => set({ pay })} amount={amount} what={s.tenure === "bought" ? "the land" : "the rent"} purchasedOn={s.on} />
+        <PaymentFields value={s.pay} onChange={(pay) => set({ pay })} amount={amount} what={s.tenure === "bought" ? "the land" : "the rent"} purchasedOn={s.on}
+          paidNote={s.tenure === "bought" ? "Taken out of that account now. It is money put into the farm, not a running cost." : "Taken out of that account now. Profit counts it month by month over the time it covers."} />
       )}
       {!canPay && amount > 0 && <p className="text-[12.5px] text-ink-3">Someone with access to Finance can record what was paid.</p>}
     </Optional>
@@ -128,7 +129,7 @@ export function UnitCostFields({ value: s, onChange, count = 1, open }: { value:
         <Field label="What for" htmlFor="uc-note" hint="Optional"><Input id="uc-note" value={s.note} onChange={(e) => set({ note: e.target.value })} placeholder="Tarpaulin, cages, roofing" /></Field>
       </div>
       <p className="text-[12.5px] text-ink-3">Building or buying houses, ponds, cages or tanks is money put into the farm, not a running cost. Finance → Payback shows how much of it profit has paid back{count > 1 ? ", for each one" : ""}.</p>
-      {amount > 0 && <PaymentFields value={s.pay} onChange={(pay) => set({ pay })} amount={amount} what={count > 1 ? "them" : "it"} purchasedOn={s.on} />}
+      {amount > 0 && <PaymentFields value={s.pay} onChange={(pay) => set({ pay })} amount={amount} what={count > 1 ? "them" : "it"} purchasedOn={s.on} paidNote="Taken out of that account now. It is money put into the farm, not a running cost." />}
     </Optional>
   );
 }

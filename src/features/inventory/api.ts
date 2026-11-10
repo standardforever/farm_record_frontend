@@ -28,10 +28,29 @@ export type Equipment = {
   id: string; name: string; kind: string; site_id: string | null; unit_id: string | null; unit_code: string | null; site_name: string | null;
   serial: string | null; bought_on: string | null; cost: number | null; status: string; last_service_on: string | null; next_service_on: string | null;
   notes: string | null; service_due: boolean;
+  caretaker_id: string | null; caretaker_name: string | null; service_every_days: number | null; service_every_hours: number | null;
+  hours: number | null; hours_to_service: number | null; broken_since: string | null; broken_note: string | null;
+  spent_this_year: number | null; paid: { expense_id: string; number: string; amount: number; status: "paid" | "owed" | "pending" | "rejected"; account_name: string | null; paid_on: string | null } | null;
 };
+export type EquipmentEventKind = "service" | "repair" | "parts" | "fuel" | "hours" | "breakdown" | "moved" | "note" | "sold" | "retired";
+export type EquipmentEvent = {
+  id: string; kind: EquipmentEventKind; on: string; amount: number | null; litres: number | null; hours: number | null; note: string | null;
+  done_by: string | null; media_id: string | null; expense_id: string | null; money_in_id: string | null; created_by_name: string | null; created_at: string;
+};
+export type EquipmentDetail = Equipment & {
+  events: EquipmentEvent[]; bought_for: number | null; running_this_year: number | null; running_total: number | null;
+  fuel_litres_this_year: number | null; fuel_cost_this_year: number | null; cost_per_hour: number | null; sold_for: number | null;
+};
+export type EquipmentInfo = { label: string; group: string; for?: string[]; days?: number; hours?: number; hint?: string };
 export type InventoryCatalog = {
   categories: Record<string, string>; units: Record<string, string>; moves: Record<string, string>; write_off_reasons: string[];
   equipment_kinds: Record<string, string>; equipment_status: Record<string, string>;
+  equipment_info: Record<string, EquipmentInfo>; equipment_groups: Record<string, string>; equipment_events: Record<string, { label: string; money?: string }>;
+};
+export type PayIn = { status: "paid" | "owed"; account_id?: string; paid_on?: string | null; reference?: string | null };
+export type EventInput = {
+  kind: EquipmentEventKind; on: string; amount?: number | null; litres?: number | null; hours?: number | null; note?: string | null;
+  done_by?: string | null; fixed?: boolean; next_service_on?: string | null; payment?: PayIn | null;
 };
 
 const base = (orgId: string) => `/organizations/${orgId}/inventory`;
@@ -50,13 +69,14 @@ export const useBatchStock = (orgId: string, batchId: string, enabled = true) =>
 export const useEquipment = (orgId: string, includeRetired = false) =>
   useQuery({ queryKey: ["inventory", orgId, "equipment", includeRetired], queryFn: () => get<Equipment[]>(`${base(orgId)}/equipment?include_retired=${includeRetired}`) });
 
-function useStockMutation<V, R>(orgId: string, fn: (v: V) => Promise<R>) {
+function useStockMutation<V, R>(orgId: string, fn: (v: V) => Promise<R>, money = false) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: fn,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["inventory", orgId] });
-      qc.invalidateQueries({ queryKey: ["farm", orgId] }); // batch costs change with stock use
+      qc.invalidateQueries({ queryKey: ["farm", orgId] }); // batch costs change with stock use; service reminders are tasks
+      if (money) qc.invalidateQueries({ queryKey: ["finance", orgId] });
     },
   });
 }
@@ -78,7 +98,15 @@ export const usePayLot = (orgId: string) => useStockMutation(orgId, ({ id, ...b 
 export const useVoidLot = (orgId: string) => useStockMutation(orgId, ({ id, reason }: { id: string; reason: string }) => post<Lot>(`${base(orgId)}/lots/${id}/void`, { reason }));
 export const useVoidIssue = (orgId: string) => useStockMutation(orgId, ({ group, reason }: { group: string; reason: string }) => post(`${base(orgId)}/moves/${group}/void`, { reason }));
 export const useSaveEquipment = (orgId: string) =>
-  useStockMutation(orgId, ({ id, ...b }: Partial<Equipment> & { id?: string }) => (id ? patch<Equipment>(`${base(orgId)}/equipment/${id}`, b) : post<Equipment>(`${base(orgId)}/equipment`, b)));
+  useStockMutation(orgId, ({ id, ...b }: Partial<Equipment> & { id?: string; payment?: PayIn | null; hours_at_service?: number }) =>
+    (id ? patch<Equipment>(`${base(orgId)}/equipment/${id}`, b) : post<Equipment>(`${base(orgId)}/equipment`, b)), true);
+export const useEquipmentDetail = (orgId: string, id: string) =>
+  useQuery({ queryKey: ["inventory", orgId, "equipment", "one", id], queryFn: () => get<EquipmentDetail>(`${base(orgId)}/equipment/${id}`) });
+export const useEquipmentEvent = (orgId: string) =>
+  useStockMutation(orgId, ({ id, ...b }: EventInput & { id: string }) => post<EquipmentDetail>(`${base(orgId)}/equipment/${id}/events`, b), true);
+export const useRetireEquipment = (orgId: string) =>
+  useStockMutation(orgId, ({ id, ...b }: { id: string; on: string; reason: string; amount?: number | null; account_id?: string | null; note?: string | null }) =>
+    post<EquipmentDetail>(`${base(orgId)}/equipment/${id}/retire`, b), true);
 export const useServiced = (orgId: string) =>
   useStockMutation(orgId, ({ id, ...b }: { id: string; on: string; next_on?: string | null; note?: string | null }) => post<Equipment>(`${base(orgId)}/equipment/${id}/serviced`, b));
 

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AlertTriangle, ArrowLeft, Fuel, Gauge, Pencil, Wrench } from "lucide-react";
 import { Alert, Badge, Button, Card, PageLoader } from "@/components/ui";
@@ -31,6 +32,7 @@ export function MachineView({ id }: { id: string }) {
   const cat = useInventoryCatalog();
   const [logging, setLogging] = useState<EquipmentEventKind | null>(null);
   const [editing, setEditing] = useState(false);
+  const router = useRouter();
   const [retiring, setRetiring] = useState(false);
   const back = <Link href={`/w/${ws.orgId}/stock?tab=equipment`} className="mb-3 inline-flex items-center gap-1.5 text-[13px] font-semibold text-ink-2 hover:text-ink"><ArrowLeft size={15} /> Equipment</Link>;
   if (q.isLoading) return <PageLoader />;
@@ -99,13 +101,14 @@ export function MachineView({ id }: { id: string }) {
                       x.done_by && `by ${x.done_by}`].filter(Boolean).join(" · ")}</p>
                   </div>
                   {money && x.amount != null && <span className={cn("shrink-0 font-mono text-[13px] font-semibold tnum", x.kind === "sold" && "text-good")}>{x.kind === "sold" ? "+" : ""}{naira(x.amount)}</span>}
+                  <OwnerActions kind="equipment_event" id={x.id} compact evidence={false} edit={x.kind !== "sold" && x.kind !== "retired"} className="shrink-0" />
                 </li>
               ))}
             </ol>
           )}
         </Card>
         <div className="flex flex-wrap items-center gap-2">
-          <OwnerActions kind="equipment" id={e.id} edit={false} />
+          <OwnerActions kind="equipment" id={e.id} edit={false} onDeleted={() => router.replace(`/w/${ws.orgId}/stock?tab=equipment`)} />
           {edit && <Button size="sm" variant="ghost" onClick={() => setRetiring(true)}>Sold, stolen or beyond repair…</Button>}
         </div>
       </div>

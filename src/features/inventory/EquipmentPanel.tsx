@@ -112,6 +112,7 @@ export function EquipmentDialog({ e, onClose }: { e: Equipment | "new" | null; o
   const [pay, setPay] = useState<PaymentChoice>(noPayment);
   const [error, setError] = useState<string | null>(null);
   const isNew = e === "new";
+  const opened = e === "new" ? "new" : e?.id ?? null;
   useEffect(() => {
     if (!e) return;
     setError(null); setPay(noPayment());
@@ -120,7 +121,7 @@ export function EquipmentDialog({ e, onClose }: { e: Equipment | "new" | null; o
       every: e.service_every_days?.toString() ?? "", everyHours: e.service_every_hours?.toString() ?? "", hours: e.hours?.toString() ?? "", hoursLast: "", who: e.caretaker_id ?? "", notes: e.notes ?? "",
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [e]);
+  }, [opened]);  // on opening, not on every refetch (that would wipe what is being typed)
   if (!e) return null;
   const info = cat.data?.equipment_info[f.kind];
   const pickKind = (kind: string) => {
@@ -210,11 +211,17 @@ export function LogDialog({ e, kind: start, onClose }: { e: Equipment | null; ki
   const [error, setError] = useState<string | null>(null);
   const evidence = useFormEvidence("equipment", { hint: kind === "breakdown" ? "A photo of the problem helps the mechanic. Optional." : "The receipt or a photo of the work. Optional." });
   const resetEvidence = evidence.reset;
-  useEffect(() => {
-    if (!e) return;
-    setKind(start); setError(null); setPay(noPayment()); resetEvidence();
-    setF({ on: localDay(), amount: "", litres: "", hours: e.hours?.toString() ?? "", note: "", by: "", fixed: true, next: "" });
-  }, [e, start, resetEvidence]);
+  // Start afresh when opened for a machine, not each time the page refetches it (that would wipe what is being typed).
+  const opened = e ? `${e.id}:${start}` : null;
+  const [seen, setSeen] = useState<string | null>(null);
+  if (opened !== seen) {
+    setSeen(opened);
+    if (e) {
+      setKind(start); setError(null); setPay(noPayment());
+      setF({ on: localDay(), amount: "", litres: "", hours: e.hours?.toString() ?? "", note: "", by: "", fixed: true, next: "" });
+    }
+  }
+  useEffect(() => { if (opened) resetEvidence(); }, [opened, resetEvidence]);
   if (!e) return null;
   const costly = ["service", "repair", "parts", "fuel"].includes(kind);
   const amount = Number(f.amount) || 0;
@@ -290,7 +297,8 @@ export function RetireDialog({ e, onClose }: { e: Equipment | null; onClose: () 
   const accounts = useAccounts(ws.orgId, !!e && canPay);
   const [into, setInto] = useState("");
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => { if (e) { setF({ on: localDay(), reason: "sold", amount: "", note: "" }); setError(null); } }, [e]);
+  const opened = e?.id;
+  useEffect(() => { if (opened) { setF({ on: localDay(), reason: "sold", amount: "", note: "" }); setError(null); } }, [opened]);
   useEffect(() => { const a = accounts.data?.filter((x) => x.active); if (a?.length === 1) setInto(a[0].id); }, [accounts.data]);
   if (!e) return null;
   const amount = Number(f.amount) || 0;

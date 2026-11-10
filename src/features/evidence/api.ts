@@ -9,7 +9,7 @@ export type EvidenceKind = CorrectionKind | "task_completion";
 /** Who may see a kind of record (and so its evidence). The API checks this too. */
 const FEATURE: Record<EvidenceKind, string> = {
   batch: "farm", batch_event: "farm", farm_record: "farm", task: "farm", task_completion: "farm", handover: "farm", site: "farm", unit: "farm",
-  health_case: "health", treatment: "health", stock_item: "inventory", stock_lot: "inventory", stock_move: "inventory", equipment: "inventory",
+  health_case: "health", treatment: "health", stock_item: "inventory", stock_lot: "inventory", stock_move: "inventory", equipment: "inventory", equipment_event: "inventory",
   customer: "sales", invoice: "sales", payment: "sales", expense: "finance", employee: "finance", pay_run: "finance",
   money_account: "finance", account_transfer: "finance", reconciliation: "finance", money_in: "finance", loan: "finance",
 };

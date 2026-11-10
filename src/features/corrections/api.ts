@@ -5,7 +5,7 @@ import type { Page, PageQuery } from "@/lib/types";
 /** Kinds of record an owner can correct (see the API's /corrections). */
 export type CorrectionKind =
   | "batch" | "batch_event" | "farm_record" | "task" | "handover" | "site" | "unit" | "health_case" | "treatment"
-  | "stock_item" | "stock_lot" | "stock_move" | "equipment" | "customer" | "invoice" | "payment" | "expense"
+  | "stock_item" | "stock_lot" | "stock_move" | "equipment" | "equipment_event" | "customer" | "invoice" | "payment" | "expense"
   | "employee" | "pay_run" | "money_account" | "account_transfer" | "reconciliation" | "money_in" | "loan";
 
 export type CorrectionField = {

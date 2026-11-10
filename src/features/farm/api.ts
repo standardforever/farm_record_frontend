@@ -1,3 +1,4 @@
+import type { Size } from "./SizeFields";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { get, patch, post, qsOf } from "@/lib/api";
 import type { Page, PageQuery } from "@/lib/types";
@@ -25,7 +26,7 @@ export type CostInput = { amount: number; on: string; covers_from?: string; cove
   payment: { status: "paid" | "owed"; account_id?: string; reference?: string | null; paid_on?: string } };
 export type Unit = {
   id: string; site_id: string; code: string; name: string | null; kind: string; purpose: string | null;
-  capacity: number | null; area_m2: number | null; volume_m3: number | null; latitude: number | null; longitude: number | null;
+  capacity: number | null; area_m2: number | null; volume_m3: number | null; size?: Size | null; latitude: number | null; longitude: number | null;
   status: UnitStatus; status_note: string | null; status_changed_at: string | null; notes: string | null;
   sort_order: number; caretaker_id?: string | null; archived_at: string | null; created_at: string; updated_at: string;
 };
@@ -43,8 +44,8 @@ export type Catalog = {
 export type UnitActivity = { action: string; summary: string; actor_name: string | null; data: Record<string, unknown>; created_at: string };
 
 export type SiteInput = Partial<Pick<Site, "name" | "code" | "address" | "state" | "lga" | "latitude" | "longitude" | "area_hectares" | "notes" | "tenure" | "rent_amount" | "rent_period">> & { cost?: CostInput };
-export type UnitInput = Partial<Pick<Unit, "site_id" | "kind" | "code" | "name" | "purpose" | "capacity" | "area_m2" | "volume_m3" | "latitude" | "longitude" | "notes" | "status" | "status_note">>;
-export type BulkInput = { site_id: string; kind: string; count: number; prefix?: string; start?: number; purpose?: string | null; capacity?: number | null; area_m2?: number | null; volume_m3?: number | null; cost?: CostInput };
+export type UnitInput = Partial<Pick<Unit, "site_id" | "kind" | "code" | "name" | "purpose" | "capacity" | "area_m2" | "volume_m3" | "size" | "latitude" | "longitude" | "notes" | "status" | "status_note">>;
+export type BulkInput = { site_id: string; kind: string; count: number; prefix?: string; start?: number; purpose?: string | null; capacity?: number | null; area_m2?: number | null; volume_m3?: number | null; size?: Size | null; cost?: CostInput };
 
 const base = (orgId: string) => `/organizations/${orgId}/farm`;
 const key = (orgId: string) => ["farm", orgId];

@@ -7,6 +7,7 @@ import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/format";
 import { type Site, useBulkUnits, useCatalog, useCreateUnit } from "./api";
+import { SizeFields, type SizeState, noSize, sizeBody, sizeReady } from "./SizeFields";
 import { UnitCostFields, type UnitCostState, noUnitCost, unitCostBody, unitCostReady } from "./CostFields";
 import { kindIcon } from "./look";
 
@@ -21,13 +22,14 @@ export function AddUnitsDialog({ open, onClose, sites, presetSite, room }: {
   const single = useCreateUnit(ws.orgId);
   const toast = useToast();
   const [mode, setMode] = useState<"many" | "one">("many");
-  const [f, setF] = useState({ site: "", kind: "pond", count: "4", prefix: "", start: "", code: "", name: "", purpose: "", capacity: "", area: "", volume: "" });
+  const [f, setF] = useState({ site: "", kind: "pond", count: "4", prefix: "", start: "", code: "", name: "", purpose: "", capacity: "" });
   const [error, setError] = useState<string | null>(null);
   const canPay = useCanPay();
   const [cost, setCost] = useState<UnitCostState>(noUnitCost);
+  const [size, setSize] = useState<SizeState>(noSize);
 
   useEffect(() => {
-    if (open) { setError(null); setCost(noUnitCost()); setF((x) => ({ ...x, site: presetSite ?? sites[0]?.id ?? "", code: "", name: "" })); }
+    if (open) { setError(null); setCost(noUnitCost()); setSize(noSize()); setF((x) => ({ ...x, site: presetSite ?? sites[0]?.id ?? "", code: "", name: "" })); }
   }, [open, presetSite, sites]);
 
   const kinds = catalog.data?.kinds ?? {};
@@ -42,7 +44,7 @@ export function AddUnitsDialog({ open, onClose, sites, presetSite, room }: {
 
   const save = async () => {
     setError(null);
-    const shared = { site_id: f.site, kind: f.kind, purpose: f.purpose || null, capacity: num(f.capacity), area_m2: num(f.area), volume_m3: num(f.volume),
+    const shared = { site_id: f.site, kind: f.kind, purpose: f.purpose || null, capacity: num(f.capacity), ...sizeBody(size, !!kind?.water),
       cost: unitCostBody(cost, canPay) };
     try {
       if (mode === "many") {
@@ -60,7 +62,7 @@ export function AddUnitsDialog({ open, onClose, sites, presetSite, room }: {
     <Dialog open={open} onClose={onClose} title="Add units" eyebrow="Farm" wide
       footer={<>
         <Button variant="ghost" onClick={onClose}>Cancel</Button>
-        <Button variant="primary" loading={bulk.isPending || single.isPending} disabled={!f.site || overLimit || !unitCostReady(cost, canPay)} onClick={save}>
+        <Button variant="primary" loading={bulk.isPending || single.isPending} disabled={!f.site || overLimit || !unitCostReady(cost, canPay) || !sizeReady(size, !!kind?.water)} onClick={save}>
           {mode === "many" ? `Add ${count}` : "Add unit"}</Button>
       </>}>
       <div className="flex flex-col gap-4">
@@ -105,9 +107,8 @@ export function AddUnitsDialog({ open, onClose, sites, presetSite, room }: {
             <option value="">Not set</option>{Object.entries(catalog.data?.purposes ?? {}).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</Select></Field>
           <Field label={`Capacity (${kind?.counts ?? "head"})`} htmlFor="u-capacity" hint={mode === "many" ? "Each" : undefined}>
             <Input id="u-capacity" inputMode="numeric" value={f.capacity} onChange={(e) => setF({ ...f, capacity: e.target.value.replace(/\D/g, "") })} /></Field>
-          <Field label="Floor or surface area (m²)" htmlFor="u-area"><Input id="u-area" inputMode="decimal" value={f.area} onChange={(e) => setF({ ...f, area: e.target.value })} /></Field>
-          {kind?.water && <Field label="Water volume (m³)" htmlFor="u-volume"><Input id="u-volume" inputMode="decimal" value={f.volume} onChange={(e) => setF({ ...f, volume: e.target.value })} /></Field>}
         </div>
+        <SizeFields value={size} onChange={setSize} water={!!kind?.water} each={mode === "many" && count > 1} idPrefix="u-size" />
         <UnitCostFields value={cost} onChange={setCost} count={mode === "many" ? count : 1} />
       </div>
     </Dialog>

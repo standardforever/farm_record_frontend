@@ -11,6 +11,7 @@ import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
 import { cn, relative } from "@/lib/format";
 import { type Site, type Unit, type UnitBatch, type UnitStatus, useArchiveUnit, useCatalog, useRestoreUnit, useUnitActivity, useUnitCost, useUpdateUnit } from "./api";
+import { SizeFields, type SizeState, describeSize, noSize, sizeBody, sizeFromUnit } from "./SizeFields";
 import { UnitCostFields, type UnitCostState, noUnitCost, unitCostBody, unitCostReady } from "./CostFields";
 import { kindIcon, STATUS_LOOK, STATUS_ORDER } from "./look";
 
@@ -34,12 +35,14 @@ export function UnitDrawer({ unit, sites, batches = [], onClose, onStock }: {
   const [error, setError] = useState<string | null>(null);
   const [costing, setCosting] = useState(false);
   const canPay = useCanPay();
-  const [f, setF] = useState({ code: "", name: "", site: "", kind: "", purpose: "", capacity: "", area: "", volume: "", notes: "" });
+  const [f, setF] = useState({ code: "", name: "", site: "", kind: "", purpose: "", capacity: "", notes: "" });
+  const [size, setSize] = useState<SizeState>(noSize);
 
   useEffect(() => {
     setEditing(false); setPending(null); setNote(""); setError(null);
     if (unit) setF({ code: unit.code, name: unit.name ?? "", site: unit.site_id, kind: unit.kind, purpose: unit.purpose ?? "",
-      capacity: unit.capacity?.toString() ?? "", area: unit.area_m2?.toString() ?? "", volume: unit.volume_m3?.toString() ?? "", notes: unit.notes ?? "" });
+      capacity: unit.capacity?.toString() ?? "", notes: unit.notes ?? "" });
+    if (unit) setSize(sizeFromUnit(unit));
   }, [unit]);
 
   if (!unit) return null;
@@ -61,7 +64,7 @@ export function UnitDrawer({ unit, sites, batches = [], onClose, onStock }: {
   }, `${unit.code} is now ${statuses?.[pending]?.toLowerCase() ?? pending}`);
   const save = () => run(async () => {
     await update.mutateAsync({ id: unit.id, code: f.code, name: f.name || null, site_id: f.site, kind: f.kind, purpose: f.purpose || null,
-      capacity: num(f.capacity), area_m2: num(f.area), volume_m3: kinds[f.kind]?.water ? num(f.volume) : null, notes: f.notes || null });
+      capacity: num(f.capacity), ...sizeBody(size, !!kinds[f.kind]?.water), notes: f.notes || null });
     setEditing(false);
   }, `Saved ${f.code}`);
 
@@ -95,9 +98,8 @@ export function UnitDrawer({ unit, sites, batches = [], onClose, onStock }: {
               <Field label="Used for" htmlFor="e-purpose"><Select id="e-purpose" value={f.purpose} onChange={(e) => setF({ ...f, purpose: e.target.value })}>
                 <option value="">Not set</option>{Object.entries(catalog.data?.purposes ?? {}).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</Select></Field>
               <Field label={`Capacity (${kinds[f.kind]?.counts ?? "head"})`} htmlFor="e-cap"><Input id="e-cap" inputMode="numeric" value={f.capacity} onChange={(e) => setF({ ...f, capacity: e.target.value.replace(/\D/g, "") })} /></Field>
-              <Field label="Area (m²)" htmlFor="e-area"><Input id="e-area" inputMode="decimal" value={f.area} onChange={(e) => setF({ ...f, area: e.target.value })} /></Field>
-              {kinds[f.kind]?.water && <Field label="Water volume (m³)" htmlFor="e-vol"><Input id="e-vol" inputMode="decimal" value={f.volume} onChange={(e) => setF({ ...f, volume: e.target.value })} /></Field>}
             </div>
+            <SizeFields value={size} onChange={setSize} water={!!kinds[f.kind]?.water} idPrefix="e-size" />
             <Field label="Notes" htmlFor="e-notes"><Textarea id="e-notes" rows={3} value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} /></Field>
           </div>
         ) : (
@@ -112,8 +114,14 @@ export function UnitDrawer({ unit, sites, batches = [], onClose, onStock }: {
             <dl className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl bg-surface-2 p-4 text-[13.5px]">
               <div><dt className="text-ink-3">Used for</dt><dd className="font-semibold">{unit.purpose ? catalog.data?.purposes[unit.purpose] : "—"}</dd></div>
               <div><dt className="text-ink-3">Capacity</dt><dd className="font-semibold">{fmt(unit.capacity, ` ${kinds[unit.kind]?.counts ?? ""}`)}</dd></div>
-              <div><dt className="text-ink-3">Area</dt><dd className="font-semibold">{fmt(unit.area_m2, " m²")}</dd></div>
-              {kinds[unit.kind]?.water && <div><dt className="text-ink-3">Water volume</dt><dd className="font-semibold">{fmt(unit.volume_m3, " m³")}</dd></div>}
+              {(() => {
+                const d = describeSize(unit, !!kinds[unit.kind]?.water);
+                return <>
+                  {d.dims && <div><dt className="text-ink-3">Size</dt><dd className="font-semibold">{d.dims}</dd></div>}
+                  <div><dt className="text-ink-3">Floor</dt><dd className="font-semibold">{d.area ?? "—"}</dd></div>
+                  {kinds[unit.kind]?.water && <div><dt className="text-ink-3">Water</dt><dd className="font-semibold">{d.water ?? "—"}</dd></div>}
+                </>;
+              })()}
               <div><dt className="text-ink-3">Site</dt><dd className="font-semibold">{site ? `${site.name} (${site.code})` : "—"}</dd></div>
             </dl>
             {unit.notes && <p className="whitespace-pre-line text-[13.5px] text-ink-2">{unit.notes}</p>}

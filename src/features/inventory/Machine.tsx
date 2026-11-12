@@ -76,8 +76,10 @@ export function MachineView({ id }: { id: string }) {
         {e.status === "retired" && <Alert tone="info" title="Retired">{e.sold_for ? `Sold for ${naira(e.sold_for)}. ` : ""}Its history is kept below.</Alert>}
 
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {money && <Stat label="Bought for" value={e.bought_for != null ? naira(e.bought_for) : "—"}
-            sub={e.paid ? `${e.paid.status === "owed" ? "Owed" : `Paid${e.paid.account_name ? ` from ${e.paid.account_name}` : ""}`} · ${e.paid.number}` : e.bought_for != null ? "Not paid from an account" : undefined} />}
+          {money && <Stat label={e.installed_for ? "Bought and installed" : "Bought for"}
+            value={e.bought_for != null || e.installed_for ? naira((e.bought_for ?? 0) + (e.installed_for ?? 0)) : "—"}
+            sub={e.installed_for ? `${e.bought_for != null ? naira(e.bought_for) : "—"} + ${naira(e.installed_for)} installation`
+              : e.paid ? `${e.paid.status === "owed" ? "Owed" : `Paid${e.paid.account_name ? ` from ${e.paid.account_name}` : ""}`} · ${e.paid.number}` : e.bought_for != null ? "Not paid from an account" : undefined} />}
           {money && <Stat label="To keep it this year" value={naira(e.running_this_year ?? 0)} sub={`Repairs, parts, fuel · ${naira(e.running_total ?? 0)} in all`} />}
           {money && fuelKind && <Stat label="Fuel this year" value={e.fuel_litres_this_year ? `${e.fuel_litres_this_year.toLocaleString()} L` : "—"}
             sub={e.fuel_cost_this_year ? naira(e.fuel_cost_this_year) : undefined} />}

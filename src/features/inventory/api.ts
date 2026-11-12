@@ -32,13 +32,13 @@ export type Equipment = {
   hours: number | null; hours_to_service: number | null; broken_since: string | null; broken_note: string | null;
   spent_this_year: number | null; paid: { expense_id: string; number: string; amount: number; status: "paid" | "owed" | "pending" | "rejected"; account_name: string | null; paid_on: string | null } | null;
 };
-export type EquipmentEventKind = "service" | "repair" | "parts" | "fuel" | "hours" | "breakdown" | "moved" | "note" | "sold" | "retired";
+export type EquipmentEventKind = "service" | "repair" | "parts" | "install" | "fuel" | "hours" | "breakdown" | "moved" | "note" | "sold" | "retired";
 export type EquipmentEvent = {
   id: string; kind: EquipmentEventKind; on: string; amount: number | null; litres: number | null; hours: number | null; note: string | null;
   done_by: string | null; media_id: string | null; expense_id: string | null; money_in_id: string | null; created_by_name: string | null; created_at: string;
 };
 export type EquipmentDetail = Equipment & {
-  events: EquipmentEvent[]; bought_for: number | null; running_this_year: number | null; running_total: number | null;
+  events: EquipmentEvent[]; bought_for: number | null; installed_for?: number | null; running_this_year: number | null; running_total: number | null;
   fuel_litres_this_year: number | null; fuel_cost_this_year: number | null; cost_per_hour: number | null; sold_for: number | null;
 };
 export type EquipmentInfo = { label: string; group: string; for?: string[]; days?: number; hours?: number; hint?: string };

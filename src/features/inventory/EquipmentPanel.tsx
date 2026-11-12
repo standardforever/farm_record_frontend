@@ -195,7 +195,7 @@ export function EquipmentDialog({ e, onClose }: { e: Equipment | "new" | null; o
 }
 
 const TITLE: Record<string, (n: string) => string> = {
-  service: (n) => `Serviced ${n}`, repair: (n) => `Repair to ${n}`, parts: (n) => `Parts for ${n}`, fuel: (n) => `Fuel for ${n}`,
+  service: (n) => `Serviced ${n}`, repair: (n) => `Repair to ${n}`, parts: (n) => `Parts for ${n}`, install: (n) => `Installing ${n}`, fuel: (n) => `Fuel for ${n}`,
   hours: (n) => `Hour meter on ${n}`, breakdown: (n) => `${n} broke down`, moved: (n) => `${n} moved`, note: (n) => `Note on ${n}`,
 };
 
@@ -223,7 +223,7 @@ export function LogDialog({ e, kind: start, onClose }: { e: Equipment | null; ki
   }
   useEffect(() => { if (opened) resetEvidence(); }, [opened, resetEvidence]);
   if (!e) return null;
-  const costly = ["service", "repair", "parts", "fuel"].includes(kind);
+  const costly = ["service", "repair", "parts", "install", "fuel"].includes(kind);
   const amount = Number(f.amount) || 0;
   const showPay = costly && canPay && amount > 0;
   const nextGuess = kind === "service" && e.service_every_days ? (() => { const d = new Date(f.on + "T12:00:00"); d.setDate(d.getDate() + e.service_every_days!); return localDay(d); })() : null;
@@ -235,7 +235,7 @@ export function LogDialog({ e, kind: start, onClose }: { e: Equipment | null; ki
         try {
           await log.mutateAsync({
             id: e.id, kind, on: f.on, note: kind === "hours" ? null : f.note.trim() || null,
-            done_by: ["service", "repair", "parts", "fuel"].includes(kind) ? f.by.trim() || null : null,
+            done_by: ["service", "repair", "parts", "install", "fuel"].includes(kind) ? f.by.trim() || null : null,
             amount: costly && amount ? amount : null, litres: kind === "fuel" && f.litres ? Number(f.litres) : null,
             hours: f.hours !== "" && (kind === "hours" || kind === "service" || kind === "fuel") && Number(f.hours) !== e.hours ? Number(f.hours) : kind === "hours" ? Number(f.hours) : null,
             fixed: (kind === "repair" || kind === "parts") && e.status === "broken" ? f.fixed : false, next_service_on: kind === "service" && f.next ? f.next : null,
@@ -249,10 +249,10 @@ export function LogDialog({ e, kind: start, onClose }: { e: Equipment | null; ki
         {error && <Alert tone="crit">{error}</Alert>}
         {start !== "breakdown" && (
           <div className="flex flex-wrap gap-1.5" role="group" aria-label="What happened">
-            {(["service", "repair", "parts", "fuel", "hours", "note"] as const).map((k) => (
+            {(["service", "repair", "parts", "install", "fuel", "hours", "note"] as const).map((k) => (
               <button key={k} type="button" aria-pressed={kind === k} onClick={() => setKind(k)}
                 className={cn("cursor-pointer rounded-full border px-3 py-1 text-[13px] font-semibold", kind === k ? "border-brand bg-brand-soft text-brand" : "border-line text-ink-2 hover:bg-surface-2")}>
-                {{ service: "Service", repair: "Repair", parts: "Parts", fuel: "Fuel", hours: "Hours", note: "Note" }[k]}</button>
+                {{ service: "Service", repair: "Repair", parts: "Parts", install: "Installation", fuel: "Fuel", hours: "Hours", note: "Note" }[k]}</button>
             ))}
           </div>
         )}
@@ -264,12 +264,14 @@ export function LogDialog({ e, kind: start, onClose }: { e: Equipment | null; ki
               <Input id="lg-hours" inputMode="decimal" value={f.hours} onChange={(x) => setF({ ...f, hours: dec(x.target.value) })} /></Field>}
           {costly && (ws.can("finance.view") ? <Field label={kind === "fuel" ? "Cost (₦)" : "What it cost (₦)"} htmlFor="lg-amount" hint="Optional">
             <Input id="lg-amount" inputMode="decimal" value={f.amount} onChange={(x) => setF({ ...f, amount: dec(x.target.value) })} /></Field> : null)}
-          {(kind === "service" || kind === "repair" || kind === "parts" || kind === "fuel") &&
+          {(kind === "service" || kind === "repair" || kind === "parts" || kind === "install" || kind === "fuel") &&
             <Field label={kind === "fuel" ? "Bought from" : "Done by"} htmlFor="lg-by" hint="Optional"><Input id="lg-by" value={f.by} onChange={(x) => setF({ ...f, by: x.target.value })}
               placeholder={kind === "fuel" ? "Filling station" : "Mechanic or vendor"} /></Field>}
           {kind === "service" && <Field label="Next service" htmlFor="lg-next" hint={nextGuess ? `Empty: ${day(nextGuess)}` : "Optional"}>
             <Input id="lg-next" type="date" value={f.next} onChange={(x) => setF({ ...f, next: x.target.value })} /></Field>}
         </div>
+        {kind === "install" && <p className="-mt-1 text-[12.5px] text-ink-3">Setting it up: pipes, wiring, mounting, plumbing it in. It counts as part of
+          what the machine cost (in Payback), not as a running cost.</p>}
         {kind !== "hours" && <Field label={kind === "breakdown" ? "What is wrong" : kind === "fuel" ? "Note" : "What was done"} htmlFor="lg-note"
           hint={kind === "breakdown" ? undefined : "Optional"}>
           <Textarea id="lg-note" rows={2} value={f.note} onChange={(x) => setF({ ...f, note: x.target.value })}

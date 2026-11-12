@@ -3,7 +3,7 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { AlertTriangle, Check, Clock, PackagePlus, Wrench, X } from "lucide-react";
+import { AlertTriangle, Check, ChevronRight, Clock, PackagePlus, Wrench, X } from "lucide-react";
 import { Badge, Button, Card, EmptyState, PageHeader, PageLoader, Segmented, useToast } from "@/components/ui";
 import {
   type StockItem, CountDialog, EquipmentPanel, IssueDialog, ItemDialog, ItemSheet, qty, ReceiveDialog, useDecide, useInventoryCatalog, useStock, WriteOffDialog,
@@ -11,6 +11,8 @@ import {
 import { RequirePermission, useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
 import { cn, naira } from "@/lib/format";
+
+const ALERTS_SHOWN = 4;  // the most urgent first (the server sorts them); the rest behind "Show more"
 
 export default function StockPage() {
   return <RequirePermission permission="inventory.view"><Suspense fallback={<PageLoader />}><Inner /></Suspense></RequirePermission>;
@@ -30,6 +32,7 @@ function Inner() {
   const [open, setOpen] = useState<string | null>(null);
   const [act, setAct] = useState<Act>(null);
   const [category, setCategory] = useState("");
+  const [allAlerts, setAllAlerts] = useState(false);
   if (!ws.has("inventory")) return <EmptyState title="Stock is not in your plan" />;
   if (ov.isLoading || !ov.data) return <PageLoader />;
   const d = ov.data;
@@ -51,31 +54,33 @@ function Inner() {
       {tab === "equipment" ? <EquipmentPanel /> : (
         <div className="flex flex-col gap-4">
           {(d.alerts.length > 0 || d.pending.length > 0) && (
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className={cn("grid gap-4", d.alerts.length > 0 && d.pending.length > 0 && "lg:grid-cols-2")}>
               {d.alerts.length > 0 && (
                 <Card title="Needs attention" meta={`${d.alerts.length} alert${d.alerts.length > 1 ? "s" : ""}`}>
-                  <ul className="flex flex-col gap-2">
-                    {d.alerts.map((a, i) => {
+                  <ul className={cn("-my-1 grid divide-y divide-line", !d.pending.length && "lg:grid-cols-2 lg:gap-x-6 lg:divide-y-0 [&>li]:border-line lg:[&>li]:border-b")}>
+                    {(allAlerts ? d.alerts : d.alerts.slice(0, ALERTS_SHOWN)).map((a, i) => {
                       const Icon = ALERT_ICON[a.kind];
+                      const red = a.kind === "unrecorded" || a.kind === "expired" || a.title.endsWith("is broken");
+                      const body = <>
+                        <Icon size={16} className={cn("mt-0.5 shrink-0", red ? "text-crit" : "text-warn")} />
+                        <span className="min-w-0 flex-1"><b className="text-[13.5px]">{a.title}</b><span className="block truncate text-[12.5px] text-ink-3">{a.detail}</span></span>
+                        <ChevronRight size={15} className="mt-0.5 shrink-0 text-ink-3" />
+                      </>;
+                      const cls = "flex w-full items-start gap-2.5 rounded-lg px-1.5 py-2 text-left hover:bg-surface-2 disabled:cursor-default";
                       return (
                         <li key={i}>
-                          {a.equipment_id ? (
-                            <Link href={`/w/${ws.orgId}/stock/equipment/${a.equipment_id}`}
-                              className="flex w-full items-start gap-2.5 rounded-xl border border-line p-2.5 text-left hover:border-ink-3">
-                              <Icon size={17} className={cn("mt-0.5 shrink-0", a.title.endsWith("is broken") ? "text-crit" : "text-warn")} />
-                              <span className="min-w-0"><b className="text-[13.5px]">{a.title}</b><span className="block text-[12.5px] text-ink-3">{a.detail}</span></span>
-                            </Link>
-                          ) : (
-                          <button type="button" disabled={!a.item_id} onClick={() => a.item_id && setOpen(a.item_id)}
-                            className="flex w-full items-start gap-2.5 rounded-xl border border-line p-2.5 text-left hover:border-ink-3 disabled:cursor-default">
-                            <Icon size={17} className={cn("mt-0.5 shrink-0", a.kind === "unrecorded" || a.kind === "expired" ? "text-crit" : "text-warn")} />
-                            <span className="min-w-0"><b className="text-[13.5px]">{a.title}</b><span className="block text-[12.5px] text-ink-3">{a.detail}</span></span>
-                          </button>
-                          )}
+                          {a.equipment_id
+                            ? <Link href={`/w/${ws.orgId}/stock/equipment/${a.equipment_id}`} className={cls}>{body}</Link>
+                            : <button type="button" disabled={!a.item_id} onClick={() => a.item_id && setOpen(a.item_id)} className={cls}>{body}</button>}
                         </li>
                       );
                     })}
                   </ul>
+                  {d.alerts.length > ALERTS_SHOWN && (
+                    <button type="button" onClick={() => setAllAlerts(!allAlerts)} className="mt-2 text-[13px] font-semibold text-brand hover:underline">
+                      {allAlerts ? "Show fewer" : `Show ${d.alerts.length - ALERTS_SHOWN} more`}
+                    </button>
+                  )}
                 </Card>
               )}
               {d.pending.length > 0 && (

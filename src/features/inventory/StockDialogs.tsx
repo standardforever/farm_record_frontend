@@ -92,7 +92,7 @@ export function ItemDialog({ open, onClose, item }: { open: boolean; onClose: ()
             {Object.entries(cat.data?.units ?? {}).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</Select></Field>
         <Field label="Pack" htmlFor="i-pack" hint="Optional: bag, carton, bottle"><Input id="i-pack" value={f.pack_name} onChange={(e) => setF({ ...f, pack_name: e.target.value })} /></Field>
         <Field label={`${f.unit} in one ${f.pack_name || "pack"}`} htmlFor="i-size"><Input id="i-size" inputMode="decimal" value={f.pack_size} onChange={(e) => setF({ ...f, pack_size: dec(e.target.value) })} /></Field>
-        <Field label={`Reorder at (${f.unit})`} htmlFor="i-reorder" hint="Alert when stock falls to this"><Input id="i-reorder" inputMode="decimal" value={f.reorder_level} onChange={(e) => setF({ ...f, reorder_level: dec(e.target.value) })} /></Field>
+        <Field label={`Reorder at (${f.unit})`} htmlFor="i-reorder" hint="Alert when stock falls to this. Leave empty for no alert."><Input id="i-reorder" inputMode="decimal" value={f.reorder_level} onChange={(e) => setF({ ...f, reorder_level: dec(e.target.value) })} /></Field>
         <Field label={`Usual order (${f.unit})`} htmlFor="i-reorder-qty" hint="Optional"><Input id="i-reorder-qty" inputMode="decimal" value={f.reorder_qty} onChange={(e) => setF({ ...f, reorder_qty: dec(e.target.value) })} /></Field>
       </div>
       <Field label="Usual supplier" htmlFor="i-supplier" hint="Optional"><Input id="i-supplier" value={f.supplier} onChange={(e) => setF({ ...f, supplier: e.target.value })} /></Field>

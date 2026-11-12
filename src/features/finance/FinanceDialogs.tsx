@@ -47,7 +47,7 @@ export function ExpenseDialog({ open, onClose, batchId }: { open: boolean; onClo
   const limit = useFinance(ws.orgId, open && ws.can("finance.view")).data?.approval_limit;
   const toast = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
-  const blank = { on: localDay(), category: "fuel", description: "", amount: "", payee: "", charge: "farm", batch: "", unit: "", account: "", paid: "now", reference: "", from: "", to: "" };
+  const blank = { on: localDay(), category: "fuel", description: "", amount: "", payee: "", charge: "farm", picked: [] as string[], split: "even", parts: {} as Record<string, string>, account: "", paid: "now", reference: "", from: "", to: "" };
   const [f, setF] = useState(blank);
   const [photo, setPhoto] = useState<{ blob: Blob; url: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -57,20 +57,26 @@ export function ExpenseDialog({ open, onClose, batchId }: { open: boolean; onClo
   useEffect(() => {
     if (!open) return;
     setError(null); setPhoto(null); evidence.reset();
-    setF({ ...blank, charge: batchId ? "batch" : "farm", batch: batchId ?? "" });
+    setF({ ...blank, charge: batchId ? "batch" : "farm", picked: batchId ? [batchId] : [] });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, batchId]);
   useEffect(() => { if (open && !f.account && accounts.data?.length) setF((x) => ({ ...x, account: accounts.data!.find((a) => a.kind === "cash")?.id ?? accounts.data![0].id })); }, [open, accounts.data, f.account]);
   const units = (farm.data?.sites ?? []).flatMap((s) => s.units.filter((u) => !u.archived_at));
   const cashOnly = cat.data?.cash_only[f.category];
   const amount = Number(f.amount) || 0;
+  const choices: Choice[] = f.charge === "batch" ? (batches.data ?? []).map((b) => ({ id: b.id, code: b.code, sub: b.species, head: b.current }))
+    : f.charge === "unit" ? units.map((u) => ({ id: u.id, code: u.code, sub: u.name ?? "", size: u.area_m2 ?? u.volume_m3, area: u.area_m2 != null })) : [];
+  const picked = choices.filter((c) => f.picked.includes(c.id));
+  const many = picked.length > 1;
+  const split = shareOut(amount, picked, f.split, f.parts);
   const save = async () => {
     setBusy(true); setError(null);
     try {
       const media_id = photo ? (await uploadPhoto(ws.orgId, photo.blob, newId())).id : null;
       const covers = f.category === "rent" && f.from && f.to ? { covers_from: f.from, covers_to: f.to } : {};
       const e = await add.mutateAsync({ ...covers, spent_on: f.on, category: f.category, description: f.description.trim(), amount, payee: f.payee || null,
-        batch_id: f.charge === "batch" ? f.batch || null : null, unit_id: f.charge === "unit" ? f.unit || null : null,
+        ...(f.charge === "batch" ? { batch_ids: f.picked } : f.charge === "unit" ? { unit_ids: f.picked } : {}),
+        ...(many ? { split: f.split, ...(f.split === "amounts" ? { split_amounts: Object.fromEntries(picked.map((c) => [c.id, Number(f.parts[c.id]) || 0])) } : {}) } : {}),
         account_id: f.paid === "now" ? f.account || null : null, reference: f.reference || null, media_id, client_id: newId() });
       await evidence.attach({ record_id: e.id }, e.number);
       toast(e.status === "pending" ? `${e.number} saved. It waits for approval (over the limit).` : `${e.number}: ${naira(e.amount)} recorded`);
@@ -79,7 +85,7 @@ export function ExpenseDialog({ open, onClose, batchId }: { open: boolean; onClo
   };
   return (
     <Shell open={open} onClose={onClose} title="Record an expense" save={save} saving={busy} error={error}
-      disabled={f.description.trim().length < 2 || !amount || (f.charge === "batch" && !f.batch) || (f.charge === "unit" && !f.unit) || (f.paid === "now" && !f.account)}>
+      disabled={f.description.trim().length < 2 || !amount || (f.charge !== "farm" && !picked.length) || (many && !!split.problem) || (f.paid === "now" && !f.account)}>
       <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_160px]">
         <Field label="What for" htmlFor="x-cat" hint={cashOnly ? `Not counted as a cost: ${cashOnly}.` : undefined}>
           <Select id="x-cat" value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })}>
@@ -94,11 +100,10 @@ export function ExpenseDialog({ open, onClose, batchId }: { open: boolean; onClo
       </div>
       <div className="flex flex-col gap-2">
         <span className="text-[12.5px] font-semibold text-ink-2">Charge it to</span>
-        <Segmented value={f.charge} onChange={(v) => setF({ ...f, charge: v })} options={[{ value: "farm", label: "Whole farm" }, { value: "batch", label: "A batch" }, { value: "unit", label: "A unit" }]} />
-        {f.charge === "batch" && <Select aria-label="Batch" value={f.batch} onChange={(e) => setF({ ...f, batch: e.target.value })}>
-          <option value="">Choose a batch</option>{batches.data?.map((b) => <option key={b.id} value={b.id}>{b.code} · {b.species}</option>)}</Select>}
-        {f.charge === "unit" && <Select aria-label="Unit" value={f.unit} onChange={(e) => setF({ ...f, unit: e.target.value })}>
-          <option value="">Choose a unit</option>{units.map((u) => <option key={u.id} value={u.id}>{u.code}{u.name ? ` · ${u.name}` : ""}</option>)}</Select>}
+        <Segmented value={f.charge} onChange={(v) => setF({ ...f, charge: v, picked: [], split: "even", parts: {} })}
+          options={[{ value: "farm", label: "Whole farm" }, { value: "batch", label: "Batches" }, { value: "unit", label: "Houses, ponds or pens" }]} />
+        {f.charge !== "farm" && <SharePicker kind={f.charge as "batch" | "unit"} choices={choices} picked={f.picked} split={f.split} parts={f.parts}
+          result={split} onChange={(x) => setF({ ...f, ...x })} />}
       </div>
       <div className="flex flex-col gap-2">
         <span className="text-[12.5px] font-semibold text-ink-2">Paid?</span>
@@ -349,4 +354,82 @@ export function EmployeeDialog({ open, onClose, employee }: { open: boolean; onC
 
 export function StatusBadge({ status }: { status: string }) {
   return status === "pending" ? <Badge tone="warn">Waiting for approval</Badge> : status === "rejected" ? <Badge tone="crit">Rejected</Badge> : null;
+}
+
+
+type Choice = { id: string; code: string; sub?: string; head?: number; size?: number | null; area?: boolean };
+type Shared = { parts: Record<string, number>; problem: string | null };
+
+/** Each picked batch's or unit's part, the way the server will work it out (so the form can show it before saving). */
+function shareOut(total: number, picked: Choice[], how: string, typed: Record<string, string>): Shared {
+  if (picked.length < 2 || !total) return { parts: {}, problem: null };
+  const cents = Math.round(total * 100);
+  let w: number[];
+  if (how === "amounts") {
+    w = picked.map((c) => Math.round((Number(typed[c.id]) || 0) * 100));
+    const sum = w.reduce((a, b) => a + b, 0);
+    if (sum !== cents) return { parts: Object.fromEntries(picked.map((c, i) => [c.id, w[i] / 100])), problem: sum < cents ? `${naira((cents - sum) / 100)} still to share out` : `${naira((sum - cents) / 100)} too much` };
+    return { parts: Object.fromEntries(picked.map((c, i) => [c.id, w[i] / 100])), problem: null };
+  }
+  if (how === "head") {
+    w = picked.map((c) => c.head ?? 0);
+    if (!w.some(Boolean)) return { parts: {}, problem: "These batches have no animals now" };
+  } else if (how === "size") {
+    const missing = picked.filter((c) => !c.size).map((c) => c.code);
+    if (missing.length) return { parts: {}, problem: `${missing.join(", ")} ${missing.length === 1 ? "has" : "have"} no size yet` };
+    if (new Set(picked.map((c) => c.area)).size > 1) return { parts: {}, problem: "Some are measured by floor area, some by water volume" };
+    w = picked.map((c) => c.size ?? 0);
+  } else w = picked.map(() => 1);
+  const sum = w.reduce((a, b) => a + b, 0);
+  const out = w.slice(0, -1).map((x) => Math.round((cents * x) / sum));
+  out.push(cents - out.reduce((a, b) => a + b, 0));
+  return { parts: Object.fromEntries(picked.map((c, i) => [c.id, out[i] / 100])), problem: null };
+}
+
+/** Pick one or several batches (or units); with several, how the amount is shared between them. */
+function SharePicker({ kind, choices, picked, split, parts, result, onChange }: {
+  kind: "batch" | "unit"; choices: Choice[]; picked: string[]; split: string; parts: Record<string, string>; result: Shared;
+  onChange: (x: { picked?: string[]; split?: string; parts?: Record<string, string> }) => void;
+}) {
+  const many = picked.length > 1;
+  const toggle = (id: string) => onChange({ picked: picked.includes(id) ? picked.filter((x) => x !== id) : [...picked, id] });
+  if (!choices.length) return <p className="text-[13px] text-ink-3">{kind === "batch" ? "No batches running now." : "No houses, ponds or pens yet."}</p>;
+  return (
+    <div className="flex flex-col gap-2.5">
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label={kind === "batch" ? "Batches" : "Units"}>
+        {choices.map((c) => {
+          const on = picked.includes(c.id);
+          return (
+            <button key={c.id} type="button" aria-pressed={on} onClick={() => toggle(c.id)}
+              className={cn("rounded-lg border px-2.5 py-1 text-[13px] transition-colors", on ? "border-brand bg-brand-soft font-semibold text-brand" : "border-line hover:bg-surface-2")}>
+              <span className="font-mono">{c.code}</span>{c.sub ? <span className="font-normal text-ink-3"> · {c.sub}</span> : null}
+            </button>
+          );
+        })}
+      </div>
+      {!picked.length && <p className="text-[12.5px] text-ink-3">Tap one, or several if they share it.</p>}
+      {many && (
+        <div className="flex flex-col gap-2 rounded-xl border border-line p-3">
+          <span className="text-[12.5px] font-semibold text-ink-2">Share it between the {picked.length}</span>
+          <Segmented value={split} onChange={(v) => onChange({ split: v })} options={[{ value: "even", label: "Evenly" },
+            kind === "batch" ? { value: "head", label: "By animals" } : { value: "size", label: "By size" }, { value: "amounts", label: "Type amounts" }]} />
+          <ul className="flex flex-col gap-1">
+            {choices.filter((c) => picked.includes(c.id)).map((c) => (
+              <li key={c.id} className="flex items-center gap-2 text-[13px]">
+                <span className="min-w-0 flex-1"><b className="whitespace-nowrap font-mono">{c.code}</b>
+                  {split === "head" && c.head != null && <span className="text-ink-3"> · {c.head.toLocaleString()} now</span>}
+                  {split === "size" && c.size ? <span className="text-ink-3"> · {c.size.toLocaleString()} {c.area ? "m²" : "m³"}</span> : null}</span>
+                {split === "amounts"
+                  ? <div className="w-36 shrink-0"><Input aria-label={`${c.code} part`} inputMode="decimal" className="text-right" value={parts[c.id] ?? ""}
+                      onChange={(e) => onChange({ parts: { ...parts, [c.id]: e.target.value.replace(/[^\d.]/g, "") } })} /></div>
+                  : <span className="font-mono tnum">{result.parts[c.id] != null ? naira(result.parts[c.id]) : "—"}</span>}
+              </li>
+            ))}
+          </ul>
+          {result.problem && <p className="text-[12.5px] text-warn">{result.problem}{split === "size" && result.problem.includes("size") ? ". Add it on the farm map, or split another way." : "."}</p>}
+          <p className="text-[12px] text-ink-3">One payment out of the account; each one carries its part in its costs and profit.</p>
+        </div>
+      )}
+    </div>
+  );
 }

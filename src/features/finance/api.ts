@@ -13,7 +13,8 @@ export type Reconciliation = { id: string; account_id: string; as_of: string; st
 export type Expense = {
   id: string; number: string; spent_on: string; category: string; description: string; amount: number; payee: string | null; account_id: string | null;
   account_name: string | null; paid_on: string | null; reference: string | null; batch_id: string | null; batch_code: string | null; unit_id: string | null;
-  unit_code: string | null; site_id: string | null; site_name: string | null; media_id: string | null; status: "pending" | "approved" | "rejected";
+  unit_code: string | null; site_id: string | null; site_name: string | null;
+  shares?: { kind: "batch" | "unit"; id: string; code: string; amount: number }[]; media_id: string | null; status: "pending" | "approved" | "rejected";
   decision_note: string | null; decided_by_name: string | null; created_by_name: string | null; created_at: string; voided_at: string | null; void_reason: string | null;
   cash_only: boolean;
 };

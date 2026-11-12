@@ -53,7 +53,8 @@ function ExpenseRow({ e, onPay, onVoid }: { e: Expense; onPay?: (e: Expense) => 
   const cat = useFinanceCatalog();
   const decide = useDecideExpense(ws.orgId);
   const toast = useToast();
-  const charged = e.batch_code ?? e.unit_code ?? e.site_name ?? "Whole farm";
+  const charged = e.shares?.length ? `shared: ${e.shares.map((x) => `${x.code} ${naira(x.amount)}`).join(", ")}`
+    : e.batch_code ?? e.unit_code ?? e.site_name ?? "Whole farm";
   return (
     <li className={cn("flex flex-wrap items-center gap-3 py-2.5", e.voided_at && "opacity-60")}>
       <div className="min-w-0 flex-1">

@@ -27,7 +27,9 @@ function Summary({ p }: { p: Payback }) {
       <p className="text-[15px]">
         You have put <b className="tnum">{naira(p.net_invested)}</b> into the farm{p.sold ? ` (after ${naira(p.sold)} got back from selling)` : ""}.{" "}
         {done ? <b className="text-good">Profit has paid it all back.</b>
-          : <><b className="tnum">{naira(p.recovered)}</b> ({pct}%) has come back as profit{p.since ? ` since ${day(p.since)}` : ""}.</>}
+          : p.profit_since < 0
+            ? <>Nothing has come back yet: since {p.since ? day(p.since) : "then"} the farm has made a <b className="tnum text-crit">loss of {naira(-p.profit_since)}</b> (sales less running costs), so that has to be made up first.</>
+            : <><b className="tnum">{naira(p.recovered)}</b> ({pct}%) has come back as profit{p.since ? ` since ${day(p.since)}` : ""}.</>}
       </p>
       <Bar pct={pct} label={`${pct}% paid back`} />
       {!done && (

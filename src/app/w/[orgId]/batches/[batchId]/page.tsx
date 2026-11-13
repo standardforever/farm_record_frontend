@@ -165,7 +165,11 @@ function View({ b, checking }: { b: BatchDetail; checking?: boolean }) {
               <dt className="text-ink-3">Sold · home use</dt><dd className="text-right font-semibold tnum">{s?.sold.toLocaleString("en-NG")} · {s?.consumed.toLocaleString("en-NG")}</dd>
               {!!s?.transferred_out && <><dt className="text-ink-3">To other batches</dt><dd className="text-right font-semibold tnum">{s.transferred_out.toLocaleString("en-NG")}</dd></>}
               <dt className="text-ink-3">Survival</dt><dd className="text-right font-semibold">{s?.survival_pct ?? "—"}%</dd>
-              <dt className="text-ink-3">Feed eaten</dt><dd className="text-right font-semibold tnum">{s?.feed_kg ? `${s.feed_kg.toLocaleString("en-NG")} kg` : "—"}</dd>
+              <dt className="text-ink-3">Feed eaten</dt><dd className="text-right font-semibold tnum">{s?.feed_kg ? feedText(s.feed_kg, s.feed_bags, s.feed_items?.length === 1 ? s.feed_items[0].pack_name : "bag") : "—"}</dd>
+              {(s?.feed_items?.length ?? 0) > 1 && s!.feed_items!.map((x) => (
+                <Fragment key={x.name}><dt className="pl-3 text-[12.5px] text-ink-3">{x.name}</dt>
+                  <dd className="text-right text-[12.5px] text-ink-2 tnum">{feedText(x.kg, x.bags, x.pack_name)}</dd></Fragment>
+              ))}
               <dt className="text-ink-3">Latest average weight</dt><dd className="text-right font-semibold tnum">{s?.latest_avg_weight_g ? `${s.latest_avg_weight_g.toLocaleString("en-NG")} g` : "—"}</dd>
               {!!s?.eggs && <><dt className="text-ink-3">Eggs collected</dt><dd className="text-right font-semibold tnum">{s.eggs.toLocaleString("en-NG")}{s.cracked_eggs ? ` (${s.cracked_eggs} cracked)` : ""}</dd></>}
               <dt className="text-ink-3">Feed conversion (FCR)</dt><dd className="text-right font-semibold">{s?.fcr ?? "—"}</dd>
@@ -223,4 +227,13 @@ function View({ b, checking }: { b: BatchDetail; checking?: boolean }) {
         onSave={async (reason) => { await voidRecord.mutateAsync({ eventId: voiding!, reason }); toast("Record voided"); }} />
     </>
   );
+}
+
+
+/** "175 kg · 7 bags" (bags only when known; "7.5 bags" when part of one was used). */
+function feedText(kg: number, bags: number | null | undefined, pack = "bag") {
+  const k = `${kg.toLocaleString("en-NG", { maximumFractionDigits: 1 })} kg`;
+  if (bags == null) return k;
+  const n = Math.round(bags * 10) / 10;
+  return `${k} · ${n.toLocaleString("en-NG")} ${n === 1 ? pack : `${pack}s`}`;
 }

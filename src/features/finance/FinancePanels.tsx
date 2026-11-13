@@ -14,7 +14,7 @@ import {
   useEmployees, useExpenses, useFinance, useFinanceCatalog, usePayExpense, usePayPayRun, usePayRuns, usePnl, useSaveFinanceSettings, useSavePayRun, useUnitProfits,
   useVoidExpense,
 } from "./api";
-import { AccountDialog, AccountSheet, EmployeeDialog, StatusBadge, TransferDialog } from "./FinanceDialogs";
+import { AccountDialog, AccountSheet, ChargeDialog, EmployeeDialog, StatusBadge, TransferDialog } from "./FinanceDialogs";
 import { MoneyInList } from "./Funds";
 
 const errMsg = (e: unknown) => (e instanceof ApiError ? e.message : "Could not save.");
@@ -48,7 +48,9 @@ export function PayDialog({ open, onClose, title, amount, onPay }: {
   );
 }
 
-function ExpenseRow({ e, onPay, onVoid }: { e: Expense; onPay?: (e: Expense) => void; onVoid?: (e: Expense) => void }) {
+const NOT_RECHARGED = new Set(["stock_purchase", "animals", "loan", "drawings"]);
+
+function ExpenseRow({ e, onPay, onVoid, onCharge }: { e: Expense; onPay?: (e: Expense) => void; onVoid?: (e: Expense) => void; onCharge?: (e: Expense) => void }) {
   const ws = useCurrentWorkspace();
   const cat = useFinanceCatalog();
   const decide = useDecideExpense(ws.orgId);
@@ -76,6 +78,8 @@ function ExpenseRow({ e, onPay, onVoid }: { e: Expense; onPay?: (e: Expense) => 
           <Button size="sm" variant="ghost" onClick={async () => { try { await decide.mutateAsync({ id: e.id, approve: false }); toast(`${e.number} rejected`); } catch (x) { toast(errMsg(x)); } }}><X size={14} /> Reject</Button>
         </>}
         {onPay && e.status === "approved" && !e.voided_at && !e.account_id && ws.can("finance.edit") && <Button size="sm" onClick={() => onPay(e)}>Pay</Button>}
+        {onCharge && !e.voided_at && !NOT_RECHARGED.has(e.category) && (ws.can("finance.edit") || ws.can("records.correct")) &&
+          <Button size="sm" variant="ghost" onClick={() => onCharge(e)}>Charge to…</Button>}
         {onVoid && !e.voided_at && ws.can("finance.edit") && <Button size="sm" variant="ghost" onClick={() => onVoid(e)}>Void</Button>}
         {!e.voided_at && <OwnerActions kind="expense" id={e.id} compact />}
       </div>
@@ -91,8 +95,10 @@ function useExpenseActions() {
   const [paying, setPaying] = useState<Expense | null>(null);
   const [voiding, setVoiding] = useState<Expense | null>(null);
   const [reason, setReason] = useState("");
+  const [charging, setCharging] = useState<Expense | null>(null);
   const dialogs = (
     <>
+      <ChargeDialog expense={charging} onClose={() => setCharging(null)} />
       <PayDialog open={!!paying} onClose={() => setPaying(null)} title={`Pay ${paying?.number ?? ""}`} amount={paying?.amount ?? 0}
         onPay={async (account_id, paid_on) => { await pay.mutateAsync({ id: paying!.id, account_id, paid_on }); toast(`${paying!.number} paid`); }} />
       <Dialog open={!!voiding} onClose={() => setVoiding(null)} title={`Void ${voiding?.number ?? ""}`} eyebrow="Finance"
@@ -103,7 +109,7 @@ function useExpenseActions() {
       </Dialog>
     </>
   );
-  return { onPay: setPaying, onVoid: (e: Expense) => { setReason(""); setVoiding(e); }, dialogs };
+  return { onPay: setPaying, onVoid: (e: Expense) => { setReason(""); setVoiding(e); }, onCharge: setCharging, dialogs };
 }
 
 export function OverviewPanel({ onAddAccount }: { onAddAccount: () => void }) {
@@ -113,7 +119,7 @@ export function OverviewPanel({ onAddAccount }: { onAddAccount: () => void }) {
   const unpaid = useExpenses(ws.orgId, { unpaid: true, ...upg.params });
   const save = useSaveFinanceSettings(ws.orgId);
   const toast = useToast();
-  const { onPay, onVoid, dialogs } = useExpenseActions();
+  const { onPay, onVoid, onCharge, dialogs } = useExpenseActions();
   const [limit, setLimit] = useState<string | null>(null);
   if (!ov.data) return <PageLoader />;
   const d = ov.data;
@@ -159,19 +165,19 @@ export function ExpensesPanel() {
   const range = monthRange(offset);
   const pg = usePager(20, [offset, status, category]);
   const q = useExpenses(ws.orgId, { ...range, status, category, ...pg.params });
-  const { onPay, onVoid, dialogs } = useExpenseActions();
+  const { onPay, onVoid, onCharge, dialogs } = useExpenseActions();
   return (
     <Card title={`Expenses · ${monthLabel(range.start)}`} meta={q.data ? `${q.data.approved_count} approved · ${naira(q.data.approved_total)}` : undefined}
       action={<div className="flex flex-wrap items-center gap-1.5">
-        <Button size="sm" variant="ghost" onClick={() => setOffset(offset - 1)}>‹</Button>
-        <Button size="sm" variant="ghost" disabled={offset >= 0} onClick={() => setOffset(offset + 1)}>›</Button>
+        <Button size="sm" variant="ghost" aria-label="Earlier month" onClick={() => setOffset(offset - 1)}>‹</Button>
+        <Button size="sm" variant="ghost" aria-label="Later month" disabled={offset >= 0} onClick={() => setOffset(offset + 1)}>›</Button>
         <select aria-label="Status" className="rounded-lg border border-line bg-surface px-2 py-1 text-[13px]" value={status} onChange={(e) => setStatus(e.target.value)}>
           <option value="">All</option><option value="pending">Waiting</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="void">Void</option></select>
         <select aria-label="Category" className="rounded-lg border border-line bg-surface px-2 py-1 text-[13px]" value={category} onChange={(e) => setCategory(e.target.value)}>
           <option value="">Every kind</option>{Object.entries(cat.data?.expense_categories ?? {}).map(([k, v]) => <option key={k} value={k}>{v.replace(/ \(.*\)$/, "")}</option>)}</select>
       </div>}>
       {!q.data ? <PageLoader /> : q.data.total === 0 ? <p className="text-[13.5px] text-ink-3">No expenses here.</p>
-        : <ul className="flex flex-col divide-y divide-line">{q.data.items.map((e) => <ExpenseRow key={e.id} e={e} onPay={onPay} onVoid={onVoid} />)}</ul>}
+        : <ul className="flex flex-col divide-y divide-line">{q.data.items.map((e) => <ExpenseRow key={e.id} e={e} onPay={onPay} onVoid={onVoid} onCharge={onCharge} />)}</ul>}
       <Pager {...pg.bind(q.data?.total, q.isFetching)} noun="expenses" />
       {dialogs}
     </Card>
@@ -415,7 +421,8 @@ export function PayrollPanel() {
         {emps.data.length === 0 ? <p className="text-[13.5px] text-ink-3">Nobody on payroll yet.</p> : (
           <ul className="flex flex-col divide-y divide-line">{emps.data.map((e) => (
             <li key={e.id} className="flex items-center gap-3 py-2.5">
-              <div className="min-w-0 flex-1"><b className="text-[14px]">{e.name}</b><span className="block text-[12.5px] text-ink-3">{e.job_title ?? "—"}{e.bank_name ? ` · ${e.bank_name} ${e.account_number ?? ""}` : ""}</span></div>
+              <div className="min-w-0 flex-1"><b className="text-[14px]">{e.name}</b><span className="block text-[12.5px] text-ink-3">{e.job_title ?? "—"}{e.bank_name ? ` · ${e.bank_name} ${e.account_number ?? ""}` : ""}</span>
+                <span className="block text-[12.5px] text-ink-3">Looks after: {lookAfter(e)}</span></div>
               <span className="font-mono text-[13.5px] tnum">{naira(e.rate)}<span className="text-ink-3">/{e.pay_basis === "daily" ? "day" : "month"}</span></span>
               {ws.can("finance.edit") && <Button size="sm" variant="ghost" onClick={() => setEditing(e)}>Edit</Button>}
               <OwnerActions kind="employee" id={e.id} compact edit={false} />
@@ -437,4 +444,13 @@ export function PayrollPanel() {
       <EmployeeDialog open={!!editing} onClose={() => setEditing(null)} employee={editing === "new" ? null : editing} />
     </div>
   );
+}
+
+
+function lookAfter(e: { works_on?: { kind: string; species?: string[]; unit_ids?: string[] } | null }) {
+  const w = e.works_on;
+  if (!w || w.kind === "farm") return "the whole farm";
+  if (w.kind === "species") return (w.species ?? []).map((k) => ({ catfish: "fish", broilers: "broilers", layers: "layers" } as Record<string, string>)[k] ?? k).join(", ");
+  const n = w.unit_ids?.length ?? 0;
+  return n === 1 ? "1 house, pond or pen" : `${n} houses, ponds or pens`;
 }

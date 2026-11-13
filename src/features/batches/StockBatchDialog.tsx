@@ -7,7 +7,7 @@ import { useCatalog, useFarmMap } from "@/features/farm";
 import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/format";
-import { usePacks } from "@/features/packs";
+import { StartSizeField, usePacks } from "@/features/packs";
 import { useFormEvidence } from "@/features/evidence/useFormEvidence";
 import { type PaymentChoice, PaymentFields, noPayment, paymentBody, paymentReady, useCanPay } from "@/features/finance/PaymentFields";
 import { today, useBatchCatalog, useStockBatch } from "./api";
@@ -54,6 +54,11 @@ export function StockBatchDialog({ open, onClose, presetUnit, onStocked, plan }:
   }, [open, presetUnit, plan?.id]);
 
   const chosen = Object.entries(counts).filter(([, v]) => v !== undefined);
+  const over = chosen.map(([id, v]) => {
+    const u = allUnits.find((x) => x.id === id);
+    const limit = u ? u.capacity ?? u.stock_advice?.most ?? null : null;
+    return { u: u!, n: Number(v) || 0, limit: limit ?? 0 };
+  }).filter((x) => x.u && x.limit > 0 && x.n > x.limit);
   const total = chosen.reduce((n, [, v]) => n + (Number(v) || 0), 0);
   const cost = money ? Number(f.cost) || 0 : 0;
   const showPay = canPay && cost > 0 && f.source_type === "purchased";
@@ -111,12 +116,16 @@ export function StockBatchDialog({ open, onClose, presetUnit, onStocked, plan }:
             {Object.entries(cat.data?.sources ?? {}).filter(([k]) => k !== "split").map(([k, v]) => <option key={k} value={k}>{v}</option>)}</Select></Field>
           <Field label="Hatchery, supplier or farm" htmlFor="b-source-name" hint="Optional"><Input id="b-source-name" value={f.source_name} onChange={(e) => setF({ ...f, source_name: e.target.value })} /></Field>
           <Field label="Date stocked" htmlFor="b-date"><Input id="b-date" type="date" max={today()} value={f.started_on} onChange={(e) => setF({ ...f, started_on: e.target.value })} /></Field>
-          <Field label="Age when stocked (days)" htmlFor="b-age" hint="0 for day-old chicks; fingerlings are often 28"><Input id="b-age" inputMode="numeric" value={f.age} onChange={(e) => setF({ ...f, age: e.target.value.replace(/\D/g, "") })} placeholder="0" /></Field>
+          <StartSizeField id="b-age" sizes={pack?.start_sizes} age={f.age} daysHint="0 for day-old chicks"
+            onChange={(age, size) => setF({ ...f, age, weight: size && (!f.weight || (pack?.start_sizes ?? []).some((z) => String(z.weight_g) === f.weight)) ? String(size.weight_g) : f.weight })} />
           <Field label="Average weight (g)" htmlFor="b-weight" hint="Optional"><Input id="b-weight" inputMode="decimal" value={f.weight} onChange={(e) => setF({ ...f, weight: e.target.value })} /></Field>
           {money && <Field label="Total purchase cost (₦)" htmlFor="b-cost" hint="Whole bill, paid or not"><Input id="b-cost" inputMode="decimal" value={f.cost} onChange={(e) => setF({ ...f, cost: e.target.value })} /></Field>}
         </div>
         {showPay && <PaymentFields value={pay} onChange={setPay} amount={cost} what="the animals" purchasedOn={f.started_on} />}
-        {cycle ? <p className="-mt-1 text-[12.5px] text-ink-3">A typical {units.data?.purposes[f.species]?.toLowerCase()} cycle is about {cycle} days; the expected end date is set from that.</p> : null}
+        {cycle ? <p className="-mt-1 text-[12.5px] text-ink-3">{(() => {
+          const left = Math.max(cycle - (Number(f.age) || 0), 1);
+          return `From that age, a typical ${units.data?.purposes[f.species]?.toLowerCase()} cycle is about ${left} days${left >= 60 ? ` (about ${Math.round(left / 15) / 2} months)` : ""}; the expected end date is set from that.`;
+        })()}</p> : null}
         {!plan && pack && (pack.vaccinations > 0 || pack.phases > 1) && <p className="-mt-2 text-[12.5px] text-ink-3">Vaccinations and feed changes from the {pack.name.toLowerCase()} pack will appear in Today on their dates.</p>}
 
         <div className="flex flex-col gap-1.5">
@@ -131,11 +140,12 @@ export function StockBatchDialog({ open, onClose, presetUnit, onStocked, plan }:
                 return (
                   <li key={u.id} className={cn("flex items-center gap-2 rounded-xl border p-2.5", on ? "border-brand bg-brand-soft" : "border-line")}>
                     <input type="checkbox" aria-label={`Use ${u.code}`} className="h-[18px] w-[18px] accent-[var(--brand)]" checked={on}
-                      onChange={(e) => setCounts((c) => { const n = { ...c }; if (e.target.checked) n[u.id] = u.capacity ? String(u.capacity) : ""; else delete n[u.id]; return n; })} />
+                      onChange={(e) => setCounts((c) => { const n = { ...c }; if (e.target.checked) n[u.id] = u.capacity ? String(u.capacity) : u.stock_advice ? String(u.stock_advice.good) : ""; else delete n[u.id]; return n; })} />
                     <span className="min-w-0 flex-1">
                       <b className="font-mono">{u.code}</b>{u.name ? <span className="text-ink-2"> · {u.name}</span> : null}
                       <span className="block truncate text-[12px] text-ink-3">
-                        {inIt.length ? `Has ${inIt.map((b) => b.code).join(", ")}` : u.status === "resting" ? "Resting" : u.capacity ? `Holds ${u.capacity.toLocaleString("en-NG")}` : u.site}
+                        {inIt.length ? `Has ${inIt.map((b) => b.code).join(", ")}` : u.status === "resting" ? "Resting" : u.capacity ? `Holds ${u.capacity.toLocaleString("en-NG")}`
+                          : u.stock_advice ? `Room for about ${u.stock_advice.good.toLocaleString("en-NG")} (${u.stock_advice.most.toLocaleString("en-NG")} at most)` : u.site}
                       </span>
                     </span>
                     {on && <div className="w-[96px] shrink-0"><Input aria-label={`How many in ${u.code}`} inputMode="numeric" value={counts[u.id]}
@@ -146,6 +156,11 @@ export function StockBatchDialog({ open, onClose, presetUnit, onStocked, plan }:
             </ul>
           )}
         </div>
+        {over.length > 0 && <Alert tone="warn">
+          {over.map(({ u, n, limit }) => <span key={u.id} className="block"><b className="font-mono">{u.code}</b>: {n.toLocaleString("en-NG")} is more than it holds at harvest size
+            ({limit.toLocaleString("en-NG")}{u.capacity ? ", the capacity you set" : `, from its ${u.stock_advice!.basis}`}).</span>)}
+          <span className="mt-1 block">Overstocked fish grow slower, fight and die more, and the water spoils faster. Use another pond, or stock fewer.</span>
+        </Alert>}
         <Field label="Notes" htmlFor="b-notes" hint="Optional"><Textarea id="b-notes" rows={2} value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} /></Field>
         {evidence.field}
       </div>

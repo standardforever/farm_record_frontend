@@ -1,3 +1,4 @@
+import type { PackSummary, StartSize } from "@/features/packs";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { del, get, patch, post } from "@/lib/api";
 
@@ -35,7 +36,8 @@ export type PlanSummary = {
 export type Phase = { from_day: number; to_day: number; name: string; protein_pct?: number | null; form?: string | null; note?: string | null };
 export type Plan = PlanSummary & {
   age_at_start_days: number;
-  pack: { key: string; version: number; name: string; status: string; review_note: string | null; counts: string; terms: Record<string, string>; breeds: { key: string; name: string }[]; phases: Phase[] };
+  pack: { key: string; version: number; name: string; status: string; review_note: string | null; counts: string; terms: Record<string, string>; breeds: { key: string; name: string }[]; phases: Phase[];
+    start_sizes?: StartSize[]; stocking?: PackSummary["stocking"] };
   hints: { bag_kg: number; mortality_pct: number; sell_unit: SellUnit; sell_day: number; max_day: number; young: string; unit_price_hint: string; doses_per_bottle: number | null; other_costs: string[]; eggs_per_crate?: number };
   inputs: Partial<PlanInputs>; days: PlanDay[]; result: PlanResult | null;
 };

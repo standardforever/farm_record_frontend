@@ -18,7 +18,10 @@ export type Expense = {
   decision_note: string | null; decided_by_name: string | null; created_by_name: string | null; created_at: string; voided_at: string | null; void_reason: string | null;
   cash_only: boolean;
 };
-export type Employee = { id: string; name: string; phone: string | null; job_title: string | null; pay_basis: "monthly" | "daily"; rate: number; bank_name: string | null; account_number: string | null; started_on: string | null; active: boolean };
+export type Employee = { id: string; name: string; phone: string | null; job_title: string | null; pay_basis: "monthly" | "daily"; rate: number; bank_name: string | null; account_number: string | null; started_on: string | null; active: boolean;
+  works_on?: WorksOn | null };
+/** What a worker looks after, so their pay is part of those batches' costs. */
+export type WorksOn = { kind: "farm" | "species" | "units"; species?: string[]; unit_ids?: string[] };
 export type PayLine = { id: string; employee_id: string; employee_name: string; job_title: string | null; days: number | null; gross: number; deductions: number; net: number; note: string | null };
 export type PayRun = { id: string; period: string; status: "draft" | "paid"; paid_on: string | null; account_id: string | null; gross: number; deductions: number; net: number; lines: PayLine[] };
 export type PnlRow = { key: string; label: string; total: number; by_enterprise: Record<string, number> };
@@ -96,6 +99,8 @@ function useFinanceMutation<V, R>(orgId: string, fn: (v: V) => Promise<R>) {
 
 export const useSaveAccount = (orgId: string) =>
   useFinanceMutation(orgId, ({ id, ...b }: Partial<Account> & { id?: string }) => (id ? patch<Account>(`${base(orgId)}/accounts/${id}`, b) : post<Account>(`${base(orgId)}/accounts`, b)));
+export const useChargeExpense = (orgId: string) =>
+  useFinanceMutation(orgId, ({ id, ...b }: { id: string } & Record<string, unknown>) => post<Expense>(`${base(orgId)}/expenses/${id}/charge`, b));
 export const useTransfer = (orgId: string) => useFinanceMutation(orgId, (b: Record<string, unknown>) => post<{ id: string }>(`${base(orgId)}/transfers`, b));
 export const useReconcile = (orgId: string) =>
   useFinanceMutation(orgId, ({ id, ...b }: { id: string; as_of: string; statement_balance: number; note?: string | null }) => post<Reconciliation>(`${base(orgId)}/accounts/${id}/reconcile`, b));

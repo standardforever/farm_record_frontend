@@ -4,7 +4,10 @@ import { get, post } from "@/lib/api";
 export type PackSummary = {
   key: string; version: number; name: string; status: string; review_note: string | null; active: boolean; source: string;
   change_note: string | null; breeds: { key: string; name: string; note: string | null }[]; vaccinations: number; phases: number;
+  start_sizes?: StartSize[]; stocking?: { harvest_g: number; by_build: Record<string, { per: "m2" | "m3"; good: number; most: number; note?: string | null }> } | null;
 };
+/** A size the young are bought at ("Juveniles, about 20 g"), placed on the pack's growth curve. */
+export type StartSize = { key: string; name: string; weight_g: number; age_days: number; note?: string | null };
 export type Dose = { day: number; name: string; route: string | null; note: string | null; due_on: string; status: "done" | "skipped" | "due" | "overdue" | "upcoming" | "before_arrival"; task_id: string | null };
 export type Phase = { from_day: number; to_day: number; name: string; protein_pct?: number | null; form?: string | null; note?: string | null; on?: string };
 export type Standard = {

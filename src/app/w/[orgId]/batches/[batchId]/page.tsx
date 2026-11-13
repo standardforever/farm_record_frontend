@@ -59,6 +59,8 @@ function View({ b, checking }: { b: BatchDetail; checking?: boolean }) {
   const meatHolds = (health.data?.holds ?? []).filter((h) => h.product === "meat" || h.product === "all");
   const approve = ws.can("farm.approve");
   const edit = ws.can("farm.edit") || approve;
+  const catName = (k: string) => k === "labour" ? "Labour (workers who look after it)" : k === "wages" ? "Wages (whole farm)"
+    : stockCats.data?.categories[k] ?? finCats.data?.expense_categories[k]?.replace(/ \(.*\)$/, "") ?? k;
   const money = ws.can("finance.view") && s?.cost_so_far != null;
   const species = catalog.data?.purposes[b.species] ?? b.species;
   const age = active ? ageOn(b) : s?.age_days ?? 0;
@@ -177,7 +179,7 @@ function View({ b, checking }: { b: BatchDetail; checking?: boolean }) {
                 <dt className="mt-2 border-t border-line pt-2 text-ink-3">Purchase cost{s.cost_in || s.cost_out ? " (after transfers)" : ""}</dt>
                 <dd className="mt-2 border-t border-line pt-2 text-right font-semibold tnum">{naira((s.cost_so_far ?? 0) - (s.inputs_cost ?? 0))}</dd>
                 {Object.entries(s.inputs_by_category ?? {}).map(([k, v]) => (
-                  <Fragment key={k}><dt className="text-ink-3">{stockCats.data?.categories[k] ?? finCats.data?.expense_categories[k]?.replace(/ \(.*\)$/, "") ?? k}</dt><dd className="text-right font-semibold tnum">{naira(v)}</dd></Fragment>
+                  <Fragment key={k}><dt className="text-ink-3">{catName(k)}</dt><dd className="text-right font-semibold tnum">{naira(v)}</dd></Fragment>
                 ))}
                 {!!s.inputs_cost && <><dt className="text-ink-3">Total cost so far</dt><dd className="text-right font-semibold tnum">{naira(s.cost_so_far ?? 0)}</dd></>}
                 <dt className="text-ink-3">Sales</dt><dd className="text-right font-semibold tnum">{naira(s.sales_amount ?? 0)}</dd>
@@ -187,6 +189,15 @@ function View({ b, checking }: { b: BatchDetail; checking?: boolean }) {
                 <dt className="font-semibold">Result so far</dt>
                 <dd className={cn("text-right font-bold tnum", (s.result_so_far ?? 0) < 0 ? "text-crit" : "text-good")}>{naira(s.result_so_far ?? 0)}</dd>
                 {s.cost_per_head_in != null && <><dt className="text-ink-3">Cost per head stocked</dt><dd className="text-right tnum">{naira(s.cost_per_head_in)}</dd></>}
+                {!!s.farm_costs_share && <>
+                  <dt className="mt-2 border-t border-line pt-2 text-ink-3">Share of farm costs</dt>
+                  <dd className="mt-2 border-t border-line pt-2 text-right font-semibold tnum">{naira(s.farm_costs_share)}</dd>
+                  {Object.entries(s.farm_costs_by_category ?? {}).map(([k, v]) => (
+                    <Fragment key={k}><dt className="pl-3 text-[12.5px] text-ink-3">{catName(k)}</dt><dd className="text-right text-[12.5px] text-ink-2 tnum">{naira(v)}</dd></Fragment>
+                  ))}
+                  <dt className="font-semibold">Result after farm costs</dt>
+                  <dd className={cn("text-right font-bold tnum", (s.result_after_farm_costs ?? 0) < 0 ? "text-crit" : "text-good")}>{naira(s.result_after_farm_costs ?? 0)}</dd>
+                </>}
               </>}
             </dl>
             {s?.pending.length ? <ul className="mt-3 flex flex-col gap-1 text-[12.5px] text-ink-3">{s.pending.map((p) => <li key={p}>• {p}</li>)}</ul> : null}

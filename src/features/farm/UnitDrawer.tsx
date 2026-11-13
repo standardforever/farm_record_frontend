@@ -11,6 +11,7 @@ import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
 import { cn, relative } from "@/lib/format";
 import { type Site, type Unit, type UnitBatch, type UnitStatus, useArchiveUnit, useCatalog, useRestoreUnit, useUnitActivity, useUnitCost, useUpdateUnit } from "./api";
+import { BUILDS, BuildField } from "./BuildField";
 import { SizeFields, type SizeState, describeSize, noSize, sizeBody, sizeFromUnit } from "./SizeFields";
 import { UnitCostFields, type UnitCostState, noUnitCost, unitCostBody, unitCostReady } from "./CostFields";
 import { kindIcon, STATUS_LOOK, STATUS_ORDER } from "./look";
@@ -35,13 +36,13 @@ export function UnitDrawer({ unit, sites, batches = [], onClose, onStock }: {
   const [error, setError] = useState<string | null>(null);
   const [costing, setCosting] = useState(false);
   const canPay = useCanPay();
-  const [f, setF] = useState({ code: "", name: "", site: "", kind: "", purpose: "", capacity: "", notes: "" });
+  const [f, setF] = useState({ code: "", name: "", site: "", kind: "", purpose: "", capacity: "", notes: "", build: "" });
   const [size, setSize] = useState<SizeState>(noSize);
 
   useEffect(() => {
     setEditing(false); setPending(null); setNote(""); setError(null);
     if (unit) setF({ code: unit.code, name: unit.name ?? "", site: unit.site_id, kind: unit.kind, purpose: unit.purpose ?? "",
-      capacity: unit.capacity?.toString() ?? "", notes: unit.notes ?? "" });
+      capacity: unit.capacity?.toString() ?? "", notes: unit.notes ?? "", build: unit.build ?? "" });
     if (unit) setSize(sizeFromUnit(unit));
   }, [unit]);
 
@@ -64,7 +65,7 @@ export function UnitDrawer({ unit, sites, batches = [], onClose, onStock }: {
   }, `${unit.code} is now ${statuses?.[pending]?.toLowerCase() ?? pending}`);
   const save = () => run(async () => {
     await update.mutateAsync({ id: unit.id, code: f.code, name: f.name || null, site_id: f.site, kind: f.kind, purpose: f.purpose || null,
-      capacity: num(f.capacity), ...sizeBody(size, !!kinds[f.kind]?.water), notes: f.notes || null });
+      capacity: num(f.capacity), build: kinds[f.kind]?.water ? f.build || null : null, ...sizeBody(size, !!kinds[f.kind]?.water), notes: f.notes || null });
     setEditing(false);
   }, `Saved ${f.code}`);
 
@@ -100,6 +101,7 @@ export function UnitDrawer({ unit, sites, batches = [], onClose, onStock }: {
               <Field label={`Capacity (${kinds[f.kind]?.counts ?? "head"})`} htmlFor="e-cap"><Input id="e-cap" inputMode="numeric" value={f.capacity} onChange={(e) => setF({ ...f, capacity: e.target.value.replace(/\D/g, "") })} /></Field>
             </div>
             <SizeFields value={size} onChange={setSize} water={!!kinds[f.kind]?.water} idPrefix="e-size" />
+            <BuildField id="e-build" kind={f.kind} purpose={f.purpose} build={f.build} onChange={(build) => setF({ ...f, build })} size={size} />
             <Field label="Notes" htmlFor="e-notes"><Textarea id="e-notes" rows={3} value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} /></Field>
           </div>
         ) : (
@@ -123,7 +125,13 @@ export function UnitDrawer({ unit, sites, batches = [], onClose, onStock }: {
                 </>;
               })()}
               <div><dt className="text-ink-3">Site</dt><dd className="font-semibold">{site ? `${site.name} (${site.code})` : "—"}</dd></div>
+              {kinds[unit.kind]?.water && <div><dt className="text-ink-3">Built</dt><dd className="font-semibold">{unit.build ? BUILDS[unit.build] : "—"}</dd></div>}
             </dl>
+            {unit.stock_advice && <p className="rounded-xl border border-line p-3 text-[13px] text-ink-2">
+              Room for about <b className="tnum">{unit.stock_advice.good.toLocaleString("en-NG")}</b> catfish to {unit.stock_advice.harvest_g / 1000} kg,
+              {" "}<b className="tnum">{unit.stock_advice.most.toLocaleString("en-NG")}</b> at most ({unit.stock_advice.rate}, from {unit.stock_advice.basis}).
+              {unit.stock_advice.assumed && ` Worked out as ${unit.stock_advice.build === "earthen" ? "an earthen pond" : "a tarpaulin or concrete tank"}; set how it is built for a better figure.`}
+              {unit.capacity ? ` Your own capacity of ${unit.capacity.toLocaleString("en-NG")} is what Oko checks when you stock.` : ""}</p>}
             {unit.notes && <p className="whitespace-pre-line text-[13.5px] text-ink-2">{unit.notes}</p>}
             {!archived && <LooksAfter unit={unit} />}
 

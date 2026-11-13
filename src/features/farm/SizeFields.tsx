@@ -58,7 +58,7 @@ export function sizeReady(st: SizeState, water: boolean): boolean {
   return true;
 }
 
-function work(st: SizeState, water: boolean) {
+export function sizeWork(st: SizeState, water: boolean) {
   const b = sizeBody(st, water);
   const z = b.size;
   if (!z) return null;
@@ -90,7 +90,7 @@ export function SizeFields({ value: st, onChange, water, each, idPrefix = "sz" }
 }) {
   const set = (p: Partial<SizeState>) => onChange({ ...st, ...p });
   const u = st.measure;
-  const w = work(st, water);
+  const w = sizeWork(st, water);
   const id = (k: string) => `${idPrefix}-${k}`;
   const len = (k: "length" | "width" | "diameter" | "depth", label: string) => (
     <Field label={label} htmlFor={id(k)}>

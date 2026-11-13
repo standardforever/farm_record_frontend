@@ -10,13 +10,13 @@ import { shrinkPhoto } from "@/features/daily/device";
 import { useFormEvidence } from "@/features/evidence/useFormEvidence";
 import { AccountStartNote } from "./AccountStartNote";
 import { newId } from "@/features/offline/queue";
-import { useFarmMap } from "@/features/farm";
+import { useCatalog, useFarmMap } from "@/features/farm";
 import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
 import { cn, naira } from "@/lib/format";
 import {
   type Account, type Employee, day, monthRange, useAccounts, useAddExpense, useFinance, useFinanceCatalog, useReconcile, useReconciliations, useSaveAccount,
-  useSaveEmployee, useStatement, useTransfer,
+  useSaveEmployee, useStatement, useTransfer, useChargeExpense, type Expense, type WorksOn,
 } from "./api";
 
 /** Which record each statement line is, for owner corrections. */
@@ -322,20 +322,32 @@ export function EmployeeDialog({ open, onClose, employee }: { open: boolean; onC
   const save = useSaveEmployee(ws.orgId);
   const toast = useToast();
   const [f, setF] = useState({ name: "", phone: "", job_title: "", pay_basis: "monthly", rate: "", bank_name: "", account_number: "" });
+  const [works, setWorks] = useState<WorksOn>({ kind: "farm" });
+  const active = useBatches(ws.orgId, "active", open);
+  const closed = useBatches(ws.orgId, "closed", open);
+  const farm = useFarmMap(ws.orgId, false, open && ws.can("farm.view"));
+  const names = useCatalog();
+  const kinds = [...new Set([...(active.data ?? []), ...(closed.data ?? [])].map((b) => b.species))];
+  const speciesChoices = kinds.length ? kinds : ["catfish", "broilers", "layers"];
+  const unitChoices = (farm.data?.sites ?? []).flatMap((x) => x.units.filter((u) => !u.archived_at));
+  const toggle = (list: string[] | undefined, v: string) => (list ?? []).includes(v) ? (list ?? []).filter((x) => x !== v) : [...(list ?? []), v];
+  const worksOk = works.kind === "farm" || (works.kind === "species" ? !!works.species?.length : !!works.unit_ids?.length);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     if (!open) return;
     setError(null);
     setF(employee ? { name: employee.name, phone: employee.phone ?? "", job_title: employee.job_title ?? "", pay_basis: employee.pay_basis, rate: String(employee.rate),
       bank_name: employee.bank_name ?? "", account_number: employee.account_number ?? "" } : { name: "", phone: "", job_title: "", pay_basis: "monthly", rate: "", bank_name: "", account_number: "" });
+    setWorks(employee?.works_on ?? { kind: "farm" });
   }, [open, employee]);
   return (
     <Shell open={open} onClose={onClose} title={employee ? `Edit ${employee.name}` : "Add to payroll"} saving={save.isPending} error={error}
-      disabled={f.name.trim().length < 2 || !Number(f.rate)} save={async () => {
+      disabled={f.name.trim().length < 2 || !Number(f.rate) || !worksOk} save={async () => {
         setError(null);
         try {
           await save.mutateAsync({ ...(employee ? { id: employee.id } : {}), name: f.name.trim(), phone: f.phone || null, job_title: f.job_title || null,
-            pay_basis: f.pay_basis as Employee["pay_basis"], rate: Number(f.rate), bank_name: f.bank_name || null, account_number: f.account_number || null });
+            pay_basis: f.pay_basis as Employee["pay_basis"], rate: Number(f.rate), bank_name: f.bank_name || null, account_number: f.account_number || null,
+            works_on: works.kind === "farm" ? { kind: "farm" } : works.kind === "species" ? { kind: "species", species: works.species } : { kind: "units", unit_ids: works.unit_ids } });
           toast(employee ? "Saved" : `Added ${f.name}`); onClose();
         } catch (e) { setError(errMsg(e)); }
       }}>
@@ -348,6 +360,18 @@ export function EmployeeDialog({ open, onClose, employee }: { open: boolean; onC
         <Field label="Bank and account no." htmlFor="e-bank" hint="Optional"><div className="flex gap-2"><Input id="e-bank" value={f.bank_name} onChange={(e) => setF({ ...f, bank_name: e.target.value })} placeholder="Bank" />
           <Input aria-label="Account number" inputMode="numeric" value={f.account_number} onChange={(e) => setF({ ...f, account_number: e.target.value.replace(/\D/g, "") })} placeholder="0123456789" /></div></Field>
       </div>
+      <div className="flex flex-col gap-2 rounded-xl border border-line p-3">
+        <span className="text-[13px] font-semibold">Looks after</span>
+        <Segmented value={works.kind} onChange={(v) => setWorks({ kind: v as WorksOn["kind"], species: [], unit_ids: [] })}
+          options={[{ value: "farm", label: "The whole farm" }, { value: "species", label: "Kinds of animals" }, { value: "units", label: "Houses, ponds or pens" }]} />
+        {works.kind === "species" && <Chips label="Animals" items={speciesChoices.map((k) => ({ id: k, label: names.data?.purposes[k] ?? k }))}
+          on={works.species ?? []} toggle={(k) => setWorks({ ...works, species: toggle(works.species, k) })} />}
+        {works.kind === "units" && <Chips label="Units" items={unitChoices.map((u) => ({ id: u.id, label: u.code, sub: u.name ?? undefined }))}
+          on={works.unit_ids ?? []} toggle={(k) => setWorks({ ...works, unit_ids: toggle(works.unit_ids, k) })} />}
+        <p className="text-[12.5px] text-ink-3">{works.kind === "farm"
+          ? "Their pay is a whole-farm cost, shared by the batches running each month by how many animals each had and for how long."
+          : "Each month, their pay goes to the batches they looked after, by how many animals each had and for how long. It is part of those batches' costs and results."}</p>
+      </div>
     </Shell>
   );
 }
@@ -356,6 +380,80 @@ export function StatusBadge({ status }: { status: string }) {
   return status === "pending" ? <Badge tone="warn">Waiting for approval</Badge> : status === "rejected" ? <Badge tone="crit">Rejected</Badge> : null;
 }
 
+
+function Chips({ label, items, on, toggle }: { label: string; items: { id: string; label: string; sub?: string }[]; on: string[]; toggle: (id: string) => void }) {
+  if (!items.length) return <p className="text-[12.5px] text-ink-3">Nothing to choose yet.</p>;
+  return (
+    <div className="flex flex-wrap gap-1.5" role="group" aria-label={label}>
+      {items.map((c) => {
+        const sel = on.includes(c.id);
+        return (
+          <button key={c.id} type="button" aria-pressed={sel} onClick={() => toggle(c.id)}
+            className={cn("rounded-lg border px-2.5 py-1 text-[13px] transition-colors", sel ? "border-brand bg-brand-soft font-semibold text-brand" : "border-line hover:bg-surface-2")}>
+            {c.label}{c.sub ? <span className="font-normal text-ink-3"> · {c.sub}</span> : null}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Change what a recorded expense is charged to: the whole farm, or one or several batches or houses/ponds/pens,
+ * shared out. The payment itself does not change. */
+export function ChargeDialog({ expense, onClose }: { expense: Expense | null; onClose: () => void }) {
+  const ws = useCurrentWorkspace();
+  const open = !!expense;
+  const active = useBatches(ws.orgId, "active", open);
+  const closed = useBatches(ws.orgId, "closed", open);
+  const farm = useFarmMap(ws.orgId, false, open && ws.can("farm.view"));
+  const charge = useChargeExpense(ws.orgId);
+  const toast = useToast();
+  const [f, setF] = useState({ charge: "farm", picked: [] as string[], split: "even", parts: {} as Record<string, string>, reason: "" });
+  const [error, setError] = useState<string | null>(null);
+  const opened = expense?.id ?? null;
+  useEffect(() => {
+    if (!expense) return;
+    setError(null);
+    const sh = expense.shares ?? [];
+    const kind = sh.length ? sh[0].kind : expense.batch_id ? "batch" : expense.unit_id ? "unit" : "farm";
+    const ids = sh.length ? sh.map((x) => x.id) : expense.batch_id ? [expense.batch_id] : expense.unit_id ? [expense.unit_id] : [];
+    setF({ charge: kind, picked: ids, split: sh.length ? "amounts" : "even",
+      parts: Object.fromEntries(sh.map((x) => [x.id, String(x.amount)])), reason: "" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [opened]);
+  const units = (farm.data?.sites ?? []).flatMap((s) => s.units.filter((u) => !u.archived_at));
+  // Running batches, plus any closed one this expense already touches (an old cost can still belong to a finished batch).
+  const bs = [...(active.data ?? []), ...(closed.data ?? []).filter((b) => f.picked.includes(b.id) || (closed.data ?? []).length <= 12)];
+  const choices: Choice[] = f.charge === "batch" ? bs.map((b) => ({ id: b.id, code: b.code, sub: b.status === "closed" ? `${b.species}, closed` : b.species, head: b.current }))
+    : f.charge === "unit" ? units.map((u) => ({ id: u.id, code: u.code, sub: u.name ?? "", size: u.area_m2 ?? u.volume_m3, area: u.area_m2 != null })) : [];
+  const picked = choices.filter((c) => f.picked.includes(c.id));
+  const many = picked.length > 1;
+  const split = shareOut(expense?.amount ?? 0, picked, f.split, f.parts);
+  return (
+    <Shell open={open} onClose={onClose} title="Charge it to" saving={charge.isPending} error={error} label="Save"
+      disabled={f.reason.trim().length < 3 || (f.charge !== "farm" && !picked.length) || (many && !!split.problem)}
+      save={async () => {
+        if (!expense) return;
+        setError(null);
+        try {
+          await charge.mutateAsync({ id: expense.id, reason: f.reason.trim(),
+            ...(f.charge === "batch" ? { batch_ids: f.picked } : f.charge === "unit" ? { unit_ids: f.picked } : {}),
+            ...(many ? { split: f.split, ...(f.split === "amounts" ? { split_amounts: Object.fromEntries(picked.map((c) => [c.id, Number(f.parts[c.id]) || 0])) } : {}) } : {}) });
+          toast(`${expense.number} charged again`); onClose();
+        } catch (e) { setError(errMsg(e)); }
+      }}>
+      {expense && <p className="text-[13.5px] text-ink-2"><b className="font-mono">{expense.number}</b> · {expense.description} · <b className="tnum">{naira(expense.amount)}</b>.
+        The payment stays as it is; only who carries the cost changes.</p>}
+      <Segmented value={f.charge} onChange={(v) => setF({ ...f, charge: v, picked: [], split: "even", parts: {} })}
+        options={[{ value: "farm", label: "Whole farm" }, { value: "batch", label: "Batches" }, { value: "unit", label: "Houses, ponds or pens" }]} />
+      {f.charge === "farm" && <p className="text-[12.5px] text-ink-3">A whole-farm cost is shared by the batches running at the time, by how many animals each had and for how long. It shows on each batch as its share of farm costs.</p>}
+      {f.charge === "unit" && <p className="text-[12.5px] text-ink-3">The batches in those houses, ponds or pens at the time carry it, as their share of farm costs.</p>}
+      {f.charge !== "farm" && <SharePicker kind={f.charge as "batch" | "unit"} choices={choices} picked={f.picked} split={f.split} parts={f.parts}
+        result={split} onChange={(x) => setF({ ...f, ...x })} />}
+      <Field label="Why" htmlFor="ch-why" hint="Kept in the audit trail"><Input id="ch-why" value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })} placeholder="It was for both ponds" /></Field>
+    </Shell>
+  );
+}
 
 type Choice = { id: string; code: string; sub?: string; head?: number; size?: number | null; area?: boolean };
 type Shared = { parts: Record<string, number>; problem: string | null };

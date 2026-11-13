@@ -7,6 +7,7 @@ import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/format";
 import { type Site, useBulkUnits, useCatalog, useCreateUnit } from "./api";
+import { BuildField } from "./BuildField";
 import { SizeFields, type SizeState, noSize, sizeBody, sizeReady } from "./SizeFields";
 import { UnitCostFields, type UnitCostState, noUnitCost, unitCostBody, unitCostReady } from "./CostFields";
 import { kindIcon } from "./look";
@@ -22,7 +23,7 @@ export function AddUnitsDialog({ open, onClose, sites, presetSite, room }: {
   const single = useCreateUnit(ws.orgId);
   const toast = useToast();
   const [mode, setMode] = useState<"many" | "one">("many");
-  const [f, setF] = useState({ site: "", kind: "pond", count: "4", prefix: "", start: "", code: "", name: "", purpose: "", capacity: "" });
+  const [f, setF] = useState({ site: "", kind: "pond", count: "4", prefix: "", start: "", code: "", name: "", purpose: "", capacity: "", build: "" });
   const [error, setError] = useState<string | null>(null);
   const canPay = useCanPay();
   const [cost, setCost] = useState<UnitCostState>(noUnitCost);
@@ -44,7 +45,7 @@ export function AddUnitsDialog({ open, onClose, sites, presetSite, room }: {
 
   const save = async () => {
     setError(null);
-    const shared = { site_id: f.site, kind: f.kind, purpose: f.purpose || null, capacity: num(f.capacity), ...sizeBody(size, !!kind?.water),
+    const shared = { site_id: f.site, kind: f.kind, purpose: f.purpose || null, capacity: num(f.capacity), build: f.build || null, ...sizeBody(size, !!kind?.water),
       cost: unitCostBody(cost, canPay) };
     try {
       if (mode === "many") {
@@ -109,6 +110,7 @@ export function AddUnitsDialog({ open, onClose, sites, presetSite, room }: {
             <Input id="u-capacity" inputMode="numeric" value={f.capacity} onChange={(e) => setF({ ...f, capacity: e.target.value.replace(/\D/g, "") })} /></Field>
         </div>
         <SizeFields value={size} onChange={setSize} water={!!kind?.water} each={mode === "many" && count > 1} idPrefix="u-size" />
+        <BuildField id="u-build" kind={f.kind} purpose={f.purpose} build={f.build} onChange={(build) => setF({ ...f, build })} size={size} each={mode === "many" && count > 1} />
         <UnitCostFields value={cost} onChange={setCost} count={mode === "many" ? count : 1} />
       </div>
     </Dialog>

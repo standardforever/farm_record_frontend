@@ -1,8 +1,9 @@
 "use client";
 
+import { StartSizeField } from "@/features/packs";
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Plus, Trash2 } from "lucide-react";
-import { Field, Input } from "@/components/ui";
+import { Field, Input, Select } from "@/components/ui";
 import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
 import { cn, naira } from "@/lib/format";
@@ -119,13 +120,17 @@ export function Calculator({ plan, onSaving }: { plan: Plan; onSaving: (s: "savi
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label={`How many ${counts}`} htmlFor="c-count"><Input id="c-count" inputMode="numeric" disabled={linked} value={f.count} onChange={(e) => set({ count: int(e.target.value) })} /></Field>
           <Field label="Stocking date" htmlFor="c-start"><Input id="c-start" type="date" disabled={linked} value={f.start_on} onChange={(e) => set({ start_on: e.target.value })} /></Field>
-          <Field label="Age when they arrive (days)" htmlFor="c-age" hint={h.young === "day-old chicks" ? "0 for day-old chicks" : undefined}>
-            <Input id="c-age" inputMode="numeric" disabled={linked} value={f.age} onChange={(e) => set({ age: int(e.target.value) })} /></Field>
-          <Field label="Sell at age (days)" htmlFor="c-sell-day" hint={`Usually day ${h.sell_day}; up to day ${h.max_day}`}>
-            <Input id="c-sell-day" inputMode="numeric" value={f.sell_day} onChange={(e) => set({ sell_day: int(e.target.value) })} /></Field>
+          {linked ? <Field label="Age when they arrive (days)" htmlFor="c-age"><Input id="c-age" disabled value={f.age} /></Field>
+            : <StartSizeField id="c-age" sizes={plan.pack.start_sizes} age={f.age} daysHint={h.young === "day-old chicks" ? "0 for day-old chicks" : undefined}
+                onChange={(age) => set({ age })} />}
+          {plan.pack.start_sizes?.length ? <KeepFor age={Number(f.age) || 0} sell={f.sell_day} max={h.max_day} usual={h.sell_day}
+              weight={plan.result?.weight_end_g ?? null} onChange={(sell_day) => set({ sell_day })} />
+            : <Field label="Sell at age (days)" htmlFor="c-sell-day" hint={`Usually day ${h.sell_day}; up to day ${h.max_day}`}>
+                <Input id="c-sell-day" inputMode="numeric" value={f.sell_day} onChange={(e) => set({ sell_day: int(e.target.value) })} /></Field>}
           <Field label="Expected losses (%)" htmlFor="c-mort" hint={`Most farms lose some. ${h.mortality_pct}% is a fair guess for a beginner.`}>
             <Input id="c-mort" inputMode="decimal" value={f.mortality_pct} onChange={(e) => set({ mortality_pct: dec(e.target.value) })} /></Field>
         </div>
+        {plan.pack.stocking && Number(f.count) > 0 && <SpaceNeeded count={Number(f.count)} stocking={plan.pack.stocking} />}
       </Section>
 
       <Section id="c-buy" title={`Buying the ${h.young}`}>
@@ -140,6 +145,7 @@ export function Calculator({ plan, onSaving }: { plan: Plan; onSaving: (s: "savi
           const ph = plan.pack.phases.find((p) => p.name === x.phase);
           const line = plan.result?.feed?.find((l) => l.phase === x.phase);
           const worked = line?.worked_out_bags;
+          if (plan.result && !line) return null;  // not used in this plan (e.g. the 1.5 mm feed for juveniles)
           return (
             <div key={x.phase} className="rounded-xl border border-line p-3">
               <div className="mb-2 text-[13.5px]"><b>{x.phase}</b>{ph?.protein_pct ? <span className="text-ink-3"> · {ph.protein_pct}% protein{ph.form ? `, ${ph.form}` : ""}</span> : null}</div>
@@ -220,5 +226,47 @@ export function Calculator({ plan, onSaving }: { plan: Plan; onSaving: (s: "savi
       </Section>
       <p className="px-1 text-[12px] text-ink-3">Prices are saved with this plan, and your next plan starts with them.</p>
     </fieldset>
+  );
+}
+
+
+const MONTH = 30;  // "5½ months" = 165 days, the guide's usual time for juveniles
+
+/** Fish: how long to keep them, in months from arrival, instead of a selling age in days. */
+function KeepFor({ age, sell, max, usual, weight, onChange }: { age: number; sell: string; max: number; usual: number; weight: number | null; onChange: (sell: string) => void }) {
+  const kept = (Number(sell) || usual) - age;
+  const options: number[] = [];
+  for (let m = 2; age + Math.round(m * MONTH) <= max; m += 0.5) options.push(m);
+  const exact = options.find((m) => Math.round(m * MONTH) === kept);
+  const label = (m: number) => `${m % 1 ? `${Math.floor(m)}½` : m} month${m === 1 ? "" : "s"}`;
+  return (
+    <Field label="Keep them for" htmlFor="c-keep"
+      hint={weight ? `About ${weight >= 1000 ? `${(weight / 1000).toLocaleString("en-NG", { maximumFractionDigits: 2 })} kg` : `${Math.round(weight)} g`} each by then (usually ${label(Math.round((usual - age) / MONTH * 2) / 2)}).` : undefined}>
+      <Select id="c-keep" value={exact != null ? String(exact) : "days"} onChange={(e) => {
+        if (e.target.value !== "days") onChange(String(age + Math.round(Number(e.target.value) * MONTH)));
+      }}>
+        {options.map((m) => <option key={m} value={m}>{label(m)}</option>)}
+        {exact == null && <option value="days">{kept} days</option>}
+      </Select>
+    </Field>
+  );
+}
+
+/** Fish: the water they need at harvest size, so a farmer can see before buying whether their ponds are big enough. */
+function SpaceNeeded({ count, stocking }: { count: number; stocking: NonNullable<Plan["pack"]["stocking"]> }) {
+  const tank = stocking.by_build.tarpaulin ?? stocking.by_build.concrete;
+  const earth = stocking.by_build.earthen;
+  const n = (x: number) => x.toLocaleString("en-NG", { maximumFractionDigits: x < 10 ? 1 : 0 });
+  const ft3 = 35.3147;
+  return (
+    <div className="mt-3 rounded-xl bg-surface-2 p-3 text-[13px]">
+      <b>Space they need at harvest ({stocking.harvest_g >= 1000 ? `${stocking.harvest_g / 1000} kg` : `${stocking.harvest_g} g`} each)</b>
+      <ul className="mt-1 flex flex-col gap-0.5 text-ink-2">
+        {tank && <li>Tarpaulin or concrete: about <b className="tnum">{n(count / tank.good)} m³</b> of water ({n(count / tank.good * ft3)} ft³) to be comfortable;
+          at least {n(count / tank.most)} m³ with the water changed every 1–2 days.</li>}
+        {earth && <li>Earthen pond: about <b className="tnum">{n(count / earth.good)} m²</b> of water surface; at least {n(count / earth.most)} m² with an aerator.</li>}
+      </ul>
+      <p className="mt-1 text-[12px] text-ink-3">For example, a 10 ft × 10 ft tarpaulin filled to 3½ ft holds about 9.9 m³: room for about {n(9.9 * (tank?.good ?? 30))} comfortably, {n(9.9 * (tank?.most ?? 60))} at most.</p>
+    </div>
   );
 }

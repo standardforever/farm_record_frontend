@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Alert, Button, Dialog, Field, Input, Select } from "@/components/ui";
 import { useCatalog } from "@/features/farm";
-import { usePacks } from "@/features/packs";
+import { StartSizeField, usePacks } from "@/features/packs";
 import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
 import { localDay, shiftDay } from "@/features/daily/api";
@@ -21,7 +21,10 @@ export function NewPlanDialog({ open, onClose }: { open: boolean; onClose: () =>
   const [error, setError] = useState<string | null>(null);
   const pack = packs.data?.find((p) => p.key === f.species);
   useEffect(() => { if (open) setError(null); }, [open]);
-  useEffect(() => { setF((x) => ({ ...x, breed_key: pack?.breeds[0]?.key ?? "" })); }, [pack]);
+  useEffect(() => {  // a new species: its first breed, and for fish the size most people buy (juveniles)
+    setF((x) => ({ ...x, breed_key: pack?.breeds[0]?.key ?? "",
+      age: pack?.start_sizes?.length ? String((pack.start_sizes.find((z) => z.key === "juvenile") ?? pack.start_sizes[0]).age_days) : x.age }));
+  }, [pack]);
   const valid = f.species && Number(f.count) > 0 && f.start_on;
 
   const save = async () => {
@@ -47,8 +50,8 @@ export function NewPlanDialog({ open, onClose }: { open: boolean; onClose: () =>
           <Field label={`How many ${f.species === "catfish" ? "fish" : "birds"}`} htmlFor="np-count">
             <Input id="np-count" inputMode="numeric" value={f.count} onChange={(e) => setF({ ...f, count: e.target.value.replace(/\D/g, "") })} placeholder="500" /></Field>
           <Field label="When they arrive" htmlFor="np-start"><Input id="np-start" type="date" value={f.start_on} onChange={(e) => setF({ ...f, start_on: e.target.value })} /></Field>
-          {f.species !== "broilers" && <Field label="Age when they arrive (days)" htmlFor="np-age" hint={f.species === "layers" ? "0 for day-old chicks; about 112 for point-of-lay" : "0 for fingerlings of about 5 g"}>
-            <Input id="np-age" inputMode="numeric" value={f.age} onChange={(e) => setF({ ...f, age: e.target.value.replace(/\D/g, "") })} placeholder="0" /></Field>}
+          {f.species !== "broilers" && <StartSizeField id="np-age" sizes={pack?.start_sizes} age={f.age}
+            daysHint={f.species === "layers" ? "0 for day-old chicks; about 112 for point-of-lay" : undefined} onChange={(age) => setF({ ...f, age })} />}
         </div>
         <p className="text-[12.5px] text-ink-3">The planner covers broilers, layers and catfish for now.</p>
       </div>

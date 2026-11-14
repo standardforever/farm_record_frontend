@@ -14,7 +14,7 @@ export function AlertCard({ a }: { a: ClimateAlert }) {
   const toast = useToast();
   const danger = a.level === "danger";
   return (
-    <article className={cn("rounded-2xl border p-4", danger ? "border-crit/50 bg-crit-soft/40" : "border-warn/50 bg-maize-soft/50")}>
+    <article className={cn("rounded-2xl border p-4", danger ? "border-crit/50 bg-crit-soft/40" : "border-warn/50 bg-warn-soft/50")}>
       <div className="flex items-start gap-3">
         <AlertTriangle size={22} className={cn("mt-0.5 shrink-0", danger ? "text-crit" : "text-warn")} />
         <div className="min-w-0 flex-1">
@@ -55,9 +55,9 @@ export function ClimateHomeCard({ big }: { big?: boolean }) {
   const W = tomorrow ? weatherOf(tomorrow.code).icon : CloudSun;
   return (
     <Link href={`/w/${ws.orgId}/climate`} className={cn("flex items-center gap-3 rounded-2xl border p-4",
-      first ? (first.level === "danger" ? "border-crit/50 bg-crit-soft/40" : "border-warn/50 bg-maize-soft/50") : "border-line bg-surface")}>
+      first ? (first.level === "danger" ? "border-crit/50 bg-crit-soft/40" : "border-warn/50 bg-warn-soft/50") : "border-line bg-surface")}>
       <span className={cn("grid shrink-0 place-items-center rounded-xl", big ? "h-11 w-11" : "h-10 w-10",
-        first ? (first.level === "danger" ? "bg-crit-soft text-crit" : "bg-maize-soft text-warn") : "bg-water-soft text-water")}>
+        first ? (first.level === "danger" ? "bg-crit-soft text-crit" : "bg-warn-soft text-warn") : "bg-water-soft text-water")}>
         {first ? <ThermometerSun size={24} /> : <W size={24} />}
       </span>
       <span className="min-w-0 flex-1">

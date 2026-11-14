@@ -62,7 +62,7 @@ export function PlanDays({ plan }: { plan: Plan }) {
                       className="mt-1 h-[18px] w-[18px] shrink-0 accent-[var(--brand)]" />
                   ) : (
                     <span className={cn("grid h-8 w-8 shrink-0 place-items-center rounded-lg",
-                      d.kind === "vaccination" ? "bg-water-soft text-water" : d.kind === "harvest" ? "bg-good-soft text-good" : d.kind === "feed_phase" ? "bg-maize-soft text-warn" : "bg-surface-2 text-ink-2")}>
+                      d.kind === "vaccination" ? "bg-water-soft text-water" : d.kind === "harvest" ? "bg-good-soft text-good" : d.kind === "feed_phase" ? "bg-warn-soft text-warn" : "bg-surface-2 text-ink-2")}>
                       <Icon size={16} /></span>
                   )}
                   <div className="min-w-0 flex-1 basis-[220px]">

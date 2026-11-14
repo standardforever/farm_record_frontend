@@ -6,16 +6,17 @@ type Variant = "primary" | "secondary" | "ghost" | "danger" | "maize";
 type Size = "sm" | "md" | "lg";
 
 const variants: Record<Variant, string> = {
-  primary: "bg-brand text-on-brand border-brand hover:bg-brand-2 hover:border-brand-2",
+  primary: "bg-brand text-on-brand border-brand hover:bg-brand-2 hover:border-brand-2 glow-hover",
   secondary: "bg-surface text-ink border-line hover:bg-surface-2",
   ghost: "bg-transparent text-ink-2 border-transparent hover:bg-surface-2 hover:text-ink",
   danger: "bg-surface text-crit border-line hover:bg-crit-soft",
-  maize: "bg-maize text-on-maize border-maize hover:brightness-105",
+  maize: "bg-maize text-on-maize border-maize hover:brightness-105 glow-hover",
 };
 const sizes: Record<Size, string> = {
-  sm: "h-8 px-3 text-[12.5px] rounded-lg gap-1.5",
-  md: "h-10 px-4 text-[13.5px] rounded-[10px] gap-2",
-  lg: "h-12 px-5 text-[15px] rounded-xl gap-2",
+  // Pill buttons, as on standeva.com.
+  sm: "h-8 px-3.5 text-[12.5px] rounded-full gap-1.5",
+  md: "h-10 px-[18px] text-[13.5px] rounded-full gap-2",
+  lg: "h-12 px-6 text-[15px] rounded-full gap-2",
 };
 
 export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {

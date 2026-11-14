@@ -30,7 +30,7 @@ function Inner() {
         <>
           <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {(roles.data ?? []).map((r) => (
-              <button key={r.id} onClick={() => setOpen({ role: r })} className="flex cursor-pointer flex-col gap-1.5 rounded-[14px] border border-line bg-surface p-4 text-left hover:border-ink-3">
+              <button key={r.id} onClick={() => setOpen({ role: r })} className="flex cursor-pointer flex-col gap-1.5 rounded-[16px] border border-line bg-surface p-4 text-left hover:border-ink-3">
                 <span className="flex items-center gap-2"><b>{r.name}</b>
                   <Badge tone={r.kind === "guest" ? "maize" : "brand"}>{r.kind === "guest" ? "Guest" : "Team"}</Badge>
                   {r.is_system ? <Lock size={13} className="ml-auto text-ink-3" /> : <Badge tone="info" className="ml-auto">Custom</Badge>}</span>

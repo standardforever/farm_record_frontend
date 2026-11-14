@@ -125,9 +125,9 @@ export function FarmDashboard() {
 
 function SideCard({ icon, title, href, lines, warn }: { icon: React.ReactNode; title: string; href: string; lines: (string | null)[]; warn?: boolean }) {
   return (
-    <Link href={href} className="group rounded-[14px] border border-line bg-surface p-4 hover:shadow-[var(--shadow)]">
+    <Link href={href} className="group rounded-[16px] border border-line bg-surface p-4 hover:shadow-[var(--shadow)]">
       <div className="flex items-center gap-2">
-        <span className={cn("grid h-8 w-8 place-items-center rounded-lg", warn ? "bg-maize-soft text-warn" : "bg-brand-soft text-brand")}>{icon}</span>
+        <span className={cn("grid h-8 w-8 place-items-center rounded-lg", warn ? "bg-warn-soft text-warn" : "bg-brand-soft text-brand")}>{icon}</span>
         <b className="text-[14.5px]">{title}</b>
         {warn && <Badge tone="warn" className="ml-1"><AlertTriangle size={11} /> Look</Badge>}
         <ArrowRight size={15} className="ml-auto text-ink-3 group-hover:text-ink" />

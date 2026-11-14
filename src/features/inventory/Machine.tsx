@@ -67,7 +67,7 @@ export function MachineView({ id }: { id: string }) {
 
       <div className="flex flex-col gap-4">
         {e.status === "broken" && (
-          <div role="alert" className="flex gap-2.5 rounded-[14px] border border-[color-mix(in_oklab,var(--crit)_35%,transparent)] bg-crit-soft p-4 text-[14px]">
+          <div role="alert" className="flex gap-2.5 rounded-[16px] border border-[color-mix(in_oklab,var(--crit)_35%,transparent)] bg-crit-soft p-4 text-[14px]">
             <AlertTriangle size={18} className="mt-0.5 shrink-0 text-crit" />
             <span><b className="text-crit">Broken{e.broken_since ? ` since ${day(e.broken_since)}` : ""}.</b> {e.broken_note}
               <span className="block text-ink-2">When it is fixed, log the repair and tick &ldquo;It is working again&rdquo;.</span></span>

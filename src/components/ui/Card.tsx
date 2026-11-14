@@ -5,7 +5,7 @@ export function Card({ title, meta, action, children, className, flush }: {
   title?: ReactNode; meta?: ReactNode; action?: ReactNode; children: ReactNode; className?: string; flush?: boolean;
 }) {
   return (
-    <section className={cn("flex min-w-0 flex-col rounded-[14px] border border-line bg-surface", className)}>
+    <section className={cn("flex min-w-0 flex-col rounded-[16px] border border-line bg-surface shadow-[0_1px_2px_rgba(16,24,40,.04)]", className)}>
       {(title || action) && (
         <header className="flex flex-wrap items-start justify-between gap-2.5 px-4 pt-4">
           <div className="min-w-0">
@@ -22,8 +22,8 @@ export function Card({ title, meta, action, children, className, flush }: {
 
 export function Stat({ label, value, sub, hero }: { label: string; value: ReactNode; sub?: ReactNode; hero?: boolean }) {
   return (
-    <div className={cn("flex min-w-0 flex-col gap-1 rounded-[14px] border px-4 py-3.5",
-      hero ? "border-brand bg-brand text-on-brand" : "border-line bg-surface")}>
+    <div className={cn("relative flex min-w-0 flex-col gap-1 overflow-hidden rounded-[16px] border px-4 py-3.5",
+      hero ? "brand-fill border-transparent shadow-[0_12px_30px_-12px_var(--glow)]" : "border-line bg-surface")}>
       <span className={cn("text-[12.5px] font-medium", hero ? "opacity-85" : "text-ink-2")}>{label}</span>
       <span className="font-display text-[26px] font-bold leading-tight tracking-tight tnum">{value}</span>
       {sub && <span className={cn("text-[12.5px]", hero ? "opacity-85" : "text-ink-3")}>{sub}</span>}

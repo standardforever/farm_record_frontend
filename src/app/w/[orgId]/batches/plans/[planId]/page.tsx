@@ -72,7 +72,7 @@ function Inner({ id }: { id: string }) {
         money ? (
           <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
             {p.result?.total_cost != null && (
-              <a href="#plan-results" className="flex items-center justify-between gap-3 rounded-[14px] border border-line bg-surface px-4 py-3 text-[13.5px] lg:hidden">
+              <a href="#plan-results" className="flex items-center justify-between gap-3 rounded-[16px] border border-line bg-surface px-4 py-3 text-[13.5px] lg:hidden">
                 <span>Costs about <b className="tnum">{naira(p.result.total_cost)}</b>
                   {p.result.profit != null && <> · <b className={p.result.profit >= 0 ? "text-good" : "text-crit"}>{p.result.profit >= 0 ? `${naira(p.result.profit)} profit` : `${naira(-p.result.profit)} loss`}</b></>}</span>
                 <span className="shrink-0 font-semibold text-brand">See results</span>

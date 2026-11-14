@@ -8,7 +8,7 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
   useEffect(() => { reportError(error, "render"); }, [error]);
   return (
     <html lang="en">
-      <body style={{ margin: 0, fontFamily: "system-ui, sans-serif", background: "#f1f4ee", color: "#13241b" }}>
+      <body style={{ margin: 0, fontFamily: "system-ui, sans-serif", background: "#f4f7fb", color: "#101828" }}>
         <div role="alert" style={{ maxWidth: 420, margin: "120px auto", padding: "0 16px", textAlign: "center" }}>
           <h1 style={{ fontSize: 24 }}>Oko hit a problem</h1>
           <p style={{ color: "#4a5a50" }}>The team has been told. Anything you saved is safe, including records waiting to send.</p>

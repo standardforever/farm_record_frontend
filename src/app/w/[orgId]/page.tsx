@@ -64,7 +64,7 @@ function Home() {
       {farmOn && <div className="mb-4"><ClimateHomeCard /></div>}
       {farmOn && unitCount > 0 && <div className="mb-4"><FarmDashboard /></div>}
       {farmOn && farm.data && unitCount === 0 && ws.can("farm.setup") && (
-        <Link href={`${base}/setup`} className="mb-4 flex items-center gap-3 rounded-[14px] border border-brand bg-brand-soft/40 p-4 hover:shadow-[var(--shadow)]">
+        <Link href={`${base}/setup`} className="mb-4 flex items-center gap-3 rounded-[16px] border border-brand bg-brand-soft/40 p-4 hover:shadow-[var(--shadow)]">
           <span className="min-w-0 flex-1"><b className="block text-[16px]">Set up your farm</b>
             <span className="text-[13.5px] text-ink-2">Six short steps: the site, houses or ponds, the animals, the feed store, the team and the phones.</span></span>
           <ArrowRight size={18} className="text-brand" />

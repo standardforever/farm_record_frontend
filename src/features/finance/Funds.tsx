@@ -353,7 +353,7 @@ function LoanSheet({ id, onClose, onRepay }: { id: string; onClose: () => void; 
 export function LoansCard({ loans, onOpen }: { loans: LoansOwed; onOpen: () => void }) {
   if (!loans.loans) return null;
   return (
-    <button type="button" onClick={onOpen} className="flex w-full cursor-pointer items-center gap-3 rounded-[14px] border border-line bg-surface p-4 text-left hover:shadow-[var(--shadow)]">
+    <button type="button" onClick={onOpen} className="flex w-full cursor-pointer items-center gap-3 rounded-[16px] border border-line bg-surface p-4 text-left hover:shadow-[var(--shadow)]">
       <span className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-lg", loans.overdue ? "bg-crit-soft text-crit" : "bg-brand-soft text-brand")}>
         {loans.overdue ? <AlertTriangle size={17} /> : <ArrowDownLeft size={17} />}</span>
       <span className="min-w-0 flex-1 text-[13.5px]"><b>{naira(loans.owed)} owed on {loans.loans} loan{loans.loans > 1 ? "s" : ""}</b>

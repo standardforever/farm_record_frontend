@@ -7,13 +7,13 @@ import {
 import { EMAIL, PHONE, WHATSAPP } from "./site";
 
 export const metadata: Metadata = {
-  title: { absolute: "Oko: farm records for Nigerian livestock farmers" },
+  title: { absolute: "Oko by StandEva: farm records for Nigerian livestock farmers" },
   description: "Daily records, animal health, feed stock, sales and profit per batch for poultry and fish farms. Works on any phone, even without network.",
   alternates: { canonical: "/" },
   openGraph: {
     title: "Oko: farm records that work where your farm is",
     description: "Daily records, animal health, feed stock, sales and profit per batch. Works on any phone, even without network.",
-    type: "website", siteName: "Oko", locale: "en_NG",
+    type: "website", siteName: "Oko by StandEva", locale: "en_NG",
     images: [{ url: "/landing/og.png", width: 1200, height: 630, alt: "Oko on a phone: today's farm work and a heat alert" }],
   },
   twitter: { card: "summary_large_image" },
@@ -39,25 +39,28 @@ export default function Landing() {
       <script dangerouslySetInnerHTML={{ __html: SKIP }} />
 
       {/* Hero */}
-      <section className="relative overflow-hidden bg-side text-side-ink">
-        <svg className="pointer-events-none absolute -left-40 -top-40 h-[560px] w-[560px] opacity-[.07]" viewBox="0 0 200 200" aria-hidden>
-          <circle cx="100" cy="100" r="98" fill="none" stroke="#fff" /><circle cx="100" cy="100" r="70" fill="none" stroke="#fff" /><circle cx="100" cy="100" r="42" fill="none" stroke="#fff" />
-        </svg>
+      <section className="navy-hero overflow-hidden">
         <div className="relative mx-auto grid max-w-[1180px] items-center gap-10 px-4 pb-0 pt-12 sm:px-6 md:grid-cols-[1.1fr_1fr] md:pt-20">
           <div className="pb-4 md:pb-24">
-            <p className="eyebrow !text-maize">For poultry and fish farms in Nigeria</p>
-            <h1 className="mt-3 font-display text-[40px] font-bold leading-[1.03] tracking-tight text-white sm:text-[56px]">
-              Farm records that work where your farm is.
+            <p className="inline-flex items-center gap-2.5 rounded-full border border-white/10 bg-white/[.04] px-4 py-1.5 text-[13.5px] text-[#98a5bd]">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-[#2ee6a6]" /> For poultry and fish farms in Nigeria
+            </p>
+            <h1 className="mt-6 font-display text-[42px] font-bold leading-[1.02] tracking-[-0.04em] text-white sm:text-[62px]">
+              Farm records that work <span className="grad-text">where your farm is.</span>
             </h1>
-            <p className="mt-5 max-w-[540px] text-[17px] leading-relaxed text-side-ink">
+            <p className="mt-6 max-w-[540px] text-[17.5px] leading-relaxed text-[#98a5bd]">
               Oko keeps your daily records, animal health, feed stock, sales and money in one place, on any phone, even
               with no network. You see what each batch really made, and your workers know what to do today.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link href="/register" className="rounded-xl bg-maize px-5 py-3 text-[15.5px] font-bold text-on-maize hover:brightness-105">Create a free account</Link>
-              <a href={WHATSAPP} className="rounded-xl border border-white/25 px-5 py-3 text-[15.5px] font-semibold text-white hover:bg-white/10">Talk to us on WhatsApp</a>
+              <Link href="/register" className="glow-hover inline-flex min-h-12 items-center rounded-full bg-[#2f5bff] px-7 text-[16px] font-semibold text-white">Create a free account</Link>
+              <a href={WHATSAPP} className="inline-flex min-h-12 items-center rounded-full border border-white/15 px-7 text-[16px] font-semibold text-white transition-colors hover:border-[#5c8bff] hover:bg-white/[.04]">Talk to us on WhatsApp</a>
             </div>
-            <p className="mt-4 text-[13px] text-side-ink-2">Free while we run the pilot. Your records stay yours.</p>
+            <ul className="mt-7 flex flex-wrap gap-x-6 gap-y-2 text-[14px] text-[#98a5bd]">
+              {["Free during the pilot", "Works without network", "Your records stay yours"].map((t) => (
+                <li key={t} className="flex items-center gap-2"><span className="grid h-4 w-4 place-items-center rounded-full bg-[#2f5bff]"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m5 12 5 5 9-10" /></svg></span>{t}</li>
+              ))}
+            </ul>
           </div>
           <div className="relative mx-auto flex w-full max-w-[460px] items-end justify-center gap-4 self-end">
             <Phone src="/landing/phone-today.webp" alt="Today's list in Oko: feed, deaths, weigh, eggs, water and the morning checklist" className="hidden w-[46%] translate-y-10 sm:block" />
@@ -78,11 +81,11 @@ export default function Landing() {
       {/* Features */}
       <section id="features" className="mx-auto max-w-[1180px] scroll-mt-20 px-4 py-16 sm:px-6 md:py-24">
         <p className="eyebrow">What Oko does</p>
-        <h2 className="mt-2 max-w-[720px] font-display text-[32px] font-bold leading-tight sm:text-[40px]">Everything a farm records, in one place, without the notebook.</h2>
-        <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <h2 className="mt-3 max-w-[720px] font-display text-[34px] font-bold leading-[1.08] tracking-[-0.03em] sm:text-[44px]">Everything a farm records, in one place, without the notebook.</h2>
+        <ul className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {FEATURES.map((f) => (
-            <li key={f.title} className="rounded-[16px] border border-line bg-surface p-5">
-              <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand-soft text-brand"><f.icon size={20} aria-hidden /></span>
+            <li key={f.title} className="group rounded-[18px] border border-line bg-surface p-6 transition duration-200 hover:-translate-y-1 hover:border-brand/40 hover:shadow-[0_18px_40px_-18px_var(--glow)]">
+              <span className="brand-fill grid h-11 w-11 place-items-center rounded-[12px] shadow-[0_8px_20px_-8px_var(--glow)]"><f.icon size={20} aria-hidden /></span>
               <h3 className="mt-4 text-[16.5px] font-bold">{f.title}</h3>
               <p className="mt-1.5 text-[14px] leading-relaxed text-ink-2">{f.body}</p>
             </li>
@@ -105,7 +108,7 @@ export default function Landing() {
         <div className="grid gap-10 md:grid-cols-[1fr_1.1fr] md:items-center">
           <div>
             <p className="eyebrow">Made for how farms really work</p>
-            <h2 className="mt-2 font-display text-[32px] font-bold leading-tight sm:text-[40px]">Cheap phones, weak signal, busy mornings.</h2>
+            <h2 className="mt-3 font-display text-[34px] font-bold leading-[1.08] tracking-[-0.03em] sm:text-[44px]">Cheap phones, weak signal, busy mornings.</h2>
             <ul className="mt-6 flex flex-col gap-3 text-[15px] text-ink-2">
               {[
                 "Opens and works offline; nothing is lost if the phone dies mid-way",
@@ -124,7 +127,7 @@ export default function Landing() {
       <section id="install" className="scroll-mt-20 bg-surface">
         <div className="mx-auto max-w-[1180px] px-4 py-16 sm:px-6 md:py-24">
           <p className="eyebrow">Install</p>
-          <h2 className="mt-2 font-display text-[32px] font-bold leading-tight sm:text-[40px]">Put Oko on your phone in a minute.</h2>
+          <h2 className="mt-3 font-display text-[34px] font-bold leading-[1.08] tracking-[-0.03em] sm:text-[44px]">Put Oko on your phone in a minute.</h2>
           <p className="mt-3 max-w-[640px] text-[15.5px] text-ink-2">No app store needed. Installed, Oko opens from your home screen, full screen, and works without network. Sign in once with network first.</p>
           <div className="mt-8 grid gap-4 md:grid-cols-3">
             <Steps title="Android" steps={["Open Oko in Chrome and sign in", "Tap “Install app” (or ⋮ → Add to Home screen)", "Open Oko from your home screen"]} />
@@ -134,16 +137,38 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* Built by StandEva */}
+      <section className="mx-auto max-w-[1180px] px-4 py-16 sm:px-6 md:py-20">
+        <div className="grid items-center gap-8 rounded-[24px] border border-line bg-surface p-7 sm:p-10 md:grid-cols-[auto_1fr_auto]">
+          <svg width="64" height="64" viewBox="0 0 120 120" aria-hidden className="drop-shadow-[0_10px_24px_rgba(23,75,255,.35)]">
+            <rect width="120" height="120" rx="28" fill="#174bff" />
+            <path d="M82 38H50a14 14 0 0 0 0 28h20a14 14 0 0 1 0 28H38" fill="none" stroke="#fff" strokeWidth="12" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <div>
+            <p className="eyebrow">Built by StandEva</p>
+            <h2 className="mt-2 font-display text-[26px] font-bold leading-tight tracking-[-0.03em] sm:text-[30px]">Oko is a StandEva product.</h2>
+            <p className="mt-2 max-w-[640px] text-[15.5px] text-ink-2">
+              StandEva designs and builds custom software, AI automation and business systems. Oko is what we built for
+              livestock farms: made in Nigeria, with farmers, and looked after by the same team.
+            </p>
+          </div>
+          <a href="https://www.standeva.com" target="_blank" rel="noopener noreferrer"
+            className="inline-flex min-h-11 items-center justify-self-start rounded-full border border-line px-6 text-[15px] font-semibold transition-colors hover:border-brand hover:text-brand md:justify-self-end">
+            Visit standeva.com
+          </a>
+        </div>
+      </section>
+
       {/* Pilot */}
-      <section id="pilot" className="scroll-mt-20 bg-side text-side-ink">
+      <section id="pilot" className="navy-hero scroll-mt-20 overflow-hidden">
         <div className="mx-auto flex max-w-[1180px] flex-col items-start gap-6 px-4 py-16 sm:px-6 md:flex-row md:items-center md:justify-between md:py-20">
           <div className="max-w-[640px]">
-            <h2 className="font-display text-[30px] font-bold leading-tight text-white sm:text-[36px]">We are setting up our first pilot farms.</h2>
-            <p className="mt-3 text-[15.5px]">Poultry or fish farm? We will set Oko up with you and your workers, and listen to what you need next.</p>
+            <h2 className="font-display text-[32px] font-bold leading-[1.08] tracking-[-0.03em] text-white sm:text-[42px]">We are setting up our <span className="grad-text">first pilot farms.</span></h2>
+            <p className="mt-3 text-[16px] text-[#98a5bd]">Poultry or fish farm? We will set Oko up with you and your workers, and listen to what you need next.</p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <a href={WHATSAPP} className="rounded-xl bg-maize px-5 py-3 text-[15.5px] font-bold text-on-maize hover:brightness-105">WhatsApp {PHONE}</a>
-            <a href={`mailto:${EMAIL}?subject=${encodeURIComponent("Oko pilot")}`} className="rounded-xl border border-white/25 px-5 py-3 text-[15.5px] font-semibold text-white hover:bg-white/10">Email us</a>
+            <a href={WHATSAPP} className="glow-hover inline-flex min-h-12 items-center rounded-full bg-[#2f5bff] px-7 text-[16px] font-semibold text-white">WhatsApp {PHONE}</a>
+            <a href={`mailto:${EMAIL}?subject=${encodeURIComponent("Oko pilot")}`} className="inline-flex min-h-12 items-center rounded-full border border-white/15 px-7 text-[16px] font-semibold text-white transition-colors hover:border-[#5c8bff] hover:bg-white/[.04]">Email us</a>
           </div>
         </div>
       </section>
@@ -153,7 +178,7 @@ export default function Landing() {
 
 function Phone({ src, alt, className = "", priority }: { src: string; alt: string; className?: string; priority?: boolean }) {
   return (
-    <div className={`overflow-hidden rounded-[28px] border-[6px] border-[#0b1f16] bg-[#0b1f16] shadow-[0_30px_60px_-20px_rgba(0,0,0,.55)] ${className}`}>
+    <div className={`overflow-hidden rounded-[28px] border-[6px] border-[#0b1220] bg-[#0b1220] shadow-[0_30px_70px_-20px_rgba(23,75,255,.45)] ring-1 ring-white/10 ${className}`}>
       <Image src={src} alt={alt} width={780} height={1688} priority={priority} sizes="(max-width: 640px) 62vw, 260px" className="h-auto w-full rounded-[22px]" />
     </div>
   );
@@ -162,7 +187,7 @@ function Phone({ src, alt, className = "", priority }: { src: string; alt: strin
 function Screen({ src, alt, title, body }: { src: string; alt: string; title: string; body: string }) {
   return (
     <figure>
-      <div className="overflow-hidden rounded-[16px] border border-line bg-surface shadow-[0_20px_50px_-25px_rgba(0,0,0,.35)]">
+      <div className="overflow-hidden rounded-[18px] border border-line bg-surface shadow-[0_24px_60px_-28px_var(--glow)]">
         <Image src={src} alt={alt} width={1280} height={800} sizes="(max-width: 1024px) 100vw, 560px" className="h-auto w-full" />
       </div>
       <figcaption className="mt-4">
@@ -175,7 +200,7 @@ function Screen({ src, alt, title, body }: { src: string; alt: string; title: st
 
 function Steps({ title, steps }: { title: string; steps: string[] }) {
   return (
-    <div className="rounded-[16px] border border-line p-5">
+    <div className="rounded-[18px] border border-line bg-bg p-6">
       <b className="text-[16.5px]">{title}</b>
       <ol className="mt-3 flex flex-col gap-2 text-[14px] text-ink-2">
         {steps.map((s, i) => <li key={s} className="flex gap-2.5"><span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-brand-soft text-[11.5px] font-bold text-brand">{i + 1}</span>{s}</li>)}

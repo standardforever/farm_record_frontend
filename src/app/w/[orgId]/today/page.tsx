@@ -149,7 +149,7 @@ function Inner() {
               const Icon = ICON[q.kind];
               return (
                 <button key={q.kind} type="button" onClick={() => setLog({ kind: q.kind })} aria-label={`Log ${q.label === "Weigh" ? "a weigh-in" : q.label.toLowerCase()}`}
-                  className="flex cursor-pointer flex-col items-center gap-1 rounded-[14px] border border-line bg-surface px-2 py-3 text-center hover:border-brand hover:bg-brand-soft">
+                  className="flex cursor-pointer flex-col items-center gap-1 rounded-[16px] border border-line bg-surface px-2 py-3 text-center hover:border-brand hover:bg-brand-soft">
                   <Icon size={22} className="text-brand" /><b className="text-[14px]">{q.label}</b><span className="text-[11px] text-ink-3">{q.hint}</span>
                 </button>
               );

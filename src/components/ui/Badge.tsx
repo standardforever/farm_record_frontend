@@ -9,7 +9,7 @@ const tones: Record<Tone, string> = {
   crit: "bg-crit-soft text-crit",
   info: "bg-water-soft text-water",
   brand: "bg-brand-soft text-brand",
-  maize: "bg-maize-soft text-warn",
+  maize: "bg-maize-soft text-water",
 };
 
 export function Badge({ tone = "neutral", dot, children, className }: { tone?: Tone; dot?: boolean; children: ReactNode; className?: string }) {
@@ -26,7 +26,7 @@ export function Avatar({ name, size = 34, tone = "brand" }: { name: string; size
   return (
     <span style={{ width: size, height: size }}
       className={cn("grid shrink-0 place-items-center rounded-[10px] text-[12px] font-bold",
-        tone === "brand" ? "bg-brand-soft text-brand" : "bg-maize-soft text-warn")}>
+        tone === "brand" ? "bg-brand-soft text-brand" : "bg-maize-soft text-water")}>
       {letters}
     </span>
   );

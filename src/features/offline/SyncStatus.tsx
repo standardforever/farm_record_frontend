@@ -27,7 +27,7 @@ export function SyncStatus({ orgId, dark }: { orgId: string; dark?: boolean }) {
     <>
       <button type="button" onClick={() => setOpen(true)} aria-label={`Sync: ${text}`}
         className={cn("inline-flex cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-[12px] font-semibold",
-          tone === "crit" ? "bg-crit-soft text-crit" : tone === "warn" ? "bg-maize-soft text-warn" : dark ? "bg-side-hi text-white" : "bg-brand-soft text-brand")}>
+          tone === "crit" ? "bg-crit-soft text-crit" : tone === "warn" ? "bg-warn-soft text-warn" : dark ? "bg-side-hi text-white" : "bg-brand-soft text-brand")}>
         <Icon size={14} className={s.syncing ? "animate-spin" : undefined} /> {text}
       </button>
       <SyncSheet orgId={orgId} open={open} onClose={() => setOpen(false)} />

@@ -110,7 +110,7 @@ function CashNote({ plan }: { plan: Plan }) {
   const Icon = tone === "good" ? CheckCircle2 : tone === "info" ? Info : AlertTriangle;
   return (
     <div data-testid="plan-cash" className={cn("flex gap-2.5 rounded-xl border p-3.5 text-[13.5px]",
-      tone === "good" && "border-good/40 bg-good-soft", tone === "warn" && "border-maize/50 bg-maize-soft", tone === "crit" && "border-crit/40 bg-crit-soft",
+      tone === "good" && "border-good/40 bg-good-soft", tone === "warn" && "border-warn/40 bg-warn-soft", tone === "crit" && "border-crit/40 bg-crit-soft",
       tone === "info" && "border-line bg-surface")}>
       <Icon size={18} className={cn("mt-0.5 shrink-0", tone === "good" ? "text-good" : tone === "info" ? "text-ink-3" : tone === "warn" ? "text-warn" : "text-crit")} />
       <span>

@@ -64,8 +64,8 @@ export function RentDueCard({ rent }: { rent: RentDue[] }) {
   return (
     <div className="flex flex-col gap-2">
       {rent.map((r) => (
-        <Link key={r.site_id} href={`/w/${ws.orgId}/farm`} className="flex items-center gap-3 rounded-[14px] border border-line bg-surface p-4 hover:shadow-[var(--shadow)]">
-          <span className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-lg", r.overdue ? "bg-crit-soft text-crit" : "bg-maize-soft text-warn")}>
+        <Link key={r.site_id} href={`/w/${ws.orgId}/farm`} className="flex items-center gap-3 rounded-[16px] border border-line bg-surface p-4 hover:shadow-[var(--shadow)]">
+          <span className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-lg", r.overdue ? "bg-crit-soft text-crit" : "bg-warn-soft text-warn")}>
             {r.overdue ? <AlertTriangle size={17} /> : <CalendarClock size={17} />}</span>
           <span className="text-[13.5px]"><b>Rent for {r.site_name} {r.overdue ? "ran out" : "runs out"} {r.paid_until ? day(r.paid_until) : ""}</b>
             <span className="block text-ink-2">{r.amount ? `${naira(r.amount)} due. ` : ""}Pay it from the farm map, so profit and the account stay right.</span></span>

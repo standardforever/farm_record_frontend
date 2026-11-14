@@ -51,7 +51,7 @@ export function DoNow({ d }: { d: Overview }) {
 
   if (!items.length) {
     return (
-      <div className="flex items-center gap-2.5 rounded-[14px] border border-line bg-surface px-4 py-3.5 text-[14px]" data-testid="do-now">
+      <div className="flex items-center gap-2.5 rounded-[16px] border border-line bg-surface px-4 py-3.5 text-[14px]" data-testid="do-now">
         <CheckCircle2 size={18} className="text-good" /><span><b>Nothing needs doing.</b> <span className="text-ink-2">No sick animals, no vaccines due, everything may be sold.</span></span>
       </div>
     );
@@ -63,7 +63,7 @@ export function DoNow({ d }: { d: Overview }) {
           const body = (
             <>
               <span className={cn("grid h-8 w-8 shrink-0 place-items-center rounded-lg",
-                it.tone === "crit" ? "bg-crit-soft text-crit" : it.tone === "warn" ? "bg-maize-soft text-warn" : "bg-brand-soft text-brand")}>
+                it.tone === "crit" ? "bg-crit-soft text-crit" : it.tone === "warn" ? "bg-warn-soft text-warn" : "bg-brand-soft text-brand")}>
                 {it.tone === "crit" && !it.href && !it.dose ? <AlertTriangle size={16} /> : it.icon}</span>
               <span className="min-w-0 flex-1"><b className="block text-[14px]">{it.title}</b><span className="block text-[12.5px] text-ink-3">{it.sub}</span></span>
             </>

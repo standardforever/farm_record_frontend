@@ -53,7 +53,7 @@ function CreateWorkspace() {
             <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {ORG_TYPES.filter((t) => LIVE_ORG_TYPES.includes(t.key)).map((t) => (
                 <button key={t.key} type="button" onClick={() => setType(t.key)} aria-pressed={type === t.key}
-                  className={cn("relative flex cursor-pointer items-start gap-3 rounded-[14px] border bg-surface p-4 text-left transition-colors",
+                  className={cn("relative flex cursor-pointer items-start gap-3 rounded-[16px] border bg-surface p-4 text-left transition-colors",
                     type === t.key ? "border-brand shadow-[inset_0_0_0_1px_var(--brand)]" : "border-line hover:border-ink-3")}>
                   <span className={cn("grid h-10 w-10 shrink-0 place-items-center rounded-xl", type === t.key ? "bg-brand text-on-brand" : "bg-brand-soft text-brand")}><t.icon size={20} /></span>
                   <span className="min-w-0"><b className="block">{t.label}</b><span className="text-[12.5px] text-ink-3">{t.blurb}</span></span>

@@ -53,7 +53,7 @@ function BatchCard({ b, species }: { b: Batch; species: string }) {
     ? Math.min(100, Math.max(0, 100 * (Date.now() - new Date(b.started_on).getTime()) / (new Date(b.expected_end_on).getTime() - new Date(b.started_on).getTime()))) : null;
   return (
     <li>
-      <Link href={`/w/${ws.orgId}/batches/${b.id}`} className="flex h-full flex-col gap-2 rounded-[14px] border border-line bg-surface p-4 hover:shadow-[var(--shadow)]">
+      <Link href={`/w/${ws.orgId}/batches/${b.id}`} className="flex h-full flex-col gap-2 rounded-[16px] border border-line bg-surface p-4 hover:shadow-[var(--shadow)]">
         <div className="flex items-start justify-between gap-2">
           <div><b className="font-mono text-[16px]">{b.code}</b>
             <div className="text-[13px] text-ink-2">{species}{b.breed ? ` · ${b.breed}` : ""}</div></div>

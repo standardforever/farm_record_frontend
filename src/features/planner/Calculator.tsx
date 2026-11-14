@@ -50,7 +50,7 @@ function toInputs(f: Form, p: Plan): PlanInputs {
 function Section({ title, sub, children, open: start = true, id }: { title: string; sub?: string; children: React.ReactNode; open?: boolean; id: string }) {
   const [open, setOpen] = useState(start);
   return (
-    <section className="rounded-[14px] border border-line bg-surface">
+    <section className="rounded-[16px] border border-line bg-surface">
       <button type="button" aria-expanded={open} aria-controls={id} onClick={() => setOpen((o) => !o)}
         className="flex w-full cursor-pointer items-center gap-2 px-4 py-3 text-left">
         <span className="flex-1"><span className="text-[14.5px] font-semibold">{title}</span>

@@ -20,9 +20,9 @@ const FISH = ["catfish", "tilapia", "fish"];
 
 type Action = { kind: QuickKind | "sick"; label: string; icon: LucideIcon; tone: string; show?: (species: string[]) => boolean };
 const ACTIONS: Action[] = [
-  { kind: "feed", label: "Feed", icon: Wheat, tone: "bg-maize-soft text-warn" },
+  { kind: "feed", label: "Feed", icon: Wheat, tone: "bg-warn-soft text-warn" },
   { kind: "deaths", label: "Deaths", icon: Skull, tone: "bg-crit-soft text-crit" },
-  { kind: "eggs", label: "Eggs", icon: Egg, tone: "bg-maize-soft text-warn", show: (s) => s.some((x) => x === "layers" || x === "noilers" || x === "quail" || x === "duck") },
+  { kind: "eggs", label: "Eggs", icon: Egg, tone: "bg-warn-soft text-warn", show: (s) => s.some((x) => x === "layers" || x === "noilers" || x === "quail" || x === "duck") },
   { kind: "water", label: "Water check", icon: Droplets, tone: "bg-water-soft text-water", show: (s) => s.some((x) => FISH.includes(x)) },
   { kind: "weight", label: "Weigh", icon: Scale, tone: "bg-brand-soft text-brand" },
   { kind: "sick", label: "Sick animals", icon: Stethoscope, tone: "bg-crit-soft text-crit" },
@@ -72,7 +72,7 @@ export function SimpleHome() {
 
       <button type="button" onClick={() => setSheet(true)}
         className={cn("flex items-center gap-3 rounded-2xl border p-4 text-left",
-          conflicts ? "border-crit bg-crit-soft" : !sync.online ? "border-warn bg-maize-soft" : waiting ? "border-brand bg-brand-soft" : "border-line bg-surface")}>
+          conflicts ? "border-crit bg-crit-soft" : !sync.online ? "border-warn bg-warn-soft" : waiting ? "border-brand bg-brand-soft" : "border-line bg-surface")}>
         {conflicts ? <CloudOff size={28} className="text-crit" /> : !sync.online ? <CloudOff size={28} className="text-warn" />
           : waiting ? <UploadCloud size={28} className="text-brand" /> : <CheckCircle2 size={28} className="text-good" />}
         <span className="min-w-0 flex-1">

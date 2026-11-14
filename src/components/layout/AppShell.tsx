@@ -40,13 +40,13 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="grid min-h-dvh grid-cols-1 lg:grid-cols-[264px_minmax(0,1fr)]">
       {/* Sidebar */}
       <aside className={cn(
-        "fixed inset-y-0 left-0 z-[80] flex w-[min(300px,86vw)] flex-col gap-3.5 overflow-y-auto bg-side px-3.5 pb-4 pt-[calc(20px+env(safe-area-inset-top))] text-side-ink transition-transform lg:sticky lg:top-0 lg:h-dvh lg:w-auto lg:translate-x-0",
+        "fixed inset-y-0 left-0 z-[80] flex w-[min(300px,86vw)] flex-col gap-3.5 overflow-y-auto bg-side bg-[radial-gradient(120%_42%_at_0%_0%,rgba(47,91,255,.22),transparent_62%)] px-3.5 pb-4 pt-[calc(20px+env(safe-area-inset-top))] text-side-ink transition-transform lg:sticky lg:top-0 lg:h-dvh lg:w-auto lg:translate-x-0",
         open ? "translate-x-0" : "-translate-x-[104%]")} aria-label="Main navigation">
         <div className="flex items-center justify-between px-1.5"><Logo /><button className="lg:hidden" onClick={() => setOpen(false)} aria-label="Close menu"><X size={20} /></button></div>
 
         <div className="relative">
-          <button onClick={() => setSwitcher((v) => !v)} className="flex w-full cursor-pointer items-center gap-2.5 rounded-[11px] bg-side-hi p-2.5 text-left" aria-expanded={switcher}>
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[9px] bg-brand-2 text-[12px] font-bold text-white">{ws.organization.name.slice(0, 2).toUpperCase()}</span>
+          <button onClick={() => setSwitcher((v) => !v)} className="flex w-full cursor-pointer items-center gap-2.5 rounded-[12px] border border-white/[.06] bg-side-hi/80 p-2.5 text-left hover:border-[#5c8bff]/40" aria-expanded={switcher}>
+            <span className="brand-fill grid h-8 w-8 shrink-0 place-items-center rounded-[9px] text-[12px] font-bold">{ws.organization.name.slice(0, 2).toUpperCase()}</span>
             <span className="min-w-0 flex-1"><b className="block truncate text-[13.5px] text-white">{ws.organization.name}</b>
               <small className="text-[11.5px] text-side-ink-2">{orgTypeLabel(ws.organization.type)} · {ws.my_role.name}</small></span>
             <ChevronDown size={16} className="text-side-ink-2" />
@@ -71,8 +71,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               <div className="px-2.5 pb-1 pt-3.5 font-mono text-[10.5px] uppercase tracking-[.14em] text-side-ink-2">{g}</div>
               {items.filter((i) => i.group === g).map((i) => (
                 <Link key={i.key} href={base + i.path} aria-current={current(i.path) ? "page" : undefined}
-                  className={cn("flex items-center gap-2.5 rounded-[9px] px-2.5 py-[7px] font-medium hover:bg-side-hi",
-                    current(i.path) && "bg-side-hi text-white [&_svg]:text-maize")}>
+                  className={cn("flex items-center gap-2.5 rounded-[10px] px-2.5 py-[7px] font-medium text-side-ink/85 transition-colors hover:bg-side-hi hover:text-white",
+                    current(i.path) && "bg-[linear-gradient(90deg,rgba(47,91,255,.28),rgba(47,91,255,.06))] text-white shadow-[inset_2px_0_0_#5c8bff] [&_svg]:text-[#7ca2ff]")}>
                   <i.icon size={18} /> {i.label}
                 </Link>
               ))}

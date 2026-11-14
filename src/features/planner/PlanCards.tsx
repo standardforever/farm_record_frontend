@@ -67,7 +67,7 @@ export function BatchPlanCard({ b }: { b: Batch }) {
       } catch (e) { toast(e instanceof ApiError ? e.message : "Could not make the plan.", "crit"); }
     };
     return (
-      <div className="flex flex-wrap items-center gap-3 rounded-[14px] border border-dashed border-line p-4">
+      <div className="flex flex-wrap items-center gap-3 rounded-[16px] border border-dashed border-line p-4">
         <CalendarRange size={18} className="text-ink-3" />
         <span className="min-w-0 flex-1 text-[13.5px]"><b>No plan for this batch</b>
           <span className="block text-ink-2">A plan works out the feed, vaccines and money it needs from your prices, and lets you change any day.</span></span>

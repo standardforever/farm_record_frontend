@@ -12,7 +12,7 @@ export function HoldList({ holds, title = "Do not sell or eat", compact, showBat
 }) {
   if (!holds.length) return null;
   return (
-    <section role="alert" aria-label={title} className="rounded-[14px] border border-[color-mix(in_oklab,var(--crit)_35%,transparent)] bg-crit-soft p-3.5 sm:p-4">
+    <section role="alert" aria-label={title} className="rounded-[16px] border border-[color-mix(in_oklab,var(--crit)_35%,transparent)] bg-crit-soft p-3.5 sm:p-4">
       <h2 className="flex items-center gap-2 text-[14px] font-bold text-crit"><ShieldAlert size={17} className="shrink-0" /> {title}</h2>
       <ul className={cn("mt-2 flex flex-col", compact ? "gap-1.5" : "gap-2.5")}>
         {holds.map((h, i) => (

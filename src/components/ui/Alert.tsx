@@ -3,7 +3,7 @@ import { AlertTriangle, Info } from "lucide-react";
 import { cn } from "@/lib/format";
 
 export function Alert({ tone = "warn", title, children, action }: { tone?: "warn" | "crit" | "info" | "good"; title?: string; children?: ReactNode; action?: ReactNode }) {
-  const t = { warn: "bg-maize-soft", crit: "bg-crit-soft", info: "bg-water-soft", good: "bg-good-soft" }[tone];
+  const t = { warn: "bg-warn-soft", crit: "bg-crit-soft", info: "bg-water-soft", good: "bg-good-soft" }[tone];
   const ic = { warn: "text-warn", crit: "text-crit", info: "text-water", good: "text-good" }[tone];
   return (
     <div className={cn("flex flex-wrap items-start gap-3 rounded-xl px-4 py-3 text-[13.5px]", t)} role={tone === "crit" ? "alert" : undefined}>

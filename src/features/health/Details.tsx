@@ -63,13 +63,13 @@ export function TreatmentView({ id }: { id: string }) {
         <div className="flex flex-col gap-4">
           {t.voided_at && <Alert tone="info" title="This entry was voided">{t.void_reason}. It no longer holds sales and is kept for the record.</Alert>}
           {!t.voided_at && holds.map(([p, until]) => until >= on ? (
-            <div key={p} role="alert" className="flex gap-2.5 rounded-[14px] border border-[color-mix(in_oklab,var(--crit)_35%,transparent)] bg-crit-soft p-4 text-[14px]">
+            <div key={p} role="alert" className="flex gap-2.5 rounded-[16px] border border-[color-mix(in_oklab,var(--crit)_35%,transparent)] bg-crit-soft p-4 text-[14px]">
               <ShieldAlert size={18} className="mt-0.5 shrink-0 text-crit" />
               <span><b className="text-crit">Do not sell or eat {PRODUCT_LABEL[p].toLowerCase()} from {where} until {longDay(until)}.</b>
                 <span className="block text-ink-2">Safe to sell from {longDay(nextDay(until))}. The drug needs this time to leave the {p === "meat" ? "animals" : p}.</span></span>
             </div>
           ) : (
-            <div key={p} className="flex items-center gap-2.5 rounded-[14px] border border-line bg-surface p-3.5 text-[13.5px]">
+            <div key={p} className="flex items-center gap-2.5 rounded-[16px] border border-line bg-surface p-3.5 text-[13.5px]">
               <CheckCircle2 size={17} className="shrink-0 text-good" /> {PRODUCT_LABEL[p]}: the withdrawal ended {longDay(until)}. Safe to sell.
             </div>
           ))}

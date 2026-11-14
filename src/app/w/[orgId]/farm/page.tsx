@@ -131,7 +131,7 @@ function Tile({ unit, batches, counts, label, onOpen }: { unit: Unit; batches: U
   return (
     <li>
       <button type="button" onClick={onOpen}
-        className={cn("flex h-full w-full cursor-pointer flex-col gap-1 rounded-[14px] border p-3 text-left transition-shadow hover:shadow-[var(--shadow)]",
+        className={cn("flex h-full w-full cursor-pointer flex-col gap-1 rounded-[16px] border p-3 text-left transition-shadow hover:shadow-[var(--shadow)]",
           look.tile, unit.archived_at && "border-dashed opacity-55")}>
         <span className="flex items-center justify-between gap-2"><b className="font-mono text-[15px]">{unit.code}</b><Icon size={16} className="text-ink-3" /></span>
         {unit.name && <span className="truncate text-[12.5px] text-ink-2">{unit.name}</span>}

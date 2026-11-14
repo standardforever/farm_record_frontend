@@ -8,9 +8,9 @@ import { COMPANY, EMAIL, PHONE, WHATSAPP } from "./site";
 export default function SiteLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-dvh bg-bg text-ink">
-      <header className="sticky top-0 z-30 border-b border-white/[.08] bg-[#070b14]/85 backdrop-blur-xl">
+      <header className="sticky top-0 z-30 border-b border-white/[.08] bg-[#070b14]">
         <div className="mx-auto flex max-w-[1180px] items-center gap-4 px-4 py-3 sm:px-6">
-          <Link href="/" aria-label="Oko home" className="shrink-0 [&_small]:hidden sm:[&_small]:block"><Logo /></Link>
+          <Link href="/" aria-label="Oko home" className="shrink-0 [&_small]:hidden sm:[&_small]:flex"><Logo /></Link>
           <nav aria-label="Main" className="ml-auto hidden items-center gap-7 text-[14.5px] font-medium text-[#98a5bd] md:flex">
             <Link href="/#features" className="transition-colors hover:text-white">What it does</Link>
             <Link href="/#install" className="transition-colors hover:text-white">Install</Link>

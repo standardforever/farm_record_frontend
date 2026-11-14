@@ -168,7 +168,7 @@ function FarmTools({ base }: { base: string }) {
           </Link>
         ))}
       </div>
-      <p className="mt-3 text-[12.5px] text-ink-3">Coming soon: more animals, and your vet, suppliers and buyers connected to your farm.</p>
+      <p className="mt-3 text-[12.5px] text-ink-3">Coming soon: your vet, suppliers and buyers connected to your farm.</p>
     </Card>
   );
 }

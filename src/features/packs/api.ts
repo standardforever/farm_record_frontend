@@ -14,7 +14,7 @@ export type Standard = {
   pack: { key: string; version: number; name: string; status: string; review_note: string | null; age_unit: string; counts: string; latest_version: number };
   breed: { key: string; name: string; note: string | null } | null;
   age_days: number; expected_weight_g: number | null; latest_weight_g: number | null; latest_weight_age: number | null; weight_vs_standard_pct: number | null;
-  expected_feed_g_per_head: number | null; actual_feed_g_per_head: number | null; phase_now: Phase | null; next_phase: Phase | null;
+  expected_feed_g_per_head: number | null; actual_feed_g_per_head: number | null; average_alive?: number | null; phase_now: Phase | null; next_phase: Phase | null;
   vaccinations: Dose[]; checks: Dose[]; growth_standard: [number, number][]; growth_actual: [number, number][];
   lay_standard: [number, number][] | null; lay_actual: [number, number][] | null; water: Record<string, (number | null)[]> | null; alerts: Record<string, number>;
 };

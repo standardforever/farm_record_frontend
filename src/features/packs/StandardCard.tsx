@@ -47,7 +47,8 @@ export function StandardCard({ batchId, active }: { batchId: string; active: boo
           <div><dt className="text-ink-3">Latest weigh-in</dt><dd className="font-display text-[20px] font-bold tnum">{s.latest_weight_g != null ? `${s.latest_weight_g.toLocaleString("en-NG")} g` : "—"}</dd>
             {pct != null && <dd className={pct < 90 ? "text-crit" : pct < 97 ? "text-warn" : "text-good"}><b>{pct}%</b> of standard at day {s.latest_weight_age}</dd>}</div>
           <div><dt className="text-ink-3">Feed per head so far</dt><dd className="font-display text-[20px] font-bold tnum">{s.actual_feed_g_per_head != null ? `${Math.round(s.actual_feed_g_per_head).toLocaleString("en-NG")} g` : "—"}</dd>
-            {s.expected_feed_g_per_head != null && <dd className="text-ink-3">standard {Math.round(s.expected_feed_g_per_head).toLocaleString("en-NG")} g</dd>}</div>
+            {s.expected_feed_g_per_head != null && <dd className="text-ink-3">standard {Math.round(s.expected_feed_g_per_head).toLocaleString("en-NG")} g</dd>}
+            {s.average_alive != null && s.actual_feed_g_per_head != null && <dd className="text-[12px] text-ink-3">per animal alive on average ({s.average_alive.toLocaleString("en-NG")}); the dead are taken out from the day they died</dd>}</div>
           <div><dt className="text-ink-3">Feed now</dt><dd className="font-semibold">{s.phase_now?.name ?? "—"}{s.phase_now?.protein_pct ? ` · ${s.phase_now.protein_pct}% protein` : ""}</dd>
             {s.next_phase && <dd className="text-ink-3">{s.next_phase.name} from {formatDate(s.next_phase.on)}</dd>}</div>
         </dl>

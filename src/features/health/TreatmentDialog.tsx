@@ -9,6 +9,7 @@ import { useCurrentWorkspace } from "@/features/workspaces";
 import { useFormEvidence } from "@/features/evidence/useFormEvidence";
 import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/format";
+import { FromStock, KIND_FOR_CATEGORY, noStock, stockBody, useTreatmentItems } from "./FromStock";
 import { type Product, PRODUCT_LABEL, planHold, shortDay, useCreateTreatment, useHealthCatalog, useProductHints } from "./api";
 
 const KIND_ORDER = ["medication", "dewormer", "vaccination", "supplement", "other"];
@@ -27,13 +28,15 @@ export function TreatmentDialog({ open, onClose, batchId, caseId }: { open: bool
     meat: "", eggs: "", milk: "", given_by: "", lot: "", animals: "", notes: "" };
   const [f, setF] = useState(blank);
   const [filledFrom, setFilledFrom] = useState<string | null>(null);
+  const [pick, setPick] = useState(noStock());
+  const stockItems = useTreatmentItems(f.kind, open);
   const [error, setError] = useState<string | null>(null);
   const set = (k: keyof typeof blank, v: string) => setF((x) => ({ ...x, [k]: v }));
   const evidence = useFormEvidence("treatment", { hint: "The vet's prescription, the product label or a photo of the vaccination. Optional." });
 
   useEffect(() => {
     if (!open) return;
-    setF({ ...blank, batch: batchId ?? "" }); setError(null); setFilledFrom(null); evidence.reset();
+    setF({ ...blank, batch: batchId ?? "" }); setError(null); setFilledFrom(null); setPick(noStock()); evidence.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, batchId]);
 
@@ -62,6 +65,7 @@ export function TreatmentDialog({ open, onClose, batchId, caseId }: { open: bool
         active_ingredient: f.ingredient || null, dose: f.dose || null, route: f.route || null, given_on: f.given_on,
         course_days: Math.max(1, Number(f.course) || 1), animals: int(f.animals), given_by: f.given_by || null, product_lot: f.lot || null,
         withdrawal_meat_days: int(f.meat), withdrawal_eggs_days: int(f.eggs), withdrawal_milk_days: int(f.milk), notes: f.notes || null, client_id: newId(),
+        ...stockBody(pick, stockItems.items),
       });
       await evidence.attach({ record_id: t.id }, `${t.product} for ${t.batch_code}`);
       const last = Object.values(t.held_until).sort().pop();
@@ -73,7 +77,7 @@ export function TreatmentDialog({ open, onClose, batchId, caseId }: { open: bool
   return (
     <Dialog open={open} onClose={onClose} title="Record a treatment" eyebrow="Health"
       footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button>
-        <Button variant="primary" loading={create.isPending} disabled={!f.batch || f.product.trim().length < 2 || missing.length > 0} onClick={save}>Save</Button></>}>
+        <Button variant="primary" loading={create.isPending} disabled={!f.batch || f.product.trim().length < 2 || missing.length > 0 || (!!pick.item && !(Number(pick.amount) > 0))} onClick={save}>Save</Button></>}>
       <div className="flex flex-col gap-4">
         {error && <Alert tone="crit">{error}</Alert>}
         <div className="grid gap-4 sm:grid-cols-2">
@@ -98,6 +102,12 @@ export function TreatmentDialog({ open, onClose, batchId, caseId }: { open: bool
             </button>
           ))}
         </div>
+        <FromStock kind={f.kind} value={pick} onChange={setPick} open={open} onPicked={(it) => {
+          if (!it) return;
+          pickProduct(it.name);
+          const k = KIND_FOR_CATEGORY[it.category];
+          if (k && f.kind !== k && !(f.kind === "dewormer" && k === "medication")) setF((x) => ({ ...x, product: it.name, kind: k }));
+        }} />
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Product name" htmlFor="t-product" hint={filledFrom ? `Filled from your entry on ${shortDay(filledFrom)}. Check the label.` : "As written on the pack"}>
             <Input id="t-product" list="t-products" value={f.product} onChange={(e) => pickProduct(e.target.value)} placeholder="Oxytetracycline 20%" autoComplete="off" />

@@ -7,7 +7,7 @@
  * "Coming next" from GET /api/v1/meta, so the menu always matches the roadmap.
  */
 import type { LucideIcon } from "lucide-react";
-import { BarChart3, ClipboardCheck, Paperclip, HeartPulse, History, Home, KeyRound, Layers, Map, Package, Receipt, ScrollText, Settings, ThermometerSun, Users, Wallet } from "lucide-react";
+import { BarChart3, CalendarHeart, ClipboardCheck, Paperclip, HeartPulse, History, Home, KeyRound, Layers, Map, Package, Receipt, ScrollText, Settings, ThermometerSun, Users, Wallet } from "lucide-react";
 
 /** Workspace types that keep animals and so get the farm screens. */
 export const FARM_ORG_TYPES = ["farm", "cooperative", "hatchery", "integrator", "programme"];
@@ -30,6 +30,7 @@ export const NAV: NavItem[] = [
   { key: "today", label: "Today", path: "/today", icon: ClipboardCheck, permission: "farm.view", feature: "farm", orgTypes: FARM_ORG_TYPES, group: "Farm", mobile: true },
   { key: "farm", label: "Farm map", path: "/farm", icon: Map, permission: "farm.view", feature: "farm", orgTypes: FARM_ORG_TYPES, group: "Farm", mobile: true },
   { key: "batches", label: "Batches", path: "/batches", icon: Layers, permission: "farm.view", feature: "farm", orgTypes: FARM_ORG_TYPES, group: "Farm", mobile: true },
+  { key: "herd", label: "Breeding", path: "/herd", icon: CalendarHeart, permission: "farm.view", feature: "farm", orgTypes: FARM_ORG_TYPES, group: "Farm" },
   { key: "climate", label: "Weather", path: "/climate", icon: ThermometerSun, permission: "farm.view", feature: "climate", orgTypes: FARM_ORG_TYPES, group: "Farm" },
   { key: "health", label: "Health", path: "/health", icon: HeartPulse, permission: "health.view", feature: "health", orgTypes: FARM_ORG_TYPES, group: "Farm" },
   { key: "stock", label: "Stock", path: "/stock", icon: Package, permission: "inventory.view", feature: "inventory", orgTypes: FARM_ORG_TYPES, group: "Farm" },

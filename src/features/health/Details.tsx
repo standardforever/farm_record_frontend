@@ -12,7 +12,9 @@ import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/format";
 import { type Product, KIND_LABEL, PRODUCT_LABEL, shortDay, today, useCase, useCloseCase, useHealthCatalog, useTreatment, useUpdateCase } from "./api";
 import { TreatmentRows, VoidDialog } from "./BatchHealthCard";
+import { TreatmentStockDialog } from "./FromStock";
 import { TreatmentDialog } from "./TreatmentDialog";
+import { qty } from "@/features/inventory/api";
 
 const longDay = (iso: string) => new Date(iso + "T12:00:00").toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" });
 const nextDay = (iso: string) => { const d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() + 1); return localDay(d); };
@@ -38,6 +40,7 @@ export function TreatmentView({ id }: { id: string }) {
   const ws = useCurrentWorkspace();
   const q = useTreatment(ws.orgId, id);
   const [voiding, setVoiding] = useState(false);
+  const [stocking, setStocking] = useState(false);
   if (q.isLoading) return <PageLoader />;
   if (q.error || !q.data) return <><Back tab="treatments" /><Alert tone="crit">{q.error instanceof ApiError ? q.error.message : "Could not load this treatment."}</Alert></>;
   const t = q.data;
@@ -91,6 +94,7 @@ export function TreatmentView({ id }: { id: string }) {
               ["Animals treated", t.animals != null ? t.animals.toLocaleString("en-NG") : `All of ${t.unit_code ?? t.batch_code}`],
               ["Batch", <Link key="b" href={`/w/${ws.orgId}/batches/${t.batch_id}`} className="font-semibold text-brand">{t.batch_code}{t.unit_code ? ` · ${t.unit_code}` : ""}</Link>],
               ["Given by", t.given_by],
+              ["Taken from stock", t.stock ? `${t.stock.item_name}: ${qty(t.stock.quantity, t.stock)}` : null],
               ["Product batch or lot number", t.product_lot],
               ["Withdrawal period", withdrawal.length ? withdrawal.join(" · ") : null],
               ["From", t.task_id ? "The batch's vaccination schedule" : null],
@@ -111,9 +115,13 @@ export function TreatmentView({ id }: { id: string }) {
               </Link>
             </Card>
           )}
+          <TreatmentStockDialog t={t} open={stocking} onClose={() => setStocking(false)} />
           <Card title="Photos and changes">
             <p className="mb-3 text-[13px] text-ink-2">Add a photo of the label or the vet&apos;s note. Wrong details? The owner can correct them, and the change is kept in the audit trail.</p>
             <div className="flex flex-wrap items-center gap-2">
+              {!t.voided_at && ws.can("health.edit") && ws.has("inventory") && (
+                <Button size="sm" variant="ghost" onClick={() => setStocking(true)}>{t.stock ? "Change stock used" : "Take from stock"}</Button>
+              )}
               {!t.voided_at && <OwnerActions kind="treatment" id={t.id} />}
               {!t.voided_at && ws.can("health.edit") && <Button size="sm" variant="ghost" onClick={() => setVoiding(true)}>Void (entered by mistake)</Button>}
             </div>

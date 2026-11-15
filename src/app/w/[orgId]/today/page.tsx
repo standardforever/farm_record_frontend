@@ -2,8 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { OwnerActions } from "@/features/corrections";
+import { useBatches } from "@/features/batches";
+import { HerdToday } from "@/features/herd";
+import { MILKERS } from "@/features/daily/QuickLog";
 import {
-  AlertTriangle, Camera, CheckCircle2, ChevronLeft, ChevronRight, Circle, CloudOff, Droplets, Egg, MessageSquareText,
+  AlertTriangle, Camera, Milk, CheckCircle2, ChevronLeft, ChevronRight, Circle, CloudOff, Droplets, Egg, MessageSquareText,
   NotebookPen, Scale, Settings2, Skull, Stethoscope, ThermometerSun, Undo2, UserRound, Wheat, Wrench,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -23,7 +26,7 @@ import { ApiError } from "@/lib/api";
 import { cn, formatDate, relative } from "@/lib/format";
 import { useQueryClient } from "@tanstack/react-query";
 
-const ICON: Record<QuickKind, LucideIcon> = { feed: Wheat, deaths: Skull, weight: Scale, eggs: Egg, water: Droplets, note: NotebookPen };
+const ICON: Record<QuickKind, LucideIcon> = { feed: Wheat, deaths: Skull, weight: Scale, eggs: Egg, water: Droplets, milk: Milk, note: NotebookPen };
 
 export default function TodayPage() {
   return <RequirePermission permission="farm.view"><Inner /></RequirePermission>;
@@ -31,6 +34,8 @@ export default function TodayPage() {
 
 function Inner() {
   const ws = useCurrentWorkspace();
+  const running = useBatches(ws.orgId, "active");
+  const milking = (running.data ?? []).some((b) => MILKERS.includes(b.species));
   const { me } = useAuth();
   const qc = useQueryClient();
   const toast = useToast();
@@ -81,7 +86,7 @@ function Inner() {
   const unread = d.handovers.filter((h) => !h.acknowledged_at && h.from_user !== me?.user.id);
 
   const tick = async (t: TodayTask) => {
-    if (t.record_kind && !t.completion) { setLog({ kind: (t.record_kind === "milk" ? "note" : t.record_kind) as QuickKind, unit: t.unit_id, task: t }); return; }
+    if (t.record_kind && !t.completion) { setLog({ kind: t.record_kind as QuickKind, unit: t.unit_id, task: t }); return; }
     if (t.proof !== "none") { setTicking(t); return; }
     await quickTick(t);
   };
@@ -144,12 +149,12 @@ function Inner() {
 
       {canLog && (
         <section className="mb-5" aria-label="Quick log">
-          <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-            {QUICK.map((q) => {
+          <div className="grid grid-cols-3 gap-2 sm:flex">
+            {QUICK.filter((q) => q.kind !== "milk" || milking).map((q) => {
               const Icon = ICON[q.kind];
               return (
                 <button key={q.kind} type="button" onClick={() => setLog({ kind: q.kind })} aria-label={`Log ${q.label === "Weigh" ? "a weigh-in" : q.label.toLowerCase()}`}
-                  className="flex cursor-pointer flex-col items-center gap-1 rounded-[16px] border border-line bg-surface px-2 py-3 text-center hover:border-brand hover:bg-brand-soft">
+                  className="flex cursor-pointer flex-col items-center gap-1 rounded-[16px] border border-line bg-surface px-2 py-3 text-center hover:border-brand hover:bg-brand-soft sm:flex-1">
                   <Icon size={22} className="text-brand" /><b className="text-[14px]">{q.label}</b><span className="text-[11px] text-ink-3">{q.hint}</span>
                 </button>
               );
@@ -158,6 +163,7 @@ function Inner() {
         </section>
       )}
 
+      {isToday && <div className="mb-4 empty:hidden"><HerdToday /></div>}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
         <Card title="Checklist" meta={d.total ? `${done} of ${d.total} done${doneHere ? ` (${doneHere} saved on this phone)` : ""}` : undefined}
           action={d.total ? <span className="font-display text-[20px] font-bold text-brand tnum">{pct}%</span> : undefined}>
@@ -254,7 +260,7 @@ function describe(r: { kind: string; quantity: string | null; data: Record<strin
   const q = r.quantity != null ? Number(r.quantity) : null;
   const parts: string[] = [];
   if (r.kind === "feed") parts.push(`${q?.toLocaleString("en-NG")} kg${r.data.bags ? ` (${r.data.bags} × ${r.data.bag_kg} kg)` : ""}${r.data.feed_name ? ` ${r.data.feed_name}` : ""}`);
-  if (r.kind === "weight") parts.push(`average ${q?.toLocaleString("en-NG")} g${r.data.sample_size ? ` from ${r.data.sample_size}` : ""}`);
+  if (r.kind === "weight") parts.push(`average ${q != null && q >= 1000 ? `${(q / 1000).toLocaleString("en-NG")} kg` : `${q?.toLocaleString("en-NG")} g`}${r.data.sample_size ? ` from ${r.data.sample_size}` : ""}`);
   if (r.kind === "eggs") parts.push(`${q?.toLocaleString("en-NG")} eggs${r.data.cracked ? `, ${r.data.cracked} cracked` : ""}`);
   if (r.kind === "water") {
     const fmt: Record<string, (v: unknown) => string> = {

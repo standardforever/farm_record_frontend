@@ -14,6 +14,7 @@ export type Treatment = {
   withdrawal_meat_days: number | null; withdrawal_eggs_days: number | null; withdrawal_milk_days: number | null;
   held_until: Partial<Record<Product, string>>; notes: string | null; created_at: string; created_by_name: string | null;
   voided_at: string | null; void_reason: string | null;
+  stock: { item_id: string; item_name: string; unit: string; pack_name: string | null; pack_size: number | null; quantity: number; cost: number | null } | null;
 };
 export type Case = {
   id: string; batch_id: string; batch_code: string | null; species: string | null; unit_id: string | null; unit_code: string | null; opened_on: string;
@@ -41,7 +42,9 @@ export type TreatmentInput = {
   batch_id: string; unit_id?: string | null; case_id?: string | null; kind: string; product: string; active_ingredient?: string | null; dose?: string | null;
   route?: string | null; given_on: string; course_days: number; animals?: number | null; given_by?: string | null; product_lot?: string | null;
   withdrawal_meat_days?: number | null; withdrawal_eggs_days?: number | null; withdrawal_milk_days?: number | null; notes?: string | null; client_id?: string;
-};
+} & StockUse;
+/** What a treatment took from stock: an amount in the item's unit, or a number of packs. */
+export type StockUse = { stock_item_id?: string | null; stock_quantity?: number | null; stock_packs?: number | null };
 export type CaseInput = {
   batch_id: string; unit_id?: string | null; opened_on: string; signs: string[]; affected?: number | null; description?: string | null;
   media_id?: string | null; suspected?: string | null; hold_sales: boolean; client_id?: string;
@@ -74,11 +77,14 @@ function useHealthMutation<V, R>(orgId: string, fn: (v: V) => Promise<R>) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["health", orgId] });
       qc.invalidateQueries({ queryKey: ["farm", orgId] }); // Today shows holds; batch pages show health
+      qc.invalidateQueries({ queryKey: ["inventory", orgId] }); // a treatment can take its drug from stock
     },
   });
 }
 
 export const useCreateTreatment = (orgId: string) => useHealthMutation(orgId, (b: TreatmentInput) => post<Treatment>(`${base(orgId)}/treatments`, b));
+export const useTreatmentStock = (orgId: string) =>
+  useHealthMutation(orgId, ({ id, ...b }: { id: string } & StockUse) => patch<Treatment>(`${base(orgId)}/treatments/${id}`, b));
 export const useVoidTreatment = (orgId: string) =>
   useHealthMutation(orgId, ({ id, reason }: { id: string; reason: string }) => post<Treatment>(`${base(orgId)}/treatments/${id}/void`, { reason }));
 export const useOpenCase = (orgId: string) => useHealthMutation(orgId, (b: CaseInput) => post<Case>(`${base(orgId)}/cases`, b));

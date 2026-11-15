@@ -21,6 +21,8 @@ import { BatchPlanCard } from "@/features/planner";
 import { RequirePermission, useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
 import { cn, formatDate, naira } from "@/lib/format";
+import { BatchToday } from "./BatchToday";
+import { GroupAnimals } from "@/features/herd";
 
 export default function BatchPage({ params }: { params: Promise<{ batchId: string }> }) {
   const { batchId } = use(params);
@@ -104,6 +106,8 @@ function View({ b, checking }: { b: BatchDetail; checking?: boolean }) {
         <Stat label="Sold" value={(s?.sold ?? 0).toLocaleString("en-NG")} sub={s?.avg_sale_weight_kg ? `avg ${s.avg_sale_weight_kg} kg` : s?.sold_weight_kg ? `${s.sold_weight_kg} kg` : "No sales yet"} />
       </div>
 
+      {active && ws.has("farm") && <div className="mb-4"><BatchToday b={b} /></div>}
+      <div className="mb-4 empty:hidden"><GroupAnimals b={b} /></div>
       {b.pack_key && <div className="mb-4"><StandardCard batchId={b.id} active={active} /></div>}
       <div className="mb-4 empty:hidden"><BatchPlanCard b={b} /></div>
       {ws.has("health") && <div className="mb-4"><BatchHealthCard batchId={b.id} active={active} /></div>}

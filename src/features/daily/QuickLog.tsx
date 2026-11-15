@@ -11,16 +11,29 @@ import { newId, save as saveOffline } from "@/features/offline/queue";
 import { refOf } from "@/features/evidence/api";
 import { useFormEvidence } from "@/features/evidence/useFormEvidence";
 
-export type QuickKind = "feed" | "deaths" | "weight" | "eggs" | "water" | "note";
+export type QuickKind = "feed" | "deaths" | "weight" | "eggs" | "water" | "milk" | "note";
 export const QUICK: { kind: QuickKind; label: string; hint: string }[] = [
   { kind: "feed", label: "Feed", hint: "kg or bags" },
   { kind: "deaths", label: "Deaths", hint: "count and cause" },
   { kind: "weight", label: "Weigh", hint: "sample average" },
   { kind: "eggs", label: "Eggs", hint: "collected, cracked" },
   { kind: "water", label: "Water", hint: "pH, oxygen…" },
+  { kind: "milk", label: "Milk", hint: "litres" },
   { kind: "note", label: "Note", hint: "anything seen" },
 ];
-const TITLE: Record<QuickKind, string> = { feed: "Log feed", deaths: "Log deaths", weight: "Log a weigh-in", eggs: "Log eggs", water: "Log water quality", note: "Write an observation" };
+const TITLE: Record<QuickKind, string> = { feed: "Log feed", deaths: "Log deaths", weight: "Log a weigh-in", eggs: "Log eggs", water: "Log water quality", milk: "Log milk", note: "Write an observation" };
+export const FISH = ["catfish", "tilapia", "fish", "fingerlings"];
+export const EGG_LAYERS = ["layers", "noilers", "quail", "duck", "turkeys"];
+export const MILKERS = ["goats", "cattle", "sheep", "dairy"];
+/** Weighed in kilograms rather than grams. */
+export const BIG = ["goats", "sheep", "cattle", "pigs", "rabbits", "dairy"];
+
+/** The quick logs that make sense for these animals (feed, deaths, weigh and notes for all). */
+export function quickFor(species: string[]): QuickKind[] {
+  const has = (l: string[]) => species.some((x) => l.includes(x));
+  return QUICK.map((q) => q.kind).filter((k) => k === "eggs" ? has(EGG_LAYERS) : k === "water" ? has(FISH) : k === "milk" ? has(MILKERS) : true);
+}
+
 const CAUSES = ["Disease", "Heat stress", "Low oxygen", "Predator", "Injury", "Pile-up", "Unknown"];
 const LAST_FEED = "oko.lastFeed";
 
@@ -30,8 +43,8 @@ const n = (v: string) => (v.trim() === "" ? undefined : Number(v.replace(",", ".
 const digits = (v: string) => v.replace(/[^\d.]/g, "");
 
 /** One sheet for every quick log. Saved through the offline queue, so a weak network never loses a log. */
-export function QuickLog({ kind, on, presetUnit, open, onClose, onSaved }: {
-  kind: QuickKind | null; on: string; presetUnit?: string | null; open: boolean; onClose: () => void; onSaved?: (unitId: string) => void;
+export function QuickLog({ kind, on, presetUnit, presetBatch, open, onClose, onSaved }: {
+  kind: QuickKind | null; on: string; presetUnit?: string | null; presetBatch?: string | null; open: boolean; onClose: () => void; onSaved?: (unitId: string) => void;
 }) {
   const ws = useCurrentWorkspace();
   const qc = useQueryClient();
@@ -57,19 +70,20 @@ export function QuickLog({ kind, on, presetUnit, open, onClose, onSaved }: {
   const units = useMemo(() => {
     const all = (farm.data?.sites ?? []).flatMap((s) => s.units.filter((u) => !u.archived_at));
     const needAnimals = kind && kind !== "water" && kind !== "note";
+    if (presetBatch) return all.filter((u) => occupied[u.id]?.some((b) => b.id === presetBatch));  // only this batch's units
     return (needAnimals ? all.filter((u) => occupied[u.id]?.length) : all)
       .sort((a, b) => Number(!!occupied[b.id]?.length) - Number(!!occupied[a.id]?.length));
-  }, [farm.data, kind, occupied]);
-  const batches = unit ? occupied[unit] ?? [] : [];
+  }, [farm.data, kind, occupied, presetBatch]);
+  const batches = unit ? (occupied[unit] ?? []).filter((b) => !presetBatch || b.id === presetBatch) : [];
 
   useEffect(() => {
     if (!open) return;
-    setError(null); setBatch(""); resetEvidence();
+    setError(null); setBatch(presetBatch ?? ""); resetEvidence();
     let last: Record<string, string> = {};
     try { last = JSON.parse(localStorage.getItem(LAST_FEED) ?? "{}"); } catch { /* ignore */ }
     setF({ bag_kg: last.bag_kg ?? "25", feed_name: last.feed_name ?? "", item: last.item ?? "", sample_size: "20" });
     setUnit(presetUnit ?? "");
-  }, [open, kind, presetUnit, resetEvidence]);
+  }, [open, kind, presetUnit, presetBatch, resetEvidence]);
   useEffect(() => { if (open && !unit && units.length === 1) setUnit(units[0].id); }, [open, unit, units]);
   // Keep the remembered feed only if it is still in the list; with one feed, pick it.
   useEffect(() => {
@@ -83,6 +97,8 @@ export function QuickLog({ kind, on, presetUnit, open, onClose, onSaved }: {
 
   if (!kind) return null;
   const batchId = batch || (batches.length === 1 ? batches[0].id : "");
+  const species = batches.find((b) => b.id === batchId)?.species ?? batches[0]?.species ?? "";
+  const inKg = BIG.includes(species);
   const needsBatch = kind !== "water" && kind !== "note";
   const ready = !!unit && (!needsBatch || !!batchId) && (() => {
     switch (kind) {
@@ -91,6 +107,7 @@ export function QuickLog({ kind, on, presetUnit, open, onClose, onSaved }: {
       case "weight": return !!n(f.avg ?? "");
       case "eggs": return n(f.crates ?? "") !== undefined || n(f.eggs ?? "") !== undefined;
       case "water": return ["ph", "do", "temp", "ammonia", "nitrite"].some((k) => n(f[k] ?? "") !== undefined);
+      case "milk": return !!n(f.litres ?? "");
       case "note": return !!f.note?.trim();
     }
   })();
@@ -118,7 +135,11 @@ export function QuickLog({ kind, on, presetUnit, open, onClose, onSaved }: {
             fromStock ? { stock_item_id: fromStock.id, feed_name: fromStock.name } : { feed_name: f.feed_name || null });
           try { localStorage.setItem(LAST_FEED, JSON.stringify({ bag_kg: f.bag_kg, feed_name: f.feed_name, item: f.item })); } catch { /* ignore */ }
           label = `Feed for ${code}: ${feedMode === "kg" ? `${f.kg} kg` : `${f.bags} × ${f.bag_kg} kg`}`;
-        } else if (kind === "weight") { Object.assign(body, { avg_weight_g: n(f.avg!), sample_size: n(f.sample_size ?? "") }); label = `Weigh-in ${code}: ${f.avg} g`; }
+        } else if (kind === "weight") {
+          Object.assign(body, { avg_weight_g: inKg ? Math.round(n(f.avg!)! * 1000) : n(f.avg!), sample_size: n(f.sample_size ?? "") });
+          label = `Weigh-in ${code}: ${f.avg} ${inKg ? "kg" : "g"}`;
+        }
+        else if (kind === "milk") { Object.assign(body, { litres: n(f.litres!) }); label = `${f.litres} L of milk from ${code}`; }
         else if (kind === "eggs") { Object.assign(body, { eggs, cracked: n(f.cracked ?? "") ?? 0 }); label = `${eggs} eggs from ${code}`; }
         else if (kind === "water") { Object.assign(body, { ph: n(f.ph ?? ""), do_mg_l: n(f.do ?? ""), temp_c: n(f.temp ?? ""), ammonia: n(f.ammonia ?? ""), nitrite: n(f.nitrite ?? "") }); label = `Water in ${code}`; }
         else label = `Note on ${code}`;
@@ -156,7 +177,7 @@ export function QuickLog({ kind, on, presetUnit, open, onClose, onSaved }: {
             </div>
           </div>
         )}
-        {needsBatch && batches.length > 1 && (
+        {needsBatch && batches.length > 1 && !presetBatch && (
           <Field label="Which batch?" htmlFor="q-batch"><Select id="q-batch" value={batch} onChange={(e) => setBatch(e.target.value)}>
             <option value="">Choose…</option>{batches.map((b) => <option key={b.id} value={b.id}>{b.code} · {b.count.toLocaleString("en-NG")}</option>)}</Select></Field>
         )}
@@ -193,7 +214,7 @@ export function QuickLog({ kind, on, presetUnit, open, onClose, onSaved }: {
 
         {kind === "weight" && (
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Average weight (g)" htmlFor="q-avg"><Input id="q-avg" className={big} inputMode="decimal" value={f.avg ?? ""} onChange={(e) => set("avg", digits(e.target.value))} /></Field>
+            <Field label={`Average weight (${inKg ? "kg" : "g"})`} htmlFor="q-avg"><Input id="q-avg" className={big} inputMode="decimal" value={f.avg ?? ""} onChange={(e) => set("avg", digits(e.target.value))} /></Field>
             <Field label="How many weighed" htmlFor="q-sample"><Input id="q-sample" className={big} inputMode="numeric" value={f.sample_size ?? ""} onChange={(e) => set("sample_size", e.target.value.replace(/\D/g, ""))} /></Field>
           </div>
         )}
@@ -206,6 +227,12 @@ export function QuickLog({ kind, on, presetUnit, open, onClose, onSaved }: {
           <p className="-mt-2 text-[13px] text-ink-2">Total: <b className="tnum">{eggs.toLocaleString("en-NG")}</b> eggs</p>
           <Field label="Cracked or broken" htmlFor="q-cracked"><Input id="q-cracked" inputMode="numeric" value={f.cracked ?? ""} onChange={(e) => set("cracked", e.target.value.replace(/\D/g, ""))} /></Field>
         </>)}
+
+        {kind === "milk" && (
+          <Field label="Litres milked" htmlFor="q-litres" hint="All the animals in this unit, this milking">
+            <Input id="q-litres" className={big} inputMode="decimal" value={f.litres ?? ""} onChange={(e) => set("litres", digits(e.target.value))} />
+          </Field>
+        )}
 
         {kind === "water" && (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">

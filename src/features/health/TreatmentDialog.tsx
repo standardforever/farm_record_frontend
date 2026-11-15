@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Button, Dialog, Field, Input, Select, Textarea, useToast } from "@/components/ui";
 import { useBatches } from "@/features/batches";
+import { BREEDING, useAnimals } from "@/features/herd/api";
 import { localDay } from "@/features/daily/api";
 import { newId } from "@/features/offline/queue";
 import { useCurrentWorkspace } from "@/features/workspaces";
@@ -17,14 +18,14 @@ const SHORT: Record<string, string> = { medication: "Medicine", dewormer: "Dewor
 const int = (v: string) => (v.trim() === "" ? null : Math.max(0, Math.round(Number(v))));
 
 /** Record a medicine, dewormer, vaccine or supplement. Medicines and dewormers must say how long to wait before selling. */
-export function TreatmentDialog({ open, onClose, batchId, caseId }: { open: boolean; onClose: () => void; batchId?: string; caseId?: string | null }) {
+export function TreatmentDialog({ open, onClose, batchId, caseId, animalId }: { open: boolean; onClose: () => void; batchId?: string; caseId?: string | null; animalId?: string }) {
   const ws = useCurrentWorkspace();
   const cat = useHealthCatalog();
   const batches = useBatches(ws.orgId, "active", open);
   const hints = useProductHints(ws.orgId, open);
   const create = useCreateTreatment(ws.orgId);
   const toast = useToast();
-  const blank = { batch: "", unit: "", kind: "medication", product: "", ingredient: "", dose: "", route: "", given_on: localDay(), course: "1",
+  const blank = { batch: "", unit: "", animal: "", kind: "medication", product: "", ingredient: "", dose: "", route: "", given_on: localDay(), course: "1",
     meat: "", eggs: "", milk: "", given_by: "", lot: "", animals: "", notes: "" };
   const [f, setF] = useState(blank);
   const [filledFrom, setFilledFrom] = useState<string | null>(null);
@@ -36,14 +37,15 @@ export function TreatmentDialog({ open, onClose, batchId, caseId }: { open: bool
 
   useEffect(() => {
     if (!open) return;
-    setF({ ...blank, batch: batchId ?? "" }); setError(null); setFilledFrom(null); setPick(noStock()); evidence.reset();
+    setF({ ...blank, batch: batchId ?? "", animal: animalId ?? "" }); setError(null); setFilledFrom(null); setPick(noStock()); evidence.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, batchId]);
+  }, [open, batchId, animalId]);
 
   const batch = batches.data?.find((b) => b.id === f.batch);
   const products = useMemo<Product[]>(() => (batch ? cat.data?.products_by_species[batch.species] ?? ["meat"] : ["meat"]), [batch, cat.data]);
   const required = cat.data?.withdrawal_required.includes(f.kind) ?? false;
   const units = (batch?.units ?? []).filter((u) => !u.ended_on);
+  const tagged = useAnimals(ws.orgId, { batch_id: f.batch }, open && !!f.batch && BREEDING.includes(batch?.species ?? ""));
   const missing = required ? products.filter((p) => f[p].trim() === "") : [];
   const holds = useMemo(() => products.map((p) => ({ p, h: planHold(f.given_on, Number(f.course) || 1, int(f[p])) })).filter((x) => x.h),
     [products, f]);
@@ -61,7 +63,7 @@ export function TreatmentDialog({ open, onClose, batchId, caseId }: { open: bool
     setError(null);
     try {
       const t = await create.mutateAsync({
-        batch_id: f.batch, unit_id: f.unit || null, case_id: caseId ?? null, kind: f.kind, product: f.product.trim(),
+        batch_id: f.batch, unit_id: f.unit || null, animal_id: f.animal || null, case_id: caseId ?? null, kind: f.kind, product: f.product.trim(),
         active_ingredient: f.ingredient || null, dose: f.dose || null, route: f.route || null, given_on: f.given_on,
         course_days: Math.max(1, Number(f.course) || 1), animals: int(f.animals), given_by: f.given_by || null, product_lot: f.lot || null,
         withdrawal_meat_days: int(f.meat), withdrawal_eggs_days: int(f.eggs), withdrawal_milk_days: int(f.milk), notes: f.notes || null, client_id: newId(),
@@ -94,6 +96,14 @@ export function TreatmentDialog({ open, onClose, batchId, caseId }: { open: bool
             </Select>
           </Field>
         </div>
+        {!!tagged.data?.length && (
+          <Field label="Which animal" htmlFor="t-animal" hint="Only if one animal got it">
+            <Select id="t-animal" value={f.animal} disabled={!!animalId} onChange={(e) => set("animal", e.target.value)}>
+              <option value="">All of them</option>
+              {tagged.data.map((a) => <option key={a.id} value={a.id}>{a.tag}{a.name ? ` (${a.name})` : ""}</option>)}
+            </Select>
+          </Field>
+        )}
         <div role="radiogroup" aria-label="What was given" className="flex flex-wrap gap-1.5">
           {KIND_ORDER.filter((k) => cat.data?.kinds[k]).map((k) => (
             <button key={k} type="button" role="radio" aria-checked={f.kind === k} onClick={() => set("kind", k)}

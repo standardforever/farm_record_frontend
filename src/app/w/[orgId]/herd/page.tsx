@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { AlertTriangle, Baby, CalendarHeart, Eye, Heart, PawPrint, Plus, Search, Sprout, Stethoscope } from "lucide-react";
+import { AlertTriangle, Baby, CalendarHeart, Eye, Heart, PawPrint, Plus, Search, Settings2, Sprout, Stethoscope } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Badge, Button, Card, EmptyState, Input, PageLoader, Segmented, Stat } from "@/components/ui";
 import { ItemAction, actionFor } from "@/features/herd/Actions";
 import { type Animal, type Upcoming, ageText, shortDate, useAnimals, useHerdOverview } from "@/features/herd/api";
-import { MateDialog, TagDialog, useBreedingGroups } from "@/features/herd/Dialogs";
+import { MateDialog, SettingsDialog, TagDialog, useBreedingGroups } from "@/features/herd/Dialogs";
 import { localDay } from "@/features/daily/api";
 import { useCurrentWorkspace } from "@/features/workspaces";
 import { cn } from "@/lib/format";
@@ -29,6 +29,7 @@ export default function HerdPage() {
   const [tab, setTab] = useState<"next" | "animals">("next");
   const [tagging, setTagging] = useState(false);
   const [mating, setMating] = useState(false);
+  const [setting, setSetting] = useState(false);
   const edit = ws.can("farm.edit");
   const groups = useBreedingGroups(true);
   const all = useAnimals(ws.orgId);
@@ -47,6 +48,7 @@ export default function HerdPage() {
         </div>
         {edit && !none && (
           <div className="flex flex-wrap gap-2">
+            {ws.can("farm.approve") && <Button variant="ghost" aria-label="Breeding numbers" onClick={() => setSetting(true)}><Settings2 size={16} /> Numbers</Button>}
             <Button onClick={() => setTagging(true)}><Plus size={16} /> Tag animals</Button>
             <Button variant="primary" onClick={() => setMating(true)}><Heart size={16} /> Record mating</Button>
           </div>
@@ -76,6 +78,7 @@ export default function HerdPage() {
       )}
       <TagDialog open={tagging} onClose={() => setTagging(false)} />
       <MateDialog open={mating} onClose={() => setMating(false)} />
+      <SettingsDialog open={setting} onClose={() => setSetting(false)} />
     </>
   );
 }

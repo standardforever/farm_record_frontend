@@ -8,7 +8,7 @@ export type Hold = {
   reason: string; source: "treatment" | "case"; source_id: string; via_batch_id: string | null; via_batch_code: string | null;
 };
 export type Treatment = {
-  id: string; batch_id: string; batch_code: string | null; unit_id: string | null; unit_code: string | null; case_id: string | null; task_id: string | null;
+  id: string; batch_id: string; batch_code: string | null; unit_id: string | null; unit_code: string | null; animal_id?: string | null; animal_tag?: string | null; case_id: string | null; task_id: string | null;
   kind: string; product: string; active_ingredient: string | null; dose: string | null; route: string | null; given_on: string; end_on: string;
   animals: number | null; given_by: string | null; product_lot: string | null;
   withdrawal_meat_days: number | null; withdrawal_eggs_days: number | null; withdrawal_milk_days: number | null;
@@ -39,7 +39,7 @@ export type HealthCatalog = {
   groups: Record<string, string[]>; outcomes: Record<string, string>; products_by_species: Record<string, Product[]>;
 };
 export type TreatmentInput = {
-  batch_id: string; unit_id?: string | null; case_id?: string | null; kind: string; product: string; active_ingredient?: string | null; dose?: string | null;
+  batch_id: string; unit_id?: string | null; animal_id?: string | null; case_id?: string | null; kind: string; product: string; active_ingredient?: string | null; dose?: string | null;
   route?: string | null; given_on: string; course_days: number; animals?: number | null; given_by?: string | null; product_lot?: string | null;
   withdrawal_meat_days?: number | null; withdrawal_eggs_days?: number | null; withdrawal_milk_days?: number | null; notes?: string | null; client_id?: string;
 } & StockUse;

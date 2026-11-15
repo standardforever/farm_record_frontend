@@ -5,6 +5,7 @@ import { type CorrectionKind, OwnerActions } from "@/features/corrections";
 import { Camera, Plus, X } from "lucide-react";
 import { Alert, Badge, Button, Dialog, Field, Input, PageLoader, Pager, Segmented, Select, Textarea, useSlice, useToast } from "@/components/ui";
 import { useBatches } from "@/features/batches";
+import { useAnimals } from "@/features/herd/api";
 import { localDay, uploadPhoto } from "@/features/daily/api";
 import { shrinkPhoto } from "@/features/daily/device";
 import { useFormEvidence } from "@/features/evidence/useFormEvidence";
@@ -37,8 +38,9 @@ function Shell({ open, onClose, title, children, save, saving, disabled, error, 
 }
 
 /** Money out: what for, how much, charged to what, paid from where (or still owed). */
-export function ExpenseDialog({ open, onClose, batchId }: { open: boolean; onClose: () => void; batchId?: string }) {
+export function ExpenseDialog({ open, onClose, batchId, animalId }: { open: boolean; onClose: () => void; batchId?: string; animalId?: string }) {
   const ws = useCurrentWorkspace();
+  const animals = useAnimals(ws.orgId, {}, open && ws.has("farm") && ws.can("farm.view"));
   const cat = useFinanceCatalog();
   const accounts = useAccounts(ws.orgId, open);
   const batches = useBatches(ws.orgId, "active", open);
@@ -47,7 +49,7 @@ export function ExpenseDialog({ open, onClose, batchId }: { open: boolean; onClo
   const limit = useFinance(ws.orgId, open && ws.can("finance.view")).data?.approval_limit;
   const toast = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
-  const blank = { on: localDay(), category: "fuel", description: "", amount: "", payee: "", charge: "farm", picked: [] as string[], split: "even", parts: {} as Record<string, string>, account: "", paid: "now", reference: "", from: "", to: "" };
+  const blank = { on: localDay(), category: "fuel", description: "", amount: "", payee: "", charge: "farm", animal: "", picked: [] as string[], split: "even", parts: {} as Record<string, string>, account: "", paid: "now", reference: "", from: "", to: "" };
   const [f, setF] = useState(blank);
   const [photo, setPhoto] = useState<{ blob: Blob; url: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -57,9 +59,9 @@ export function ExpenseDialog({ open, onClose, batchId }: { open: boolean; onClo
   useEffect(() => {
     if (!open) return;
     setError(null); setPhoto(null); evidence.reset();
-    setF({ ...blank, charge: batchId ? "batch" : "farm", picked: batchId ? [batchId] : [] });
+    setF({ ...blank, charge: animalId ? "animal" : batchId ? "batch" : "farm", picked: batchId ? [batchId] : [], animal: animalId ?? "" });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, batchId]);
+  }, [open, batchId, animalId]);
   useEffect(() => { if (open && !f.account && accounts.data?.length) setF((x) => ({ ...x, account: accounts.data!.find((a) => a.kind === "cash")?.id ?? accounts.data![0].id })); }, [open, accounts.data, f.account]);
   const units = (farm.data?.sites ?? []).flatMap((s) => s.units.filter((u) => !u.archived_at));
   const cashOnly = cat.data?.cash_only[f.category];
@@ -75,7 +77,7 @@ export function ExpenseDialog({ open, onClose, batchId }: { open: boolean; onClo
       const media_id = photo ? (await uploadPhoto(ws.orgId, photo.blob, newId())).id : null;
       const covers = f.category === "rent" && f.from && f.to ? { covers_from: f.from, covers_to: f.to } : {};
       const e = await add.mutateAsync({ ...covers, spent_on: f.on, category: f.category, description: f.description.trim(), amount, payee: f.payee || null,
-        ...(f.charge === "batch" ? { batch_ids: f.picked } : f.charge === "unit" ? { unit_ids: f.picked } : {}),
+        ...(f.charge === "animal" ? { animal_id: f.animal } : f.charge === "batch" ? { batch_ids: f.picked } : f.charge === "unit" ? { unit_ids: f.picked } : {}),
         ...(many ? { split: f.split, ...(f.split === "amounts" ? { split_amounts: Object.fromEntries(picked.map((c) => [c.id, Number(f.parts[c.id]) || 0])) } : {}) } : {}),
         account_id: f.paid === "now" ? f.account || null : null, reference: f.reference || null, media_id, client_id: newId() });
       await evidence.attach({ record_id: e.id }, e.number);
@@ -85,7 +87,7 @@ export function ExpenseDialog({ open, onClose, batchId }: { open: boolean; onClo
   };
   return (
     <Shell open={open} onClose={onClose} title="Record an expense" save={save} saving={busy} error={error}
-      disabled={f.description.trim().length < 2 || !amount || (f.charge !== "farm" && !picked.length) || (many && !!split.problem) || (f.paid === "now" && !f.account)}>
+      disabled={f.description.trim().length < 2 || !amount || (f.charge === "animal" ? !f.animal : f.charge !== "farm" && !picked.length) || (many && !!split.problem) || (f.paid === "now" && !f.account)}>
       <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_160px]">
         <Field label="What for" htmlFor="x-cat" hint={cashOnly ? `Not counted as a cost: ${cashOnly}.` : undefined}>
           <Select id="x-cat" value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })}>
@@ -101,8 +103,17 @@ export function ExpenseDialog({ open, onClose, batchId }: { open: boolean; onClo
       <div className="flex flex-col gap-2">
         <span className="text-[12.5px] font-semibold text-ink-2">Charge it to</span>
         <Segmented value={f.charge} onChange={(v) => setF({ ...f, charge: v, picked: [], split: "even", parts: {} })}
-          options={[{ value: "farm", label: "Whole farm" }, { value: "batch", label: "Batches" }, { value: "unit", label: "Houses, ponds or pens" }]} />
-        {f.charge !== "farm" && <SharePicker kind={f.charge as "batch" | "unit"} choices={choices} picked={f.picked} split={f.split} parts={f.parts}
+          options={[{ value: "farm", label: "Whole farm" }, { value: "batch", label: "Batches" }, { value: "unit", label: "Houses, ponds or pens" },
+            ...(animals.data?.length ? [{ value: "animal", label: "One animal" }] : [])]} />
+        {f.charge === "animal" && (
+          <Field label="Which animal" htmlFor="x-animal" hint="Its group gets the cost too, so batch results stay whole.">
+            <Select id="x-animal" value={f.animal} onChange={(e) => setF({ ...f, animal: e.target.value })}>
+              <option value="">Choose…</option>
+              {animals.data?.map((a) => <option key={a.id} value={a.id}>{a.tag}{a.name ? ` (${a.name})` : ""} · {a.batch_code}</option>)}
+            </Select>
+          </Field>
+        )}
+        {(f.charge === "batch" || f.charge === "unit") && <SharePicker kind={f.charge as "batch" | "unit"} choices={choices} picked={f.picked} split={f.split} parts={f.parts}
           result={split} onChange={(x) => setF({ ...f, ...x })} />}
       </div>
       <div className="flex flex-col gap-2">

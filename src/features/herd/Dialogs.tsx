@@ -9,7 +9,8 @@ import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/format";
 import {
-  type Animal, type Mating, BREEDING, addDays, shortDate, useAnimals, useExitAnimal, useHerdCatalog, useMate, useMatingAction, useMoveAnimal, useTagAnimals,
+  type Animal, type Mating, BREEDING, addDays, shortDate, useAnimals, useExitAnimal, useHerdCatalog, useHerdSettings, useMate, useMatingAction, useMoveAnimal,
+  useSaveHerdSettings, useTagAnimals, useCycle,
 } from "./api";
 
 const err = (e: unknown) => (e instanceof ApiError ? e.message : "Could not save.");
@@ -112,19 +113,21 @@ export function MateDialog({ open, onClose, dam }: { open: boolean; onClose: () 
   const males = useAnimals(ws.orgId, { sex: "male", species: d?.species }, open && !!d);
   const mate = useMate(ws.orgId);
   const toast = useToast();
-  const [f, setF] = useState({ sire: "", method: "natural", name: "", on: localDay(), notes: "" });
+  const [f, setF] = useState({ sires: [] as string[], method: "natural", name: "", on: localDay(), notes: "" });
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => { if (open) { setDamId(dam?.id ?? ""); setF({ sire: "", method: "natural", name: "", on: localDay(), notes: "" }); setError(null); } }, [open, dam]);
-  const c = d ? cat.data?.cycles[d.species] : undefined;
+  useEffect(() => { if (open) { setDamId(dam?.id ?? ""); setF({ sires: [], method: "natural", name: "", on: localDay(), notes: "" }); setError(null); } }, [open, dam]);
+  // One male on the farm: pick him.
+  useEffect(() => { if (open && f.method === "natural" && !f.sires.length && males.data?.length === 1) setF((x) => ({ ...x, sires: [males.data![0].id] })); }, [open, males.data, f.method, f.sires.length]);
+  const c = useCycle(ws.orgId, d?.species);
   const w = d ? cat.data?.words[d.species] : undefined;
   const due = c ? addDays(f.on, c.gestation) : null;
   return (
     <Dialog open={open} onClose={onClose} title={w ? `Record ${w.mate}` : "Record a mating"} eyebrow={d ? `${d.tag}${d.name ? ` · ${d.name}` : ""}` : "Breeding"}
-      footer={<Foot onClose={onClose} busy={mate.isPending} disabled={!d || (f.method === "natural" && !f.sire)} onSave={async () => {
+      footer={<Foot onClose={onClose} busy={mate.isPending} disabled={!d || (f.method === "natural" && !f.sires.length)} onSave={async () => {
         setError(null);
         try {
-          await mate.mutateAsync({ dam_id: d!.id, sire_id: f.method === "natural" ? f.sire : null, sire_name: f.method !== "natural" ? f.name || null : null,
-            method: f.method, mated_on: f.on, notes: f.notes || null });
+          await mate.mutateAsync({ dam_id: d!.id, method: f.method, mated_on: f.on, notes: f.notes || null,
+            ...(f.method === "natural" ? { sires: f.sires.map((id) => ({ sire_id: id })) } : { sire_name: f.name || null }) });
           toast(`${d!.tag}: due about ${shortDate(due!)}`); onClose();
         } catch (e) { setError(err(e)); }
       }} />}>
@@ -138,11 +141,22 @@ export function MateDialog({ open, onClose, dam }: { open: boolean; onClose: () 
         )}
         <Segmented value={f.method} onChange={(v) => setF({ ...f, method: v })} options={[{ value: "natural", label: "Our male" }, { value: "outside", label: "Outside male" }, { value: "ai", label: "AI" }]} />
         {f.method === "natural" ? (
-          <Field label={w ? `Which ${w.male}` : "Which male"} htmlFor="h-sire" hint={males.data && !males.data.length ? "No males tagged yet. Tag him first, or pick Outside male." : undefined}>
-            <Select id="h-sire" value={f.sire} onChange={(e) => setF({ ...f, sire: e.target.value })}>
-              <option value="">Choose…</option>{males.data?.map((m) => <option key={m.id} value={m.id}>{m.tag}{m.name ? ` (${m.name})` : ""}</option>)}
-            </Select>
-          </Field>
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[12.5px] font-semibold text-ink-2">{w ? `Which ${w.male}` : "Which male"}<span className="font-normal text-ink-3"> · pick more than one if several ran with her</span></span>
+            {males.data && !males.data.length && <p className="text-[12.5px] text-ink-3">No males tagged yet. Tag him first, or pick Outside male.</p>}
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Males">
+              {males.data?.map((m) => {
+                const on = f.sires.includes(m.id);
+                return (
+                  <button key={m.id} type="button" aria-pressed={on} onClick={() => setF({ ...f, sires: on ? f.sires.filter((x) => x !== m.id) : [...f.sires, m.id] })}
+                    className={cn("rounded-full border px-3.5 py-1.5 font-mono text-[13.5px] font-semibold", on ? "border-brand bg-brand-soft text-brand" : "border-line hover:border-brand/50")}>
+                    ♂ {m.tag}{m.name ? <span className="font-sans font-normal"> · {m.name}</span> : null}
+                  </button>
+                );
+              })}
+            </div>
+            {f.sires.length > 1 && <p className="text-[12.5px] text-ink-3">The father of each young will be one of these. You can say which when you tag them, if you know.</p>}
+          </div>
         ) : (
           <Field label={f.method === "ai" ? "Semen or bull used" : "Whose male"} htmlFor="h-sire-name" hint="Optional"><Input id="h-sire-name" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></Field>
         )}
@@ -195,7 +209,8 @@ export function BirthDialog({ m, dam, open, onClose }: { m: Mating | null; dam: 
   const toast = useToast();
   const w = dam ? cat.data?.words[dam.species] : undefined;
   const [f, setF] = useState({ on: localDay(), alive: "", dead: "", group: "", unit: "" });
-  const [young, setYoung] = useState<{ tag: string; sex: "female" | "male" }[]>([]);
+  const [young, setYoung] = useState<{ tag: string; sex: "female" | "male"; sire_id?: string }[]>([]);
+  const sires = useMemo(() => [...new Map((m?.services ?? []).filter((x) => x.sire_id).map((x) => [x.sire_id!, x.sire_tag ?? "?"])).entries()], [m]);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => { if (open) { setF({ on: localDay(), alive: "", dead: "", group: dam?.batch_id ?? "", unit: "" }); setYoung([]); setError(null); } }, [open, dam]);
   const g = groups.find((x) => x.id === f.group);
@@ -230,6 +245,12 @@ export function BirthDialog({ m, dam, open, onClose }: { m: Mating | null; dam: 
               <Input aria-label={`Tag ${i + 1}`} value={y.tag} placeholder={`${dam?.tag ?? "K"}-${i + 1}`} className="min-w-0 flex-1"
                 onChange={(e) => setYoung((x) => x.map((z, j) => (j === i ? { ...z, tag: e.target.value.toUpperCase() } : z)))} />
               <Segmented value={y.sex} onChange={(v) => setYoung((x) => x.map((z, j) => (j === i ? { ...z, sex: v } : z)))} options={[{ value: "female", label: "F" }, { value: "male", label: "M" }]} />
+              {sires.length > 1 && (
+                <div className="w-[118px] shrink-0"><Select aria-label={`Father of ${y.tag || `young ${i + 1}`}`} value={y.sire_id ?? ""}
+                  onChange={(e) => setYoung((x) => x.map((z, j) => (j === i ? { ...z, sire_id: e.target.value || undefined } : z)))}>
+                  <option value="">Father?</option>{sires.map(([id, tag]) => <option key={id} value={id}>{tag}</option>)}
+                </Select></div>
+              )}
               <button type="button" aria-label="Remove" onClick={() => setYoung((x) => x.filter((_, j) => j !== i))} className="p-1.5 text-ink-3 hover:text-crit"><Trash2 size={16} /></button>
             </div>
           ))}
@@ -368,6 +389,115 @@ export function MoveDialog({ a, open, onClose }: { a: Animal | null; open: boole
         <Field label="Date" htmlFor="h-m-on"><Input id="h-m-on" type="date" max={localDay()} value={f.on} onChange={(e) => setF({ ...f, on: e.target.value })} /></Field>
         <UnitPick b={src} value={f.from} onChange={(v) => setF({ ...f, from: v })} label="From which pen" />
         <UnitPick b={dst} value={f.toUnit} onChange={(v) => setF({ ...f, toUnit: v })} label="Into which pen" />
+      </div>
+    </Dialog>
+  );
+}
+
+/** Served again before the result is known: same male or another. The due date moves to the last service. */
+export function ServeDialog({ m, dam, open, onClose }: { m: Mating | null; dam: Animal | null; open: boolean; onClose: () => void }) {
+  const ws = useCurrentWorkspace();
+  const cat = useHerdCatalog();
+  const males = useAnimals(ws.orgId, { sex: "male", species: dam?.species }, open && !!dam);
+  const act = useMatingAction(ws.orgId);
+  const toast = useToast();
+  const w = dam ? cat.data?.words[dam.species] : undefined;
+  const [f, setF] = useState({ sire: "", method: "natural", name: "", on: localDay() });
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => { if (open) { setF({ sire: m?.services[m.services.length - 1]?.sire_id ?? "", method: "natural", name: "", on: localDay() }); setError(null); } }, [open, m]);
+  const c = useCycle(ws.orgId, dam?.species);
+  return (
+    <Dialog open={open} onClose={onClose} title="Served again" eyebrow={dam?.tag}
+      footer={<Foot onClose={onClose} busy={act.isPending} disabled={f.method === "natural" && !f.sire} onSave={async () => {
+        setError(null);
+        try {
+          const r = await act.mutateAsync({ id: m!.id, action: "services", served_on: f.on, method: f.method,
+            sire_id: f.method === "natural" ? f.sire : null, sire_name: f.method !== "natural" ? f.name || null : null });
+          toast(`${dam?.tag}: due about ${shortDate(r.due_on)}`); onClose();
+        } catch (e) { setError(err(e)); }
+      }} />}>
+      <div className="flex flex-col gap-4">
+        {error && <Alert tone="crit">{error}</Alert>}
+        <p className="text-[13.5px] text-ink-2">Use this when she was served again before you knew if she held: on the same heat, or by another {w?.male ?? "male"}.</p>
+        <Segmented value={f.method} onChange={(v) => setF({ ...f, method: v })} options={[{ value: "natural", label: "Our male" }, { value: "outside", label: "Outside male" }, { value: "ai", label: "AI" }]} />
+        {f.method === "natural" ? (
+          <Field label={w ? `Which ${w.male}` : "Which male"} htmlFor="h-sv-sire"><Select id="h-sv-sire" value={f.sire} onChange={(e) => setF({ ...f, sire: e.target.value })}>
+            <option value="">Choose…</option>{males.data?.map((x) => <option key={x.id} value={x.id}>{x.tag}{x.name ? ` (${x.name})` : ""}</option>)}</Select></Field>
+        ) : <Field label={f.method === "ai" ? "Semen or bull used" : "Whose male"} htmlFor="h-sv-name" hint="Optional"><Input id="h-sv-name" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></Field>}
+        <Field label="Date" htmlFor="h-sv-on"><Input id="h-sv-on" type="date" min={m?.mated_on} max={localDay()} value={f.on} onChange={(e) => setF({ ...f, on: e.target.value })} /></Field>
+        {c && <p className="text-[13px] text-ink-2">New due date: <b className="text-brand">{shortDate(addDays(f.on, c.gestation))}</b> ({c.gestation} days from this service)</p>}
+      </div>
+    </Dialog>
+  );
+}
+
+const FIELDS: { key: string; label: string; unit: "days" | "months" }[] = [
+  { key: "first_mating_f", label: "First mating, females", unit: "months" },
+  { key: "first_mating_m", label: "First use, males", unit: "months" },
+  { key: "gestation", label: "Pregnancy length", unit: "days" },
+  { key: "cycle", label: "Heat cycle", unit: "days" },
+  { key: "check", label: "Pregnancy check after mating", unit: "days" },
+  { key: "prepare", label: "Get ready before birth", unit: "days" },
+  { key: "wean", label: "Wean at", unit: "days" },
+  { key: "rebreed", label: "Mate again after birth", unit: "days" },
+  { key: "rebreed_after_wean", label: "Mate again after weaning", unit: "days" },
+  { key: "overdue", label: "Call it overdue after the due date", unit: "days" },
+];
+const SPECIES_LABEL: Record<string, string> = { goats: "Goats", sheep: "Sheep", pigs: "Pigs", cattle: "Cattle", rabbits: "Rabbits" };
+
+/** The farm's own breeding numbers per species; empty means the default. */
+export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const ws = useCurrentWorkspace();
+  const q = useHerdSettings(ws.orgId, open);
+  const save = useSaveHerdSettings(ws.orgId);
+  const toast = useToast();
+  const [sp, setSp] = useState("goats");
+  const [vals, setVals] = useState<Record<string, string>>({});
+  const [error, setError] = useState<string | null>(null);
+  const cur = q.data?.[sp];
+  useEffect(() => {
+    if (!cur) return;
+    const own = new Set(cur.changed);
+    setVals(Object.fromEntries(FIELDS.map((f) => {
+      const v = cur.values[f.key];
+      return [f.key, own.has(f.key) && typeof v === "number" ? String(f.unit === "months" ? Math.round(v / 30.4) : v) : ""];
+    })));
+    setError(null);
+  }, [cur, sp]);
+  const shown = FIELDS.filter((f) => cur && f.key in cur.defaults && cur.defaults[f.key] !== null);
+  return (
+    <Dialog open={open} onClose={onClose} title="Breeding numbers" eyebrow="Your farm" wide
+      footer={<Foot onClose={onClose} busy={save.isPending} onSave={async () => {
+        setError(null);
+        try {
+          const values = Object.fromEntries(shown.map((f) => {
+            const n = vals[f.key] === "" ? null : Number(vals[f.key]);
+            return [f.key, n == null ? null : f.unit === "months" ? Math.round(n * 30.4) : n];
+          }));
+          await save.mutateAsync({ species: sp, values }); toast(`Saved for ${SPECIES_LABEL[sp].toLowerCase()}`); onClose();
+        } catch (e) { setError(err(e)); }
+      }} />}>
+      <div className="flex flex-col gap-4">
+        {error && <Alert tone="crit">{error}</Alert>}
+        <p className="text-[13.5px] text-ink-2">Oko plans heat watches, checks, due dates and weaning from these. Leave a box empty to use the suggested number. Changes apply to new matings and to what is still ahead.</p>
+        <div className="flex flex-wrap gap-1.5">
+          {Object.keys(SPECIES_LABEL).map((k) => (
+            <button key={k} type="button" aria-pressed={sp === k} onClick={() => setSp(k)}
+              className={cn("rounded-full border px-3 py-1 text-[13px] font-semibold", sp === k ? "border-brand bg-brand-soft text-brand" : "border-line text-ink-2")}>{SPECIES_LABEL[k]}</button>
+          ))}
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {shown.map((f) => {
+            const d = cur!.defaults[f.key] as number;
+            const def = f.unit === "months" ? `${Math.round(d / 30.4)} months` : `${d} days`;
+            return (
+              <Field key={f.key} label={`${f.label} (${f.unit})`} htmlFor={`hs-${f.key}`} hint={`Suggested: ${def}`}>
+                <Input id={`hs-${f.key}`} inputMode="numeric" placeholder={f.unit === "months" ? String(Math.round(d / 30.4)) : String(d)} value={vals[f.key] ?? ""}
+                  onChange={(e) => setVals({ ...vals, [f.key]: e.target.value.replace(/\D/g, "") })} />
+              </Field>
+            );
+          })}
+        </div>
       </div>
     </Dialog>
   );

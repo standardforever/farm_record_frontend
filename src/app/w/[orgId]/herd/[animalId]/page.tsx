@@ -3,10 +3,16 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
-import { ArrowLeft, Baby, Heart, LogOut, MoveRight, PawPrint, Pencil, Stethoscope } from "lucide-react";
+import { ArrowLeft, Baby, Heart, LogOut, MoveRight, PawPrint, Pencil, Pill, Plus, Repeat, Scale, Stethoscope, Trash2, Wallet } from "lucide-react";
 import { Alert, Badge, Button, Card, Dialog, Field, Input, PageLoader, Select, Textarea, useToast } from "@/components/ui";
-import { type AnimalDetail, type Mating, ageText, shortDate, useAnimal, useAnimals, useHerdCatalog, useMatingAction, useUpdateAnimal } from "@/features/herd/api";
-import { BirthDialog, CheckDialog, EndDialog, ExitDialog, MateDialog, MoveDialog, WeanDialog } from "@/features/herd/Dialogs";
+import {
+  type AnimalDetail, type Mating, ageText, shortDate, siresOf, useAnimal, useAnimals, useCycle, useHerdCatalog, useMatingAction, useUnweigh, useUpdateAnimal, useWeigh,
+} from "@/features/herd/api";
+import { BirthDialog, CheckDialog, EndDialog, ExitDialog, MateDialog, MoveDialog, ServeDialog, WeanDialog } from "@/features/herd/Dialogs";
+import { localDay } from "@/features/daily/api";
+import { ExpenseDialog } from "@/features/finance/FinanceDialogs";
+import { TreatmentDialog } from "@/features/health";
+import { naira } from "@/lib/format";
 import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/format";
@@ -21,13 +27,14 @@ export default function AnimalPage() {
   const ws = useCurrentWorkspace();
   const q = useAnimal(ws.orgId, animalId);
   const cat = useHerdCatalog();
-  const [open, setOpen] = useState<"" | "mate" | "check" | "birth" | "wean" | "end" | "exit" | "move" | "edit" | "undo">("");
+  const cyc = useCycle(ws.orgId, q.data?.species);
+  const [open, setOpen] = useState<"" | "mate" | "check" | "birth" | "wean" | "end" | "exit" | "move" | "edit" | "undo" | "serve" | "treat" | "spend">("");
   const [mat, setMat] = useState<Mating | null>(null);
   if (q.isLoading) return <PageLoader />;
   if (!q.data) return <Alert tone="crit">{q.error instanceof ApiError ? q.error.message : "Could not load this animal."}</Alert>;
   const a = q.data;
   const w = cat.data?.words[a.species];
-  const c = cat.data?.cycles[a.species];
+  const c = cyc;
   const edit = ws.can("farm.edit") && a.status === "active";
   const live = a.matings.filter((m) => !m.voided_at);
   const current = live.find((m) => m.status === "served" || m.status === "pregnant") ?? null;
@@ -54,6 +61,7 @@ export default function AnimalPage() {
             {current && <Button onClick={() => go("check", current)}><Stethoscope size={16} /> Pregnancy check</Button>}
             {current && <Button variant="primary" onClick={() => go("birth", current)}><Baby size={16} /> Record {w?.birth ?? "birth"}</Button>}
             {nursing && <Button onClick={() => go("wean", nursing)}><PawPrint size={16} /> Wean</Button>}
+            {ws.has("health") && ws.can("health.edit") && <Button onClick={() => go("treat")}><Pill size={16} /> Treatment</Button>}
           </div>
         )}
       </div>
@@ -63,6 +71,10 @@ export default function AnimalPage() {
           {current && c && (
             <Card title={current.status === "pregnant" ? "Pregnant" : "Mated, waiting for a check"} meta={`Due about ${longDate(current.due_on)}`}>
               <Timeline m={current} cycle={c} />
+              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-ink-2">
+                <span>Served by {current.services.map((sv, i) => <span key={sv.id}>{i ? ", " : ""}<b className="font-mono text-ink">{sv.sire_tag ?? sv.sire_name ?? (sv.method === "ai" ? "AI" : "outside male")}</b> on {shortDate(sv.served_on)}</span>)}</span>
+                {edit && current.status === "served" && <button type="button" className="inline-flex items-center gap-1 font-semibold text-brand hover:underline" onClick={() => go("serve", current)}><Repeat size={14} /> Served again</button>}
+              </div>
               {edit && <button type="button" className="mt-3 text-[12.5px] font-semibold text-ink-3 hover:text-crit" onClick={() => go("end", current)}>She lost it, or this was entered by mistake</button>}
             </Card>
           )}
@@ -73,7 +85,7 @@ export default function AnimalPage() {
                   {live.map((m) => (
                     <li key={m.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-[13.5px]">
                       <span className="w-[92px] shrink-0 font-semibold">{shortDate(m.mated_on)}</span>
-                      <span className="min-w-0 flex-1 text-ink-2">with {m.sire_tag ?? m.sire_name ?? (m.method === "ai" ? "AI" : "an outside male")}
+                      <span className="min-w-0 flex-1 text-ink-2">with {siresOf(m)}{m.services.length > 1 ? ` (${m.services.length} services)` : ""}
                         {m.status === "born" && <> · <b className="text-ink">{m.born_alive} alive</b>{m.born_dead ? `, ${m.born_dead} dead` : ""} on {shortDate(m.ended_on!)}{m.young_batch_code ? ` into ${m.young_batch_code}` : ""}{m.weaned_on ? ` · weaned ${m.weaned} on ${shortDate(m.weaned_on)}` : ""}</>}
                         {(m.status === "served" || m.status === "pregnant") && <> · due {shortDate(m.due_on)}</>}
                       </span>
@@ -98,7 +110,9 @@ export default function AnimalPage() {
           <Card title="Family">
             <dl className="grid grid-cols-2 gap-3 text-[13.5px]">
               <div><dt className="text-[12px] text-ink-3">Mother</dt><dd>{a.dam ? <Link className="font-mono font-semibold text-brand" href={`/w/${ws.orgId}/herd/${a.dam.id}`}>{a.dam.tag}</Link> : "Not recorded"}</dd></div>
-              <div><dt className="text-[12px] text-ink-3">Father</dt><dd>{a.sire ? <Link className="font-mono font-semibold text-brand" href={`/w/${ws.orgId}/herd/${a.sire.id}`}>{a.sire.tag}</Link> : a.sire_name ?? "Not recorded"}</dd></div>
+              <div><dt className="text-[12px] text-ink-3">Father</dt><dd>{a.sire ? <Link className="font-mono font-semibold text-brand" href={`/w/${ws.orgId}/herd/${a.sire.id}`}>{a.sire.tag}</Link>
+                : a.possible_sires.length ? <>{a.possible_sires.map((p, i) => <span key={p.id}>{i ? " or " : ""}<Link className="font-mono font-semibold text-brand" href={`/w/${ws.orgId}/herd/${p.id}`}>{p.tag}</Link></span>)} <span className="text-ink-3">(not sure)</span></>
+                : a.sire_name ?? "Not recorded"}</dd></div>
             </dl>
             {a.offspring.length > 0 && (
               <div className="mt-4"><div className="mb-1.5 text-[12px] text-ink-3">Offspring tagged ({a.offspring.length})</div>
@@ -107,6 +121,23 @@ export default function AnimalPage() {
                     {o.sex === "female" ? "♀" : "♂"} {o.tag}</Link>))}</div></div>
             )}
           </Card>
+          {a.maybe_offspring.length > 0 && (
+            <Card title="Maybe his" meta="Young from matings shared with another male">
+              <div className="flex flex-wrap gap-1.5">{a.maybe_offspring.map((o) => (
+                <Link key={o.id} href={`/w/${ws.orgId}/herd/${o.id}`} className="rounded-full border border-dashed border-line px-2.5 py-1 font-mono text-[12.5px] font-semibold hover:border-brand">{o.sex === "female" ? "♀" : "♂"} {o.tag}</Link>))}</div>
+            </Card>
+          )}
+          <Weights a={a} edit={edit} />
+          {a.costs && (
+            <Card title="Costs" meta={a.cost_total ? `${naira(a.cost_total)} on this animal` : "Charged to this animal alone"}
+              action={edit && ws.has("finance") && ws.can("finance.edit") ? <Button size="sm" variant="ghost" onClick={() => go("spend")}><Wallet size={15} /> Add expense</Button> : undefined}>
+              {!a.costs.length ? <p className="text-[13px] text-ink-3">Vet visits, drugs or anything else for {a.tag} alone. Feed and shared costs stay on {a.batch_code}.</p> : (
+                <ul className="flex flex-col gap-1.5 text-[13px]">{a.costs.map((x) => (
+                  <li key={`${x.kind}-${x.id}`} className="flex items-baseline justify-between gap-3"><span className="min-w-0"><span className="text-ink-3">{shortDate(x.on)}</span> {x.label}</span><b className="tnum shrink-0">{naira(x.amount)}</b></li>
+                ))}</ul>
+              )}
+            </Card>
+          )}
           {c && a.sex === "female" && (
             <Card title={`Guide for ${a.species}`} meta="Starting points; your vet knows your animals">
               <ul className="flex flex-col gap-1.5 text-[13px] text-ink-2">
@@ -140,12 +171,15 @@ export default function AnimalPage() {
       <MoveDialog open={open === "move"} onClose={close} a={a} />
       <EditDialog open={open === "edit"} onClose={close} a={a} />
       <UndoBirth open={open === "undo"} onClose={close} m={mat} />
+      <ServeDialog open={open === "serve"} onClose={close} m={mat} dam={a} />
+      <TreatmentDialog open={open === "treat"} onClose={close} batchId={a.batch_id} animalId={a.id} />
+      <ExpenseDialog open={open === "spend"} onClose={close} animalId={a.id} />
     </>
   );
 }
 
 function Timeline({ m, cycle }: { m: Mating; cycle: { cycle: number | null; check: number; prepare: number; gestation: number } }) {
-  const add = (n: number) => { const d = new Date(m.mated_on + "T12:00:00"); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+  const add = (n: number) => { const d = new Date((m.last_served_on ?? m.mated_on) + "T12:00:00"); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
   const today = new Date().toISOString().slice(0, 10);
   const steps = [
     { on: m.mated_on, label: "Mated" },
@@ -223,5 +257,47 @@ function UndoBirth({ m, open, onClose }: { m: Mating | null; open: boolean; onCl
         <Field label="Why" htmlFor="u-why"><Input id="u-why" value={why} onChange={(e) => setWhy(e.target.value)} /></Field>
       </div>
     </Dialog>
+  );
+}
+
+function Weights({ a, edit }: { a: AnimalDetail; edit: boolean }) {
+  const ws = useCurrentWorkspace();
+  const weigh = useWeigh(ws.orgId);
+  const unweigh = useUnweigh(ws.orgId);
+  const toast = useToast();
+  const [kg, setKg] = useState("");
+  const [on, setOn] = useState(localDay());
+  const max = Math.max(...a.weights.map((x) => x.kg), 1);
+  const pts = [...a.weights].reverse();
+  return (
+    <Card title={<span className="flex items-center gap-2"><Scale size={16} className="text-brand" /> Weights</span>}
+      meta={a.weights[0] ? `${a.weights[0].kg} kg on ${shortDate(a.weights[0].on)}${a.weights[0].gain_g_day != null ? ` · ${a.weights[0].gain_g_day > 0 ? "+" : ""}${a.weights[0].gain_g_day} g a day` : ""}` : "Not weighed yet"}>
+      {pts.length > 1 && (
+        <svg viewBox={`0 0 ${Math.max(pts.length - 1, 1) * 40 + 8} 48`} className="mb-3 h-12 w-full" preserveAspectRatio="none" aria-hidden>
+          <polyline fill="none" stroke="var(--brand)" strokeWidth="2" strokeLinejoin="round" vectorEffect="non-scaling-stroke"
+            points={pts.map((p, i) => `${4 + i * 40},${44 - (p.kg / max) * 40}`).join(" ")} />
+        </svg>
+      )}
+      {edit && (
+        <form className="mb-3 grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.3fr)_auto] gap-2" onSubmit={async (e) => {
+          e.preventDefault();
+          try { await weigh.mutateAsync({ id: a.id, on, kg: Number(kg) }); setKg(""); toast(`${a.tag}: ${kg} kg`); }
+          catch (er) { toast(er instanceof ApiError ? er.message : "Could not save", "crit"); }
+        }}>
+          <Input aria-label="Weight in kg" inputMode="decimal" placeholder="kg" value={kg} onChange={(e) => setKg(e.target.value.replace(/[^\d.]/g, ""))} />
+          <Input aria-label="Weighed on" type="date" max={localDay()} value={on} onChange={(e) => setOn(e.target.value)} />
+          <Button type="submit" size="sm" variant="primary" loading={weigh.isPending} disabled={!(Number(kg) > 0)}><Plus size={15} /> Add</Button>
+        </form>
+      )}
+      {a.weights.length > 0 && (
+        <ul className="flex flex-col text-[13px]">{a.weights.slice(0, 8).map((x) => (
+          <li key={x.id} className="flex items-center justify-between gap-3 border-t border-line py-1.5 first:border-0">
+            <span><b className="tnum">{x.kg} kg</b> <span className="text-ink-3">{shortDate(x.on)}</span></span>
+            <span className="flex items-center gap-2 text-ink-3">{x.gain_g_day != null && <span className={x.gain_g_day < 0 ? "text-crit" : ""}>{x.gain_g_day > 0 ? "+" : ""}{x.gain_g_day} g/day</span>}
+              {edit && <button type="button" aria-label={`Remove ${x.kg} kg`} className="hover:text-crit" onClick={() => unweigh.mutate({ id: a.id, weightId: x.id })}><Trash2 size={14} /></button>}</span>
+          </li>
+        ))}</ul>
+      )}
+    </Card>
   );
 }

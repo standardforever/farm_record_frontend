@@ -13,7 +13,7 @@ import { BatchPayment } from "@/features/batches/BatchPayment";
 import { OwnerActions } from "@/features/corrections";
 import { useCatalog } from "@/features/farm";
 import { BatchHealthCard, HoldList, useBatchHealth } from "@/features/health";
-import { BatchStockCard, useInventoryCatalog } from "@/features/inventory";
+import { AssignedStockCard, BatchStockCard, useInventoryCatalog } from "@/features/inventory";
 import { ExpenseDialog, useFinanceCatalog } from "@/features/finance";
 import { InvoiceDialog } from "@/features/sales";
 import { StandardCard } from "@/features/packs";
@@ -107,7 +107,7 @@ function View({ b, checking }: { b: BatchDetail; checking?: boolean }) {
       {b.pack_key && <div className="mb-4"><StandardCard batchId={b.id} active={active} /></div>}
       <div className="mb-4 empty:hidden"><BatchPlanCard b={b} /></div>
       {ws.has("health") && <div className="mb-4"><BatchHealthCard batchId={b.id} active={active} /></div>}
-      {ws.has("inventory") && <div className="mb-4"><BatchStockCard batchId={b.id} active={active} /></div>}
+      {ws.has("inventory") && <div className="mb-4 flex flex-col gap-4"><AssignedStockCard batchId={b.id} active={active} /><BatchStockCard batchId={b.id} active={active} /></div>}
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <div className="flex min-w-0 flex-col gap-4">

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Alert, Button, Dialog, Field, Input, Segmented, Select, Textarea, useToast } from "@/components/ui";
 import { useBatches } from "@/features/batches";
+import { ASIDE_HINT, BatchPick } from "./BatchPick";
 import { localDay } from "@/features/daily/api";
 import { useFormEvidence } from "@/features/evidence/useFormEvidence";
 import { type PaymentChoice, PaymentFields, noPayment, paymentBody, paymentReady, useCanPay } from "@/features/finance/PaymentFields";
@@ -100,7 +101,7 @@ export function ItemDialog({ open, onClose, item }: { open: boolean; onClose: ()
   );
 }
 
-export function ReceiveDialog({ open, onClose, itemId }: { open: boolean; onClose: () => void; itemId?: string }) {
+export function ReceiveDialog({ open, onClose, itemId, batchId }: { open: boolean; onClose: () => void; itemId?: string; batchId?: string }) {
   const ws = useCurrentWorkspace();
   const items = useStockItems(ws.orgId, undefined, open);
   const receive = useReceive(ws.orgId);
@@ -113,7 +114,8 @@ export function ReceiveDialog({ open, onClose, itemId }: { open: boolean; onClos
   const resetEvidence = evidence.reset;
   const canPay = useCanPay();
   const [pay, setPay] = useState<PaymentChoice>(noPayment);
-  useEffect(() => { if (open) { setError(null); resetEvidence(); setPay(noPayment()); setF({ item: itemId ?? "", amount: "", price: "", priceMode: "total", on: localDay(), supplier: "", reference: "", lot: "", expires: "" }); } }, [open, itemId, resetEvidence]);
+  const [aside, setAside] = useState<string[]>([]);
+  useEffect(() => { if (open) { setError(null); resetEvidence(); setPay(noPayment()); setAside(batchId ? [batchId] : []); setF({ item: itemId ?? "", amount: "", price: "", priceMode: "total", on: localDay(), supplier: "", reference: "", lot: "", expires: "" }); } }, [open, itemId, batchId, resetEvidence]);
   const it = items.data?.find((i) => i.id === f.item);
   const packs = mode === "packs" && !!it?.pack_size && !!it.pack_name;
   const total = it && f.amount ? (packs ? Number(f.amount) * it.pack_size! : Number(f.amount)) : 0;
@@ -125,7 +127,7 @@ export function ReceiveDialog({ open, onClose, itemId }: { open: boolean; onClos
       const lot = await receive.mutateAsync({ item_id: f.item, received_on: f.on, ...(packs ? { packs: n(f.amount) } : { quantity: n(f.amount) }),
         ...(f.price ? (f.priceMode === "total" ? { total_cost: n(f.price) } : { unit_cost: n(f.price) }) : {}),
         supplier: f.supplier || null, reference: f.reference || null, lot_number: f.lot || null, expires_on: f.expires || null, client_id: newId(),
-        payment: paymentBody(pay, showPay) });
+        payment: paymentBody(pay, showPay), batch_ids: aside });
       await evidence.attach({ record_id: lot.id }, `delivery of ${it!.name}`);
       const p = lot.payment;
       toast(`Received ${qty(total, it!)} of ${it!.name}` + (p ? (p.status === "paid" ? `; ${naira(p.amount)} paid from ${p.account_name}` : p.status === "owed" ? `; ${naira(p.amount)} owed` : "; payment waiting for approval") : ""));
@@ -140,6 +142,7 @@ export function ReceiveDialog({ open, onClose, itemId }: { open: boolean; onClos
         <Field label="Delivered on" htmlFor="r-on"><Input id="r-on" type="date" max={localDay()} value={f.on} onChange={(e) => setF({ ...f, on: e.target.value })} /></Field>
         <Field label="Expires" htmlFor="r-exp" hint="From the pack or label, if any"><Input id="r-exp" type="date" value={f.expires} onChange={(e) => setF({ ...f, expires: e.target.value })} /></Field>
       </div>
+      <Field label="Set aside for batches" hint={ASIDE_HINT}><BatchPick value={aside} onChange={setAside} open={open} /></Field>
       {money && (
         <div className="grid gap-3 rounded-xl border border-line p-3.5">
           <Segmented value={f.priceMode} onChange={(v) => setF({ ...f, priceMode: v })} options={[{ value: "total", label: "Total paid" }, { value: "unit", label: `Price per ${it?.unit ?? "unit"}` }]} />

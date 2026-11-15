@@ -7,9 +7,18 @@ import { type PaymentChoice, PaymentFields, noPayment, paymentBody, paymentReady
 import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
 import { cn, naira } from "@/lib/format";
+import { useBatches } from "@/features/batches";
+import { LotBatchesDialog } from "./BatchAside";
 import { type Lot, type Move, type Payment, type StockItem, qty, useItemMoves, usePayLot, usePriceLot, useStockItem, useVoidLot } from "./api";
 
 const day = (iso: string) => new Date(iso + "T12:00:00").toLocaleDateString("en-NG", { day: "numeric", month: "short" });
+/** Batch codes for ids (running and closed batches). */
+function useBatchCodes(ids: string[]) {
+  const ws = useCurrentWorkspace();
+  const all = useBatches(ws.orgId, "", ids.length > 0);
+  return ids.map((id) => all.data?.find((b) => b.id === id)?.code).filter((c): c is string => !!c);
+}
+
 const KIND: Record<string, string> = { receive: "Received", issue: "Used", adjust: "Count", write_off: "Written off" };
 
 /** One item: what is in which delivery, at what price, and every movement. */
@@ -20,6 +29,7 @@ export function ItemSheet({ itemId, onClose, onAction }: {
   const q = useStockItem(ws.orgId, itemId);
   const [pricing, setPricing] = useState<Lot | null>(null);
   const [paying, setPaying] = useState<Lot | null>(null);
+  const [aside, setAside] = useState<Lot | null>(null);
   const it = q.data;
   const pg = usePager(20, [itemId]);
   const moves = useItemMoves(ws.orgId, itemId, pg.params);
@@ -55,7 +65,7 @@ export function ItemSheet({ itemId, onClose, onAction }: {
             <h3 className="eyebrow mb-2">Deliveries</h3>
             {it.lots.length === 0 ? <p className="text-[13.5px] text-ink-3">No deliveries recorded yet.</p> : (
               <ul className="flex flex-col divide-y divide-line">
-                {lots.rows.map((l) => <LotRow key={l.id} l={l} it={it} onPrice={() => setPricing(l)} onPay={() => setPaying(l)} onWriteOff={() => onAction("writeoff", it, l.id)} />)}
+                {lots.rows.map((l) => <LotRow key={l.id} l={l} it={it} onPrice={() => setPricing(l)} onPay={() => setPaying(l)} onWriteOff={() => onAction("writeoff", it, l.id)} onAside={() => setAside(l)} />)}
               </ul>
             )}
             <Pager {...lots.pager} noun="deliveries" />
@@ -71,11 +81,13 @@ export function ItemSheet({ itemId, onClose, onAction }: {
       )}
       <PriceDialog lot={pricing} item={it} onClose={() => setPricing(null)} />
       <PayLotDialog lot={paying} item={it} onClose={() => setPaying(null)} />
+      <LotBatchesDialog lot={aside} item={it} onClose={() => setAside(null)} />
     </Dialog>
   );
 }
 
-function LotRow({ l, it, onPrice, onPay, onWriteOff }: { l: Lot; it: StockItem; onPrice: () => void; onPay: () => void; onWriteOff: () => void }) {
+function LotRow({ l, it, onPrice, onPay, onWriteOff, onAside }: { l: Lot; it: StockItem; onPrice: () => void; onPay: () => void; onWriteOff: () => void; onAside: () => void }) {
+  const codes = useBatchCodes(l.batch_ids ?? []);
   const ws = useCurrentWorkspace();
   const canPay = useCanPay();
   const voidLot = useVoidLot(ws.orgId);
@@ -96,11 +108,13 @@ function LotRow({ l, it, onPrice, onPay, onWriteOff }: { l: Lot; it: StockItem; 
           {soon && l.remaining > 0 && <Badge tone="warn">Expires {day(l.expires_on!)}</Badge>}
           {ws.can("finance.view") && (l.unit_cost != null ? <Badge>{naira(l.unit_cost)} / {it.unit}</Badge> : <Badge tone="warn">No price</Badge>)}
           {l.payment && !l.voided_at && <PaidBadge p={l.payment} />}
+          {codes.map((c) => <Badge key={c} tone="brand">For {c}</Badge>)}
         </div>
       </div>
       <div className="flex gap-1">
         {ws.can("finance.edit") && !l.voided_at && <Button size="sm" variant="ghost" onClick={onPrice}>{l.unit_cost == null ? "Add price" : "Price"}</Button>}
         {canPay && !l.voided_at && !l.payment && l.unit_cost != null && ws.can("finance.view") && <Button size="sm" variant="ghost" onClick={onPay}>Record payment</Button>}
+        {!l.voided_at && ws.can("inventory.edit") && <Button size="sm" variant="ghost" onClick={onAside}>{codes.length ? "Batches" : "Set aside"}</Button>}
         {expired && l.remaining > 0 && ws.can("inventory.edit") && <Button size="sm" variant="danger" onClick={onWriteOff}>Write off</Button>}
         {!used && !l.voided_at && ws.can("inventory.edit") && <Button size="sm" variant="ghost" loading={voidLot.isPending} onClick={async () => {
           try { await voidLot.mutateAsync({ id: l.id, reason: "Entered by mistake" }); toast("Delivery voided"); }

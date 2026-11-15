@@ -19,7 +19,7 @@ export default function StockPage() {
 }
 
 type Act = { kind: "receive" | "use" | "count" | "writeoff" | "edit" | "new"; item?: StockItem; lotId?: string } | null;
-const ALERT_ICON = { unrecorded: AlertTriangle, expired: AlertTriangle, reorder: PackagePlus, expiring: Clock, service: Wrench } as const;
+const ALERT_ICON = { unrecorded: AlertTriangle, expired: AlertTriangle, reorder: PackagePlus, expiring: Clock, service: Wrench, batch_low: PackagePlus } as const;
 
 function Inner() {
   const ws = useCurrentWorkspace();
@@ -71,6 +71,7 @@ function Inner() {
                         <li key={i}>
                           {a.equipment_id
                             ? <Link href={`/w/${ws.orgId}/stock/equipment/${a.equipment_id}`} className={cls}>{body}</Link>
+                            : a.batch_id ? <Link href={`/w/${ws.orgId}/batches/${a.batch_id}`} className={cls}>{body}</Link>
                             : <button type="button" disabled={!a.item_id} onClick={() => a.item_id && setOpen(a.item_id)} className={cls}>{body}</button>}
                         </li>
                       );

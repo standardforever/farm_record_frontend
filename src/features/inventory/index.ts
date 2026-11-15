@@ -4,3 +4,4 @@ export { ItemSheet } from "./ItemSheet";
 export { BreakdownDialog, EquipmentPanel } from "./EquipmentPanel";
 export { MachineView } from "./Machine";
 export { BatchStockCard } from "./BatchStockCard";
+export { AssignedStockCard } from "./BatchAside";

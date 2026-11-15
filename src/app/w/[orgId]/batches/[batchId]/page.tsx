@@ -24,6 +24,18 @@ import { cn, formatDate, naira } from "@/lib/format";
 import { BatchToday } from "./BatchToday";
 import { GroupAnimals } from "@/features/herd";
 
+const gramsText = (g: number) => (g >= 1000 ? `${(g / 1000).toLocaleString("en-NG", { maximumFractionDigits: 2 })} kg` : `${Math.round(g).toLocaleString("en-NG")} g`);
+const ONE: Record<string, string> = { catfish: "fish", tilapia: "fish", broilers: "bird", layers: "bird", noilers: "bird", turkeys: "bird", duck: "bird", quail: "bird" };
+const one = (species: string) => ONE[species] ?? "animal";
+function estText(e: NonNullable<NonNullable<BatchDetail["summary"]>["est_weight"]>) {
+  const when = new Date(e.since + "T12:00:00").toLocaleDateString("en-NG", { day: "numeric", month: "short" });
+  if (e.basis === "sale") return `From the sale on ${when}. Weigh a sample to be sure.`;
+  if (e.basis !== "feed") return "Weigh a sample to be sure.";
+  const from = e.since_from === "sale" ? `the sale on ${when} (${gramsText(e.since_g)} each)` : e.since_from === "weigh-in" ? `the weigh-in on ${when} (${gramsText(e.since_g)})`
+    : `stocking on ${when}${e.since_g ? ` (${gramsText(e.since_g)})` : ""}`;
+  return `From ${from}, plus ${e.feed_kg.toLocaleString("en-NG")} kg of feed since, shared over the animals alive, at about ${e.feed_per_kg_gain} kg of feed per kg of growth. Weigh a sample to be sure.`;
+}
+
 export default function BatchPage({ params }: { params: Promise<{ batchId: string }> }) {
   const { batchId } = use(params);
   return <RequirePermission permission="farm.view"><Inner id={batchId} /></RequirePermission>;
@@ -177,6 +189,11 @@ function View({ b, checking }: { b: BatchDetail; checking?: boolean }) {
                   <dd className="text-right text-[12.5px] text-ink-2 tnum">{feedText(x.kg, x.bags, x.pack_name)}</dd></Fragment>
               ))}
               <dt className="text-ink-3">Latest average weight</dt><dd className="text-right font-semibold tnum">{s?.latest_avg_weight_g ? `${s.latest_avg_weight_g.toLocaleString("en-NG")} g` : "—"}</dd>
+              {s?.est_weight && s.est_weight.basis !== "weigh-in" && s.est_weight.g > 0 && <>
+                <dt className="text-ink-3">Average weight now <span className="text-[11.5px]">(estimate)</span></dt>
+                <dd className="text-right font-semibold tnum">about {gramsText(s.est_weight.g)}</dd>
+                <dd className="col-span-2 -mt-1 text-[12px] leading-snug text-ink-3">{estText(s.est_weight)}</dd>
+              </>}
               {!!s?.eggs && <><dt className="text-ink-3">Eggs collected</dt><dd className="text-right font-semibold tnum">{s.eggs.toLocaleString("en-NG")}{s.cracked_eggs ? ` (${s.cracked_eggs} cracked)` : ""}</dd></>}
               <dt className="text-ink-3">Feed conversion (FCR)</dt><dd className="text-right font-semibold">{s?.fcr ?? "—"}</dd>
               {money && s && <>
@@ -192,7 +209,7 @@ function View({ b, checking }: { b: BatchDetail; checking?: boolean }) {
                 ))}
                 <dt className="font-semibold">Result so far</dt>
                 <dd className={cn("text-right font-bold tnum", (s.result_so_far ?? 0) < 0 ? "text-crit" : "text-good")}>{naira(s.result_so_far ?? 0)}</dd>
-                {s.cost_per_head_in != null && <><dt className="text-ink-3">Cost per head stocked</dt><dd className="text-right tnum">{naira(s.cost_per_head_in)}</dd></>}
+                {s.cost_per_head_alive == null && s.cost_per_head_in != null && <><dt className="text-ink-3">Cost per head stocked</dt><dd className="text-right tnum">{naira(s.cost_per_head_in)}</dd></>}
                 {!!s.farm_costs_share && <>
                   <dt className="mt-2 border-t border-line pt-2 text-ink-3">Share of farm costs</dt>
                   <dd className="mt-2 border-t border-line pt-2 text-right font-semibold tnum">{naira(s.farm_costs_share)}</dd>
@@ -204,6 +221,25 @@ function View({ b, checking }: { b: BatchDetail; checking?: boolean }) {
                 </>}
               </>}
             </dl>
+            {money && s?.break_even_per_head != null && s.current > 0 && !s.to_recover && (
+              <div className="mt-4 rounded-[14px] border border-good/30 bg-good-soft p-3.5 text-[13.5px]">
+                <b>Your money is back.</b> <span className="text-ink-2">Sales already cover everything spent, with farm costs. What the {s.current.toLocaleString("en-NG")} still alive bring in, less the feed still to come, is profit.</span>
+              </div>
+            )}
+            {money && s?.break_even_per_head != null && s.current > 0 && !!s.to_recover && (
+              <div className="mt-4 rounded-[14px] border border-brand/25 bg-brand-soft/50 p-3.5">
+                <b className="text-[13.5px]">To get your money back</b>
+                <dl className="mt-2 grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-1.5 text-[13.5px]">
+                  <dt className="text-ink-2">Spent, with farm costs, per {one(b.species)} alive</dt><dd className="text-right tnum">{naira(s.cost_per_head_alive ?? 0)}</dd>
+                  <dt className="text-ink-2">Still to get back</dt><dd className="text-right font-semibold tnum">{naira(s.to_recover ?? 0)}</dd>
+                  <dt className="font-semibold">Sell each at least</dt><dd className="text-right font-bold text-brand tnum">{naira(s.break_even_per_head)}</dd>
+                  {s.break_even_per_kg != null && <><dt className="font-semibold">or per kg at least</dt><dd className="text-right font-bold text-brand tnum">{naira(s.break_even_per_kg)}</dd></>}
+                </dl>
+                <p className="mt-2 text-[12px] leading-snug text-ink-3">
+                  Spread over the {s.current.toLocaleString("en-NG")} still alive: the dead cannot be sold.{s.break_even_per_kg != null && s.est_weight ? ` Per kg uses about ${gramsText(s.est_weight.g)} each.` : ""} Feed and costs from today on raise these numbers.
+                </p>
+              </div>
+            )}
             {s?.pending.length ? <ul className="mt-3 flex flex-col gap-1 text-[12.5px] text-ink-3">{s.pending.map((p) => <li key={p}>• {p}</li>)}</ul> : null}
           </Card>
 

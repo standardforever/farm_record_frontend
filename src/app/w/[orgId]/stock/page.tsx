@@ -57,13 +57,13 @@ function Inner() {
             <div className={cn("grid gap-4", d.alerts.length > 0 && d.pending.length > 0 && "lg:grid-cols-2")}>
               {d.alerts.length > 0 && (
                 <Card title="Needs attention" meta={`${d.alerts.length} alert${d.alerts.length > 1 ? "s" : ""}`}>
-                  <ul className={cn("-my-1 grid divide-y divide-line", !d.pending.length && "lg:grid-cols-2 lg:gap-x-6 lg:divide-y-0 [&>li]:border-line lg:[&>li]:border-b")}>
+                  <ul className={cn("-my-1 grid grid-cols-1 divide-y divide-line [&>li]:min-w-0", !d.pending.length && "lg:grid-cols-2 lg:gap-x-6 lg:divide-y-0 [&>li]:border-line lg:[&>li]:border-b")}>
                     {(allAlerts ? d.alerts : d.alerts.slice(0, ALERTS_SHOWN)).map((a, i) => {
                       const Icon = ALERT_ICON[a.kind];
                       const red = a.kind === "unrecorded" || a.kind === "expired" || a.title.endsWith("is broken");
                       const body = <>
                         <Icon size={16} className={cn("mt-0.5 shrink-0", red ? "text-crit" : "text-warn")} />
-                        <span className="min-w-0 flex-1"><b className="text-[13.5px]">{a.title}</b><span className="block truncate text-[12.5px] text-ink-3">{a.detail}</span></span>
+                        <span className="min-w-0 flex-1"><b className="block break-words text-[13.5px] leading-snug">{a.title}</b><span className="mt-0.5 line-clamp-2 break-words text-[12.5px] text-ink-3">{a.detail}</span></span>
                         <ChevronRight size={15} className="mt-0.5 shrink-0 text-ink-3" />
                       </>;
                       const cls = "flex w-full items-start gap-2.5 rounded-lg px-1.5 py-2 text-left hover:bg-surface-2 disabled:cursor-default";

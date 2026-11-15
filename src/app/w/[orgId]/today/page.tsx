@@ -10,7 +10,7 @@ import {
   NotebookPen, Scale, Settings2, Skull, Stethoscope, ThermometerSun, Undo2, UserRound, Wheat, Wrench,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { Alert, Badge, Button, Card, EmptyState, PageLoader, useToast } from "@/components/ui";
+import { Alert, Badge, Button, Card, DayJump, EmptyState, PageLoader, useToast } from "@/components/ui";
 import {
   type QuickKind, type TodayTask, CompleteSheet, HandoverDialog, localDay, PlanDialog, ProofPhoto,
   QUICK, QuickLog, shiftDay, useAcknowledge, useDailyCatalog, useToday, useUndo, useVoidRecord,
@@ -108,10 +108,9 @@ function Inner() {
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="eyebrow">Today</div>
-          <div className="mt-1 flex items-center gap-1">
-            <button aria-label="Previous day" className="grid h-9 w-9 place-items-center rounded-lg border border-line hover:bg-surface-2" onClick={() => setOn(shiftDay(on, -1))}><ChevronLeft size={18} /></button>
-            <h1 className="px-2 text-[24px] font-bold">{isToday ? "Today" : formatDate(on)}</h1>
-            <button aria-label="Next day" disabled={isToday} className="grid h-9 w-9 place-items-center rounded-lg border border-line hover:bg-surface-2 disabled:opacity-40" onClick={() => setOn(shiftDay(on, 1))}><ChevronRight size={18} /></button>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <h1 className="pr-1 text-[24px] font-bold">{isToday ? "Today" : formatDate(on)}</h1>
+            <DayJump value={on} onChange={setOn} max={localDay()} />
             {!isToday && <Button size="sm" variant="ghost" onClick={() => setOn(localDay())}>Back to today</Button>}
           </div>
         </div>

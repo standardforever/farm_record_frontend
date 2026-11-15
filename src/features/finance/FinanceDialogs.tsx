@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { type CorrectionKind, OwnerActions } from "@/features/corrections";
 import { Camera, Plus, X } from "lucide-react";
-import { Alert, Badge, Button, Dialog, Field, Input, PageLoader, Pager, Segmented, Select, Textarea, useSlice, useToast } from "@/components/ui";
+import { Alert, Badge, Button, Dialog, Field, Input, MonthJump, monthOf, offsetOf, PageLoader, Pager, Segmented, Select, Textarea, useSlice, useToast } from "@/components/ui";
 import { useBatches } from "@/features/batches";
 import { useAnimals } from "@/features/herd/api";
 import { localDay, uploadPhoto } from "@/features/daily/api";
@@ -269,9 +269,8 @@ export function AccountSheet({ account, onClose }: { account: Account | null; on
     <Dialog open={!!account} onClose={onClose} side title={account.name} eyebrow="Money account">
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between gap-2">
-          <Button size="sm" variant="ghost" onClick={() => setOffset(offset - 1)}>‹ Earlier</Button>
-          <b className="text-[14px]">{new Date(range.start + "T12:00:00").toLocaleDateString("en-NG", { month: "long", year: "numeric" })}</b>
-          <Button size="sm" variant="ghost" disabled={offset >= 0} onClick={() => setOffset(offset + 1)}>Later ›</Button>
+          <b className="text-[14px]">Statement</b>
+          <MonthJump value={monthOf(offset)} onChange={(m) => setOffset(offsetOf(m))} />
         </div>
         {!d ? <PageLoader /> : (
           <>

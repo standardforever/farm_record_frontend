@@ -1,8 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { ArrowUpCircle, CheckCircle2, CircleDashed, Clock, Syringe, TriangleAlert } from "lucide-react";
 import { Alert, Badge, Button, Card, useToast } from "@/components/ui";
 import { LineChart } from "@/components/charts/LineChart";
+import { type TodayTask, localDay, useTasks } from "@/features/daily/api";
+import { CompleteSheet } from "@/features/daily/TaskSheets";
 import { useCurrentWorkspace } from "@/features/workspaces";
 import { formatDate } from "@/lib/format";
 import { type Dose, useStandard, useUpgradePack } from "./api";
@@ -24,8 +27,17 @@ export function StandardCard({ batchId, active }: { batchId: string; active: boo
   const q = useStandard(ws.orgId, batchId);
   const upgrade = useUpgradePack(ws.orgId, batchId);
   const toast = useToast();
+  const canTick = active && (ws.can("farm.edit") || ws.can("farm.approve"));
+  const tasks = useTasks(ws.orgId, canTick && !!q.data);
+  const [ticking, setTicking] = useState<TodayTask | null>(null);
   const s = q.data;
   if (!s) return null;
+  const tick = (d: Dose) => {
+    const t = tasks.data?.find((x) => x.id === d.task_id);
+    if (!t) { toast("This one is not on the task list any more.", "crit"); return; }
+    const today = localDay();
+    setTicking({ ...t, due_on: d.due_on <= today ? d.due_on : today, overdue: d.status === "overdue", unit_code: null, site_name: null, mine: true, completion: null });
+  };
   const unit = s.pack.age_unit;
   const pct = s.weight_vs_standard_pct;
   const doses = [...s.vaccinations, ...s.checks].sort((a, b) => a.day - b.day);
@@ -79,17 +91,21 @@ export function StandardCard({ batchId, active }: { batchId: string; active: boo
                 const st = STATUS[d.status];
                 return (
                   <li key={`${d.day}-${d.name}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-line py-2 first:border-0">
-                    <span className="w-[84px] shrink-0 text-[12.5px] text-ink-3">{ageText(d.day, unit)} · {formatDate(d.due_on)}</span>
+                    <span className="w-[140px] shrink-0 text-[12.5px] text-ink-3">{ageText(d.day, unit)} · {formatDate(d.due_on)}</span>
                     <span className="min-w-0 flex-1 text-[13.5px]"><b>{d.name}</b>{d.route ? <span className="text-ink-3"> · {d.route}</span> : null}</span>
                     <Badge tone={st.tone}><st.icon size={12} /> {st.label}</Badge>
+                    {canTick && d.task_id && (d.status === "overdue" || d.status === "due" || d.status === "upcoming") && (
+                      <Button size="sm" variant={d.status === "upcoming" ? "ghost" : "secondary"} onClick={() => tick(d)}>{d.status === "upcoming" ? "Done early" : "Done or skip"}</Button>
+                    )}
                   </li>
                 );
               })}
             </ul>
-            <p className="text-[12px] text-ink-3">Each dose is a task in Today on its date. Tick it there when it is done.</p>
+            <p className="text-[12px] text-ink-3">Each one is also a task in Today on its date. Tick it here or there; if it was not done, mark it skipped with the reason.</p>
           </div>
         )}
       </div>
+      <CompleteSheet task={ticking} on={localDay()} onClose={() => setTicking(null)} />
     </Card>
   );
 }

@@ -3,7 +3,7 @@
 import { type ReactNode, useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, Download, Mail, Printer } from "lucide-react";
 import { BarChart } from "@/components/charts/BarChart";
-import { Alert, Button, Card, Checkbox, Field, PageLoader, Select, Toggle, useToast } from "@/components/ui";
+import { Alert, Button, Card, Checkbox, DayJump, Field, MonthJump, PageLoader, Select, Toggle, useToast } from "@/components/ui";
 import { useBatchPage } from "@/features/batches";
 import { useCatalog } from "@/features/farm";
 import { useCurrentWorkspace } from "@/features/workspaces";
@@ -88,9 +88,8 @@ export function WeeklyReport({ initialEnd }: { initialEnd?: string }) {
     <>
       <Toolbar onCsv={r ? () => downloadCsv(`oko-week-${r.end}.csv`, ["Batch", "Species", "At start", "Added", "Lost (died)", "Culled", "Missing", "Sold or used", "At end", "Feed kg", "Eggs", "Avg weight g", "FCR"],
         r.batches.map((b) => [b.code, species(b.species), b.start_count, b.added, b.died, b.culled, b.missing, b.sold, b.end_count, b.feed_kg, b.eggs, b.latest_avg_weight_g, b.fcr])) : undefined}>
-        <Button size="sm" aria-label="Previous week" onClick={() => setEnd(addDays(end, -7))}><ChevronLeft size={15} /></Button>
         <span className="text-[13.5px] font-semibold">{r ? `${day(r.start)} – ${day(r.end, { day: "numeric", month: "short", year: "numeric" })}` : "…"}</span>
-        <Button size="sm" aria-label="Next week" disabled={end >= today} onClick={() => setEnd(addDays(end, 7) > today ? today : addDays(end, 7))}><ChevronRight size={15} /></Button>
+        <DayJump value={end} onChange={setEnd} max={today} step={7} label="Week ending on a day" />
       </Toolbar>
       {!r ? <PageLoader /> : (
         <Sheet farm={r.farm} title="Weekly farm summary" period={`${day(r.start)} – ${day(r.end, { day: "numeric", month: "short", year: "numeric" })}`}>
@@ -148,9 +147,7 @@ export function MonthlyReport({ initialMonth }: { initialMonth?: string }) {
       <Toolbar onCsv={r ? () => downloadCsv(`oko-money-${month}.csv`, ["Line", "Amount (₦)"],
         [...r.pnl.revenue.map((x) => [x.label, x.total]), ["Total sales", r.pnl.total_revenue.total], ...r.pnl.costs.map((x) => [x.label, -x.total]),
           ["Total costs", -r.pnl.total_costs.total], ["Profit", r.pnl.profit.total]]) : undefined}>
-        <Button size="sm" aria-label="Previous month" onClick={() => shift(-1)}><ChevronLeft size={15} /></Button>
-        <span className="text-[13.5px] font-semibold">{label}</span>
-        <Button size="sm" aria-label="Next month" disabled={month >= thisMonth} onClick={() => shift(1)}><ChevronRight size={15} /></Button>
+        <MonthJump value={month} onChange={setMonth} />
       </Toolbar>
       {!r ? <PageLoader /> : (
         <Sheet farm={r.farm} title="Money for the month" period={label + (r.end < `${month}-28` ? ` (to ${day(r.end)})` : "")}>

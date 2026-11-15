@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { OwnerActions } from "@/features/corrections";
 import Link from "next/link";
 import { ArrowRightLeft, Check, Plus, UserPlus, X } from "lucide-react";
-import { Alert, Badge, Button, Card, Dialog, Field, Input, PageLoader, Pager, Select, Textarea, usePager, useSlice, useToast } from "@/components/ui";
+import { Alert, Badge, Button, Card, Dialog, Field, Input, MonthJump, monthOf, offsetOf, PageLoader, Pager, Select, Textarea, usePager, useSlice, useToast } from "@/components/ui";
 import { localDay } from "@/features/daily/api";
 import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError } from "@/lib/api";
@@ -169,8 +169,7 @@ export function ExpensesPanel() {
   return (
     <Card title={`Expenses · ${monthLabel(range.start)}`} meta={q.data ? `${q.data.approved_count} approved · ${naira(q.data.approved_total)}` : undefined}
       action={<div className="flex flex-wrap items-center gap-1.5">
-        <Button size="sm" variant="ghost" aria-label="Earlier month" onClick={() => setOffset(offset - 1)}>‹</Button>
-        <Button size="sm" variant="ghost" aria-label="Later month" disabled={offset >= 0} onClick={() => setOffset(offset + 1)}>›</Button>
+        <MonthJump value={monthOf(offset)} onChange={(m) => setOffset(offsetOf(m))} />
         <select aria-label="Status" className="rounded-lg border border-line bg-surface px-2 py-1 text-[13px]" value={status} onChange={(e) => setStatus(e.target.value)}>
           <option value="">All</option><option value="pending">Waiting</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="void">Void</option></select>
         <select aria-label="Category" className="rounded-lg border border-line bg-surface px-2 py-1 text-[13px]" value={category} onChange={(e) => setCategory(e.target.value)}>
@@ -235,8 +234,7 @@ export function ProfitPanel() {
     <div className="flex flex-col gap-4">
       <Card title="Profit and loss" meta={whole ? `This year so far` : monthLabel(range.start)}
         action={<div className="flex items-center gap-1.5">
-          {!whole && <><Button size="sm" variant="ghost" onClick={() => setOffset(offset - 1)}>‹ Earlier</Button>
-            <Button size="sm" variant="ghost" disabled={offset >= 0} onClick={() => setOffset(offset + 1)}>Later ›</Button></>}
+          {!whole && <MonthJump value={monthOf(offset)} onChange={(m) => setOffset(offsetOf(m))} />}
           <Button size="sm" variant={whole ? "primary" : "ghost"} onClick={() => setWhole(!whole)}>{whole ? "Back to months" : "This year"}</Button>
         </div>}>
         <PnlTable start={range.start} end={range.end} />

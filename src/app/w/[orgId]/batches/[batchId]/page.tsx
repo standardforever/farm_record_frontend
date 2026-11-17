@@ -188,7 +188,11 @@ function View({ b, checking }: { b: BatchDetail; checking?: boolean }) {
                 <Fragment key={x.name}><dt className="pl-3 text-[12.5px] text-ink-3">{x.name}</dt>
                   <dd className="text-right text-[12.5px] text-ink-2 tnum">{feedText(x.kg, x.bags, x.pack_name)}</dd></Fragment>
               ))}
-              <dt className="text-ink-3">Latest average weight</dt><dd className="text-right font-semibold tnum">{s?.latest_avg_weight_g ? `${s.latest_avg_weight_g.toLocaleString("en-NG")} g` : "—"}</dd>
+              <dt className="text-ink-3">Latest average weight</dt><dd className="text-right font-semibold tnum">{s?.latest_avg_weight_g ? gramsText(s.latest_avg_weight_g) : "—"}</dd>
+              {s?.latest_weight_range && <>
+                <dt className="text-ink-3">Smallest to biggest</dt>
+                <dd className="text-right tnum">{s.latest_weight_range.min_g ? gramsText(s.latest_weight_range.min_g) : "?"} – {s.latest_weight_range.max_g ? gramsText(s.latest_weight_range.max_g) : "?"}</dd>
+              </>}
               {s?.est_weight && s.est_weight.basis !== "weigh-in" && s.est_weight.g > 0 && <>
                 <dt className="text-ink-3">Average weight now <span className="text-[11.5px]">(estimate)</span></dt>
                 <dd className="text-right font-semibold tnum">about {gramsText(s.est_weight.g)}</dd>

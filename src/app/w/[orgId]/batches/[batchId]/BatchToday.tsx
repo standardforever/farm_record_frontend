@@ -25,7 +25,11 @@ function line(r: { kind: string; quantity: string | null; data: Record<string, n
   const q = r.quantity != null ? Number(r.quantity) : null;
   switch (r.kind) {
     case "feed": return `Feed ${q?.toLocaleString("en-NG")} kg${r.data.bags ? ` (${r.data.bags} bags)` : ""}`;
-    case "weight": return `Weigh-in ${q != null && q >= 1000 ? `${(q / 1000).toLocaleString("en-NG")} kg` : `${q} g`} average`;
+    case "weight": {
+      const g = (x: number) => (x >= 1000 ? `${(x / 1000).toLocaleString("en-NG")} kg` : `${x} g`);
+      const mn = Number(r.data.min_g) || 0, mx = Number(r.data.max_g) || 0;
+      return `Weigh-in ${q != null ? g(q) : ""} average${mn || mx ? ` (${mn ? g(mn) : "?"}–${mx ? g(mx) : "?"})` : ""}`;
+    }
     case "eggs": return `${q?.toLocaleString("en-NG")} eggs`;
     case "milk": return `${q} L of milk`;
     case "water": return "Water checked";

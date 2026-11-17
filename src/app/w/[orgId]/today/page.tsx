@@ -32,6 +32,8 @@ export default function TodayPage() {
   return <RequirePermission permission="farm.view"><Inner /></RequirePermission>;
 }
 
+const wt = (g: number) => (g >= 1000 ? `${(g / 1000).toLocaleString("en-NG", { maximumFractionDigits: 2 })} kg` : `${Math.round(g).toLocaleString("en-NG")} g`);
+
 function Inner() {
   const ws = useCurrentWorkspace();
   const running = useBatches(ws.orgId, "active");
@@ -152,7 +154,7 @@ function Inner() {
             {QUICK.filter((q) => q.kind !== "milk" || milking).map((q) => {
               const Icon = ICON[q.kind];
               return (
-                <button key={q.kind} type="button" onClick={() => setLog({ kind: q.kind })} aria-label={`Log ${q.label === "Weigh" ? "a weigh-in" : q.label.toLowerCase()}`}
+                <button key={q.kind} type="button" onClick={() => setLog({ kind: q.kind })} aria-label={q.kind === "weight" ? "Weigh a sample" : `Log ${q.label.toLowerCase()}`}
                   className="flex cursor-pointer flex-col items-center gap-1 rounded-[16px] border border-line bg-surface px-2 py-3 text-center hover:border-brand hover:bg-brand-soft sm:flex-1">
                   <Icon size={22} className="text-brand" /><b className="text-[14px]">{q.label}</b><span className="text-[11px] text-ink-3">{q.hint}</span>
                 </button>
@@ -259,7 +261,11 @@ function describe(r: { kind: string; quantity: string | null; data: Record<strin
   const q = r.quantity != null ? Number(r.quantity) : null;
   const parts: string[] = [];
   if (r.kind === "feed") parts.push(`${q?.toLocaleString("en-NG")} kg${r.data.bags ? ` (${r.data.bags} × ${r.data.bag_kg} kg)` : ""}${r.data.feed_name ? ` ${r.data.feed_name}` : ""}`);
-  if (r.kind === "weight") parts.push(`average ${q != null && q >= 1000 ? `${(q / 1000).toLocaleString("en-NG")} kg` : `${q?.toLocaleString("en-NG")} g`}${r.data.sample_size ? ` from ${r.data.sample_size}` : ""}`);
+  if (r.kind === "weight") {
+    const mn = Number(r.data.min_g) || 0, mx = Number(r.data.max_g) || 0;
+    parts.push(`average ${q != null && q >= 1000 ? `${(q / 1000).toLocaleString("en-NG")} kg` : `${q?.toLocaleString("en-NG")} g`}${r.data.sample_size ? ` from ${r.data.sample_size}` : ""}`
+      + (mn || mx ? `, smallest ${mn ? wt(mn) : "?"}, biggest ${mx ? wt(mx) : "?"}` : ""));
+  }
   if (r.kind === "eggs") parts.push(`${q?.toLocaleString("en-NG")} eggs${r.data.cracked ? `, ${r.data.cracked} cracked` : ""}`);
   if (r.kind === "water") {
     const fmt: Record<string, (v: unknown) => string> = {

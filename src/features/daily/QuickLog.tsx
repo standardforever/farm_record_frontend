@@ -15,13 +15,13 @@ export type QuickKind = "feed" | "deaths" | "weight" | "eggs" | "water" | "milk"
 export const QUICK: { kind: QuickKind; label: string; hint: string }[] = [
   { kind: "feed", label: "Feed", hint: "kg or bags" },
   { kind: "deaths", label: "Deaths", hint: "count and cause" },
-  { kind: "weight", label: "Weigh", hint: "sample average" },
+  { kind: "weight", label: "Weigh", hint: "average, smallest, biggest" },
   { kind: "eggs", label: "Eggs", hint: "collected, cracked" },
   { kind: "water", label: "Water", hint: "pH, oxygen…" },
   { kind: "milk", label: "Milk", hint: "litres" },
   { kind: "note", label: "Note", hint: "anything seen" },
 ];
-const TITLE: Record<QuickKind, string> = { feed: "Log feed", deaths: "Log deaths", weight: "Log a weigh-in", eggs: "Log eggs", water: "Log water quality", milk: "Log milk", note: "Write an observation" };
+const TITLE: Record<QuickKind, string> = { feed: "Log feed", deaths: "Log deaths", weight: "Weigh a sample", eggs: "Log eggs", water: "Log water quality", milk: "Log milk", note: "Write an observation" };
 export const FISH = ["catfish", "tilapia", "fish", "fingerlings"];
 export const EGG_LAYERS = ["layers", "noilers", "quail", "duck", "turkeys"];
 export const MILKERS = ["goats", "cattle", "sheep", "dairy"];
@@ -104,7 +104,10 @@ export function QuickLog({ kind, on, presetUnit, presetBatch, open, onClose, onS
     switch (kind) {
       case "feed": return feedMode === "kg" ? !!n(f.kg ?? "") : !!n(f.bags ?? "") && !!n(f.bag_kg ?? "");
       case "deaths": return !!n(f.count ?? "");
-      case "weight": return !!n(f.avg ?? "");
+      case "weight": {
+        const a = n(f.avg ?? ""), lo = n(f.min ?? ""), hi = n(f.max ?? "");
+        return !!a && (!lo || lo <= a) && (!hi || hi >= a);
+      }
       case "eggs": return n(f.crates ?? "") !== undefined || n(f.eggs ?? "") !== undefined;
       case "water": return ["ph", "do", "temp", "ammonia", "nitrite"].some((k) => n(f[k] ?? "") !== undefined);
       case "milk": return !!n(f.litres ?? "");
@@ -136,8 +139,9 @@ export function QuickLog({ kind, on, presetUnit, presetBatch, open, onClose, onS
           try { localStorage.setItem(LAST_FEED, JSON.stringify({ bag_kg: f.bag_kg, feed_name: f.feed_name, item: f.item })); } catch { /* ignore */ }
           label = `Feed for ${code}: ${feedMode === "kg" ? `${f.kg} kg` : `${f.bags} × ${f.bag_kg} kg`}`;
         } else if (kind === "weight") {
-          Object.assign(body, { avg_weight_g: inKg ? Math.round(n(f.avg!)! * 1000) : n(f.avg!), sample_size: n(f.sample_size ?? "") });
-          label = `Weigh-in ${code}: ${f.avg} ${inKg ? "kg" : "g"}`;
+          const g = (v?: string) => { const x = n(v ?? ""); return x ? (inKg ? Math.round(x * 1000) : x) : null; };
+          Object.assign(body, { avg_weight_g: g(f.avg), sample_size: n(f.sample_size ?? ""), min_weight_g: g(f.min), max_weight_g: g(f.max) });
+          label = `Weigh-in ${code}: ${f.avg} ${inKg ? "kg" : "g"}${f.min || f.max ? ` (${f.min || "?"}–${f.max || "?"})` : ""}`;
         }
         else if (kind === "milk") { Object.assign(body, { litres: n(f.litres!) }); label = `${f.litres} L of milk from ${code}`; }
         else if (kind === "eggs") { Object.assign(body, { eggs, cracked: n(f.cracked ?? "") ?? 0 }); label = `${eggs} eggs from ${code}`; }
@@ -212,12 +216,26 @@ export function QuickLog({ kind, on, presetUnit, presetBatch, open, onClose, onS
               className={cn("cursor-pointer rounded-full border px-3 py-1.5 text-[13px] font-semibold", f.reason === c ? "border-brand bg-brand-soft text-brand" : "border-line")}>{c}</button>))}</div>
         </>)}
 
-        {kind === "weight" && (
-          <div className="grid grid-cols-2 gap-3">
-            <Field label={`Average weight (${inKg ? "kg" : "g"})`} htmlFor="q-avg"><Input id="q-avg" className={big} inputMode="decimal" value={f.avg ?? ""} onChange={(e) => set("avg", digits(e.target.value))} /></Field>
-            <Field label="How many weighed" htmlFor="q-sample"><Input id="q-sample" className={big} inputMode="numeric" value={f.sample_size ?? ""} onChange={(e) => set("sample_size", e.target.value.replace(/\D/g, ""))} /></Field>
-          </div>
-        )}
+        {kind === "weight" && (() => {
+          const u = inKg ? "kg" : "g";
+          const a = n(f.avg ?? ""), lo = n(f.min ?? ""), hi = n(f.max ?? "");
+          const bad = (lo && a && lo > a) ? "The smallest cannot weigh more than the average." : (hi && a && hi < a) ? "The biggest cannot weigh less than the average." : null;
+          const spread = lo && hi && lo > 0 ? hi / lo : null;
+          return (<>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={`Average weight (${u})`} htmlFor="q-avg" hint="Total weight ÷ how many"><Input id="q-avg" className={big} inputMode="decimal" value={f.avg ?? ""} onChange={(e) => set("avg", digits(e.target.value))} /></Field>
+              <Field label="How many weighed" htmlFor="q-sample" hint="10 to 20 is a good sample"><Input id="q-sample" className={big} inputMode="numeric" value={f.sample_size ?? ""} onChange={(e) => set("sample_size", e.target.value.replace(/\D/g, ""))} /></Field>
+              <Field label={`Smallest (${u})`} htmlFor="q-min" hint="Optional"><Input id="q-min" className={big} inputMode="decimal" value={f.min ?? ""} onChange={(e) => set("min", digits(e.target.value))} /></Field>
+              <Field label={`Biggest (${u})`} htmlFor="q-max" hint="Optional"><Input id="q-max" className={big} inputMode="decimal" value={f.max ?? ""} onChange={(e) => set("max", digits(e.target.value))} /></Field>
+            </div>
+            {bad && <p className="text-[13px] font-semibold text-crit">{bad}</p>}
+            {!bad && spread && spread >= 2 && (
+              <p className="rounded-xl bg-warn-soft px-3 py-2 text-[13px] text-warn">
+                The biggest is {spread.toFixed(1)}× the smallest. {FISH.includes(species) ? "Grade them: big ones eat the small ones, and the small ones fall behind." : "Separate the small ones so they can catch up."}
+              </p>
+            )}
+          </>);
+        })()}
 
         {kind === "eggs" && (<>
           <div className="grid grid-cols-2 gap-3">

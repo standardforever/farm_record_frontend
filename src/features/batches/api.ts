@@ -12,7 +12,7 @@ export type Summary = {
   cost_per_head_in: number | null;
   est_weight?: { g: number; basis: "weigh-in" | "sale" | "feed" | "stocking"; since: string; since_from?: "weigh-in" | "sale" | "stocking"; since_g: number;
     feed_kg: number; feed_per_kg_gain: number | null } | null;
-  cost_per_head_alive?: number | null; to_recover?: number | null; break_even_per_head?: number | null; break_even_per_kg?: number | null; inputs_cost?: number | null; inputs_by_category?: Record<string, number> | null; other_sales?: Record<string, number> | null; farm_costs_share?: number | null; farm_costs_by_category?: Record<string, number> | null; result_after_farm_costs?: number | null; feed_kg: number; feed_bags?: number | null; feed_items?: { name: string; kg: number; bags: number | null; bag_kg: number | null; pack_name: string }[]; latest_avg_weight_g: number | null; eggs: number; cracked_eggs: number;
+  cost_per_head_alive?: number | null; to_recover?: number | null; break_even_per_head?: number | null; break_even_per_kg?: number | null; inputs_cost?: number | null; inputs_by_category?: Record<string, number> | null; other_sales?: Record<string, number> | null; farm_costs_share?: number | null; farm_costs_by_category?: Record<string, number> | null; result_after_farm_costs?: number | null; feed_kg: number; feed_bags?: number | null; feed_items?: { name: string; kg: number; bags: number | null; bag_kg: number | null; pack_name: string }[]; latest_avg_weight_g: number | null; latest_weight_range?: { min_g: number | null; max_g: number | null; on: string } | null; eggs: number; cracked_eggs: number;
   fcr: number | null; pending: string[];
 };
 export type Batch = {

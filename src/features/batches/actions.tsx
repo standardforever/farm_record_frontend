@@ -57,7 +57,7 @@ export function RecordDialog({ batch, open, onClose, mode, saleWarning }: {
   const toast = useToast();
   const kinds = mode === "loss"
     ? [{ value: "died", label: "Died" }, { value: "culled", label: "Culled" }, { value: "missing", label: "Missing" }]
-    : [{ value: "sold", label: "Sold" }, { value: "consumed", label: "Home use or gift" }, { value: "added", label: "Count correction (+)" }];
+    : [{ value: "sold", label: "Sold" }, { value: "consumed", label: "Home use or gift" }, { value: "correct", label: "Count correction" }];
   const [kind, setKind] = useState(kinds[0].value);
   const [f, setF] = useState({ unit: "", qty: "", date: today(), amount: "", weight: "", reason: "", note: "" });
   const [error, setError] = useState<string | null>(null);
@@ -67,16 +67,21 @@ export function RecordDialog({ batch, open, onClose, mode, saleWarning }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, mode]);
   const available = f.unit ? countIn(batch, f.unit) : batch.current;
-  const qty = Number(f.qty) || 0;
-  const over = kind !== "added" && qty > available;
+  // Count correction: enter what was counted; the difference is posted as added (+) or missing (−).
+  const counted = f.qty === "" ? null : Number(f.qty);
+  const diff = kind === "correct" && counted != null ? counted - available : 0;
+  const posted = kind === "correct" ? (diff > 0 ? "added" : "missing") : kind;
+  const qty = kind === "correct" ? Math.abs(diff) : Number(f.qty) || 0;
+  const over = kind !== "correct" && qty > available;
   const save = async () => {
     setError(null);
     try {
       const cid = newId();
-      await record.mutateAsync({ kind, unit_id: f.unit || undefined, quantity: qty, occurred_on: f.date, reason: f.reason || null, note: f.note || null,
+      await record.mutateAsync({ kind: posted, unit_id: f.unit || undefined, quantity: qty, occurred_on: f.date, reason: f.reason || null, note: f.note || null,
         client_id: cid, ...(kind === "sold" ? { amount: num(f.amount), weight_kg: num(f.weight) } : {}) });
       await evidence.attach({ record_client_id: cid }, `${batch.code}: ${qty} ${kind}`);
-      toast(`${batch.code}: ${qty.toLocaleString("en-NG")} ${kinds.find((k) => k.value === kind)!.label.toLowerCase()}`);
+      toast(kind === "correct" ? `${batch.code}: count corrected to ${counted!.toLocaleString("en-NG")} (${diff > 0 ? "+" : "−"}${qty.toLocaleString("en-NG")})`
+        : `${batch.code}: ${qty.toLocaleString("en-NG")} ${kinds.find((k) => k.value === kind)!.label.toLowerCase()}`);
       onClose();
     } catch (e) { setError(errMsg(e)); }
   };
@@ -87,12 +92,21 @@ export function RecordDialog({ batch, open, onClose, mode, saleWarning }: {
       {saleWarning && (kind === "sold" || kind === "consumed") && saleWarning}
       <UnitSelect batch={batch} value={f.unit} onChange={(v) => setF({ ...f, unit: v })} id="r-unit" label="Unit" />
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="How many" htmlFor="r-qty" hint={kind !== "added" ? `${available.toLocaleString("en-NG")} there now` : undefined} error={over ? "More than there are" : undefined}>
+        <Field label={kind === "correct" ? "How many did you count?" : "How many"} htmlFor="r-qty"
+          hint={kind === "correct" ? `Oko has ${available.toLocaleString("en-NG")} on record${f.unit ? " in this unit" : ""}` : `${available.toLocaleString("en-NG")} there now`}
+          error={over ? "More than there are" : undefined}>
           <Input id="r-qty" inputMode="numeric" value={f.qty} onChange={(e) => setF({ ...f, qty: int(e.target.value) })} autoFocus /></Field>
         <Field label="Date" htmlFor="r-date"><Input id="r-date" type="date" max={today()} min={batch.started_on} value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} /></Field>
         {kind === "sold" && ws.can("finance.view") && <Field label="Amount received or invoiced (₦)" htmlFor="r-amount" hint="Optional"><Input id="r-amount" inputMode="decimal" value={f.amount} onChange={(e) => setF({ ...f, amount: e.target.value })} /></Field>}
         {kind === "sold" && <Field label="Total live weight (kg)" htmlFor="r-weight" hint="Optional"><Input id="r-weight" inputMode="decimal" value={f.weight} onChange={(e) => setF({ ...f, weight: e.target.value })} /></Field>}
       </div>
+      {kind === "correct" && counted != null && (
+        <p className={cn("rounded-xl px-3 py-2 text-[13.5px]", diff === 0 ? "bg-surface-2 text-ink-2" : diff > 0 ? "bg-good-soft text-good" : "bg-warn-soft text-warn")}>
+          {diff === 0 ? "That matches the record. Nothing to correct."
+            : diff > 0 ? <><b>{diff.toLocaleString("en-NG")} more</b> than on record: they are added to the count.</>
+            : <><b>{Math.abs(diff).toLocaleString("en-NG")} fewer</b> than on record: they are taken off the count as missing. If you know they died or were sold, record that instead.</>}
+        </p>
+      )}
       {mode === "loss" && kind !== "missing" && (
         <div className="flex flex-col gap-1.5"><span className="text-[12.5px] font-semibold text-ink-2">Cause</span>
           <div className="flex flex-wrap gap-2">

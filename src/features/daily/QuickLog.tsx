@@ -28,6 +28,15 @@ export const EGG_LAYERS = ["layers", "noilers", "quail", "duck", "turkeys"];
 export const MILKERS = ["goats", "cattle", "sheep", "dairy"];
 /** Weighed in kilograms rather than grams. */
 export const BIG = ["goats", "sheep", "cattle", "pigs", "rabbits", "dairy"];
+/** Grown birds are weighed in kilograms on most farms, so their weigh-in starts in kg (it can be switched to grams). */
+const KG_BIRDS = ["broilers", "noilers", "layers", "turkeys", "duck"];
+/** The lightest and heaviest average weight (grams) each kind can have: a newborn to a very big adult (as the server checks). */
+const PLAUSIBLE_G: Record<string, [number, number]> = {
+  broilers: [20, 7000], noilers: [20, 6000], layers: [20, 4000], turkeys: [30, 25000], duck: [30, 6000], quail: [4, 400],
+  catfish: [0.05, 25000], tilapia: [0.05, 5000], fish: [0.05, 25000], fingerlings: [0.05, 2000],
+  rabbits: [30, 8000], pigs: [500, 400000], goats: [1000, 150000], sheep: [1000, 200000], cattle: [10000, 1200000], dairy: [10000, 1200000],
+};
+const SPECIES_NAME: Record<string, string> = { duck: "ducks", dairy: "dairy cattle" };
 
 /** The quick logs that make sense for these animals (feed, deaths, weigh and notes for all). */
 export function quickFor(species: string[]): QuickKind[] {
@@ -58,6 +67,7 @@ export function QuickLog({ kind, on, presetUnit, presetBatch, open, onClose, onS
   const [feedMode, setFeedMode] = useState<"kg" | "bags">("bags");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [wu, setWu] = useState<"g" | "kg" | null>(null);  // the weigh-in's unit; null: the usual one for the animal
   const evidence = useFormEvidence("farm_record", { hint: "A photo of the feed bags, the dead birds, the scale or the water test. It is sent with the record, even with no network." });
   const resetEvidence = evidence.reset;
   const set = (k: string, v: string) => setF((x) => ({ ...x, [k]: v }));
@@ -80,7 +90,7 @@ export function QuickLog({ kind, on, presetUnit, presetBatch, open, onClose, onS
 
   useEffect(() => {
     if (!open) return;
-    setError(null); setBatch(presetBatch ?? ""); setDay(on); resetEvidence();
+    setError(null); setBatch(presetBatch ?? ""); setDay(on); setWu(null); resetEvidence();
     let last: Record<string, string> = {};
     try { last = JSON.parse(localStorage.getItem(LAST_FEED) ?? "{}"); } catch { /* ignore */ }
     setF({ bag_kg: last.bag_kg ?? "25", feed_name: last.feed_name ?? "", item: last.item ?? "", sample_size: "20" });
@@ -100,7 +110,18 @@ export function QuickLog({ kind, on, presetUnit, presetBatch, open, onClose, onS
   if (!kind) return null;
   const batchId = batch || (batches.length === 1 ? batches[0].id : "");
   const species = batches.find((b) => b.id === batchId)?.species ?? batches[0]?.species ?? "";
-  const inKg = BIG.includes(species);
+  const inKg = (wu ?? (BIG.includes(species) || KG_BIRDS.includes(species) ? "kg" : "g")) === "kg";
+  const toG = (v?: string) => { const x = n(v ?? ""); return x ? (inKg ? Math.round(x * 1000) : x) : null; };
+  /** Why a weight cannot be right for these animals (typed in the wrong unit), with the unit it was likely meant in. */
+  const doubt = (v: string | undefined, what: string): { msg: string; flip: "g" | "kg" } | null => {
+    const g = toG(v), lim = PLAUSIBLE_G[species];
+    if (!g || !lim) return null;
+    const name = SPECIES_NAME[species] ?? species, typed = `${v} ${inKg ? "kg" : "g"}`;
+    if (g < lim[0]) return { msg: `${what} of ${typed} is too light for ${name}: even a newborn weighs about ${lim[0]} g. Was it ${v} kg?`, flip: "kg" };
+    if (g > lim[1]) return { msg: `${what} of ${typed} is too heavy for ${name}. Was it ${v} g?`, flip: "g" };
+    return null;
+  };
+  const weightDoubt = kind === "weight" ? (doubt(f.avg, "An average") ?? doubt(f.min, "A smallest") ?? doubt(f.max, "A biggest")) : null;
   const needsBatch = kind !== "water" && kind !== "note";
   const ready = !!unit && (!needsBatch || !!batchId) && (() => {
     switch (kind) {
@@ -108,7 +129,7 @@ export function QuickLog({ kind, on, presetUnit, presetBatch, open, onClose, onS
       case "deaths": return !!n(f.count ?? "");
       case "weight": {
         const a = n(f.avg ?? ""), lo = n(f.min ?? ""), hi = n(f.max ?? "");
-        return !!a && (!lo || lo <= a) && (!hi || hi >= a);
+        return !!a && (!lo || lo <= a) && (!hi || hi >= a) && !weightDoubt;
       }
       case "eggs": return n(f.crates ?? "") !== undefined || n(f.eggs ?? "") !== undefined;
       case "water": return ["ph", "do", "temp", "ammonia", "nitrite"].some((k) => n(f[k] ?? "") !== undefined);
@@ -141,7 +162,7 @@ export function QuickLog({ kind, on, presetUnit, presetBatch, open, onClose, onS
           try { localStorage.setItem(LAST_FEED, JSON.stringify({ bag_kg: f.bag_kg, feed_name: f.feed_name, item: f.item })); } catch { /* ignore */ }
           label = `Feed for ${code}: ${feedMode === "kg" ? `${f.kg} kg` : `${f.bags} × ${f.bag_kg} kg`}`;
         } else if (kind === "weight") {
-          const g = (v?: string) => { const x = n(v ?? ""); return x ? (inKg ? Math.round(x * 1000) : x) : null; };
+          const g = toG;
           Object.assign(body, { avg_weight_g: g(f.avg), sample_size: n(f.sample_size ?? ""), min_weight_g: g(f.min), max_weight_g: g(f.max) });
           label = `Weigh-in ${code}: ${f.avg} ${inKg ? "kg" : "g"}${f.min || f.max ? ` (${f.min || "?"}–${f.max || "?"})` : ""}`;
         }
@@ -227,6 +248,10 @@ export function QuickLog({ kind, on, presetUnit, presetBatch, open, onClose, onS
           const bad = (lo && a && lo > a) ? "The smallest cannot weigh more than the average." : (hi && a && hi < a) ? "The biggest cannot weigh less than the average." : null;
           const spread = lo && hi && lo > 0 ? hi / lo : null;
           return (<>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[13px] font-semibold text-ink-2">Weighed in</span>
+              <Segmented value={inKg ? "kg" : "g"} onChange={(v) => setWu(v)} options={[{ value: "g", label: "Grams (g)" }, { value: "kg", label: "Kilograms (kg)" }]} />
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <Field label={`Average weight (${u})`} htmlFor="q-avg" hint="Total weight ÷ how many"><Input id="q-avg" className={big} inputMode="decimal" value={f.avg ?? ""} onChange={(e) => set("avg", digits(e.target.value))} /></Field>
               <Field label="How many weighed" htmlFor="q-sample" hint="10 to 20 is a good sample"><Input id="q-sample" className={big} inputMode="numeric" value={f.sample_size ?? ""} onChange={(e) => set("sample_size", e.target.value.replace(/\D/g, ""))} /></Field>
@@ -234,6 +259,12 @@ export function QuickLog({ kind, on, presetUnit, presetBatch, open, onClose, onS
               <Field label={`Biggest (${u})`} htmlFor="q-max" hint="Optional"><Input id="q-max" className={big} inputMode="decimal" value={f.max ?? ""} onChange={(e) => set("max", digits(e.target.value))} /></Field>
             </div>
             {bad && <p className="text-[13px] font-semibold text-crit">{bad}</p>}
+            {!bad && weightDoubt && (
+              <div role="alert" className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl bg-crit-soft px-3 py-2 text-[13px] text-crit">
+                <span className="min-w-0 flex-1 font-semibold">{weightDoubt.msg}</span>
+                <Button size="sm" variant="secondary" onClick={() => setWu(weightDoubt.flip)}>Yes, it was in {weightDoubt.flip}</Button>
+              </div>
+            )}
             {!bad && spread && spread >= 2 && (
               <p className="rounded-xl bg-warn-soft px-3 py-2 text-[13px] text-warn">
                 The biggest is {spread.toFixed(1)}× the smallest. {FISH.includes(species) ? "Grade them: big ones eat the small ones, and the small ones fall behind." : "Separate the small ones so they can catch up."}

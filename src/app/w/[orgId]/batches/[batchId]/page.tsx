@@ -189,6 +189,12 @@ function View({ b, checking }: { b: BatchDetail; checking?: boolean }) {
                   <dd className="text-right text-[12.5px] text-ink-2 tnum">{feedText(x.kg, x.bags, x.pack_name)}</dd></Fragment>
               ))}
               <dt className="text-ink-3">Latest average weight</dt><dd className="text-right font-semibold tnum">{s?.latest_avg_weight_g ? gramsText(s.latest_avg_weight_g) : "—"}</dd>
+              {s?.weight_doubt && (
+                <dd role="alert" className="col-span-2 rounded-xl bg-crit-soft px-3 py-2 text-[12.5px] leading-snug text-crit">
+                  <b>The weigh-in on {new Date(s.weight_doubt.on + "T12:00:00").toLocaleDateString("en-NG", { day: "numeric", month: "short" })} looks wrong.</b>{" "}
+                  {s.weight_doubt.message} It is left out of the weight, feed conversion and break-even. Weigh a sample again to replace it.
+                </dd>
+              )}
               {s?.latest_weight_range && <>
                 <dt className="text-ink-3">Smallest to biggest</dt>
                 <dd className="text-right tnum">{s.latest_weight_range.min_g ? gramsText(s.latest_weight_range.min_g) : "?"} – {s.latest_weight_range.max_g ? gramsText(s.latest_weight_range.max_g) : "?"}</dd>

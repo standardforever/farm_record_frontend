@@ -59,20 +59,22 @@ export function RecordDialog({ batch, open, onClose, mode, saleWarning }: {
     ? [{ value: "died", label: "Died" }, { value: "culled", label: "Culled" }, { value: "missing", label: "Missing" }]
     : [{ value: "sold", label: "Sold" }, { value: "consumed", label: "Home use or gift" }, { value: "correct", label: "Count correction" }];
   const [kind, setKind] = useState(kinds[0].value);
+  const [how, setHow] = useState<"minus" | "plus" | "count">("minus");
   const [f, setF] = useState({ unit: "", qty: "", date: today(), amount: "", weight: "", reason: "", note: "" });
   const [error, setError] = useState<string | null>(null);
   const evidence = useFormEvidence("batch_event", { hint: mode === "loss" ? "A photo of the dead animals or the vet's report. Optional." : "The buyer's receipt, a waybill or a photo of the loading. Optional." });
   useEffect(() => {
-    if (open) { setKind(kinds[0].value); setError(null); evidence.reset(); setF({ unit: defaultUnit(batch), qty: "", date: today(), amount: "", weight: "", reason: "", note: "" }); }
+    if (open) { setKind(kinds[0].value); setHow("minus"); setError(null); evidence.reset(); setF({ unit: defaultUnit(batch), qty: "", date: today(), amount: "", weight: "", reason: "", note: "" }); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, mode]);
   const available = f.unit ? countIn(batch, f.unit) : batch.current;
-  // Count correction: enter what was counted; the difference is posted as added (+) or missing (−).
-  const counted = f.qty === "" ? null : Number(f.qty);
-  const diff = kind === "correct" && counted != null ? counted - available : 0;
+  // Count correction: take some off, add some, or enter what was counted. Posted as added (+) or missing (−).
+  const entered = f.qty === "" ? null : Number(f.qty);
+  const diff = kind !== "correct" || entered == null ? 0 : how === "minus" ? -entered : how === "plus" ? entered : entered - available;
+  const counted = kind === "correct" && entered != null ? available + diff : null;
   const posted = kind === "correct" ? (diff > 0 ? "added" : "missing") : kind;
   const qty = kind === "correct" ? Math.abs(diff) : Number(f.qty) || 0;
-  const over = kind !== "correct" && qty > available;
+  const over = kind === "correct" ? (counted != null && counted < 0) : qty > available;
   const save = async () => {
     setError(null);
     try {
@@ -89,23 +91,29 @@ export function RecordDialog({ batch, open, onClose, mode, saleWarning }: {
     <ActionDialog open={open} onClose={onClose} title={mode === "loss" ? "Record losses" : "Record sales and other changes"} error={error}
       saveLabel="Save" loading={record.isPending} disabled={!qty || over || (batch.units.filter((u) => !u.ended_on).length > 1 && !f.unit)} onSave={save}>
       <Segmented value={kind} onChange={setKind} options={kinds} />
+      {kind === "correct" && (
+        <Segmented value={how} onChange={(v) => { setHow(v); setF({ ...f, qty: "" }); }}
+          options={[{ value: "minus", label: "− Take off" }, { value: "plus", label: "+ Add" }, { value: "count", label: "I counted them" }]} />
+      )}
       {saleWarning && (kind === "sold" || kind === "consumed") && saleWarning}
       <UnitSelect batch={batch} value={f.unit} onChange={(v) => setF({ ...f, unit: v })} id="r-unit" label="Unit" />
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label={kind === "correct" ? "How many did you count?" : "How many"} htmlFor="r-qty"
+        <Field label={kind !== "correct" ? "How many" : how === "minus" ? "How many to take off" : how === "plus" ? "How many to add" : "How many did you count?"} htmlFor="r-qty"
           hint={kind === "correct" ? `Oko has ${available.toLocaleString("en-NG")} on record${f.unit ? " in this unit" : ""}` : `${available.toLocaleString("en-NG")} there now`}
-          error={over ? "More than there are" : undefined}>
+          error={over ? (kind === "correct" ? `Only ${available.toLocaleString("en-NG")} on record` : "More than there are") : undefined}>
           <Input id="r-qty" inputMode="numeric" value={f.qty} onChange={(e) => setF({ ...f, qty: int(e.target.value) })} autoFocus /></Field>
         <Field label="Date" htmlFor="r-date"><Input id="r-date" type="date" max={today()} min={batch.started_on} value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} /></Field>
         {kind === "sold" && ws.can("finance.view") && <Field label="Amount received or invoiced (₦)" htmlFor="r-amount" hint="Optional"><Input id="r-amount" inputMode="decimal" value={f.amount} onChange={(e) => setF({ ...f, amount: e.target.value })} /></Field>}
         {kind === "sold" && <Field label="Total live weight (kg)" htmlFor="r-weight" hint="Optional"><Input id="r-weight" inputMode="decimal" value={f.weight} onChange={(e) => setF({ ...f, weight: e.target.value })} /></Field>}
       </div>
-      {kind === "correct" && counted != null && (
-        <p className={cn("rounded-xl px-3 py-2 text-[13.5px]", diff === 0 ? "bg-surface-2 text-ink-2" : diff > 0 ? "bg-good-soft text-good" : "bg-warn-soft text-warn")}>
-          {diff === 0 ? "That matches the record. Nothing to correct."
-            : diff > 0 ? <><b>{diff.toLocaleString("en-NG")} more</b> than on record: they are added to the count.</>
-            : <><b>{Math.abs(diff).toLocaleString("en-NG")} fewer</b> than on record: they are taken off the count as missing. If you know they died or were sold, record that instead.</>}
-        </p>
+      {kind === "correct" && counted != null && !over && (
+        <div className={cn("rounded-xl px-3 py-2.5 text-[13.5px]", diff === 0 ? "bg-surface-2 text-ink-2" : diff > 0 ? "bg-good-soft text-good" : "bg-warn-soft text-warn")}>
+          <div className="font-display text-[17px] font-bold tnum">{available.toLocaleString("en-NG")} → {counted.toLocaleString("en-NG")}
+            <span className="ml-2 text-[14px]">({diff > 0 ? "+" : diff < 0 ? "−" : ""}{Math.abs(diff).toLocaleString("en-NG")})</span></div>
+          <p className="mt-0.5">{diff === 0 ? "That matches the record. Nothing to correct."
+            : diff > 0 ? "Added to the count."
+            : "Taken off the count as missing. If you know they died or were sold, record that instead."}</p>
+        </div>
       )}
       {mode === "loss" && kind !== "missing" && (
         <div className="flex flex-col gap-1.5"><span className="text-[12.5px] font-semibold text-ink-2">Cause</span>

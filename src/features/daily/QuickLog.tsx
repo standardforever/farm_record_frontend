@@ -8,6 +8,7 @@ import { useCurrentWorkspace } from "@/features/workspaces";
 import { ApiError, get } from "@/lib/api";
 import { cn } from "@/lib/format";
 import { newId, save as saveOffline } from "@/features/offline/queue";
+import { localDay } from "./api";
 import { refOf } from "@/features/evidence/api";
 import { useFormEvidence } from "@/features/evidence/useFormEvidence";
 
@@ -46,6 +47,7 @@ const digits = (v: string) => v.replace(/[^\d.]/g, "");
 export function QuickLog({ kind, on, presetUnit, presetBatch, open, onClose, onSaved }: {
   kind: QuickKind | null; on: string; presetUnit?: string | null; presetBatch?: string | null; open: boolean; onClose: () => void; onSaved?: (unitId: string) => void;
 }) {
+  const [day, setDay] = useState(on);  // the day it happened: the page's day, or an earlier one
   const ws = useCurrentWorkspace();
   const qc = useQueryClient();
   const farm = useFarmMap(ws.orgId, false, open);
@@ -78,7 +80,7 @@ export function QuickLog({ kind, on, presetUnit, presetBatch, open, onClose, onS
 
   useEffect(() => {
     if (!open) return;
-    setError(null); setBatch(presetBatch ?? ""); resetEvidence();
+    setError(null); setBatch(presetBatch ?? ""); setDay(on); resetEvidence();
     let last: Record<string, string> = {};
     try { last = JSON.parse(localStorage.getItem(LAST_FEED) ?? "{}"); } catch { /* ignore */ }
     setF({ bag_kg: last.bag_kg ?? "25", feed_name: last.feed_name ?? "", item: last.item ?? "", sample_size: "20" });
@@ -125,11 +127,11 @@ export function QuickLog({ kind, on, presetUnit, presetBatch, open, onClose, onS
     try {
       let op = "farm.record";
       let params: Record<string, string> = {};
-      let body: Record<string, unknown> = { kind, unit_id: unit, occurred_on: on, note: f.note?.trim() || null };
+      let body: Record<string, unknown> = { kind, unit_id: unit, occurred_on: day, note: f.note?.trim() || null };
       let label = "";
       if (kind === "deaths") {
         op = "farm.batch_event"; params = { batch_id: batchId };
-        body = { kind: "died", unit_id: unit, quantity: n(f.count!), occurred_on: on, reason: f.reason || null, note: f.note?.trim() || null };
+        body = { kind: "died", unit_id: unit, quantity: n(f.count!), occurred_on: day, reason: f.reason || null, note: f.note?.trim() || null };
         label = `${Number(f.count).toLocaleString("en-NG")} died in ${code}`;
       } else {
         body.batch_id = batchId || null;
@@ -166,6 +168,9 @@ export function QuickLog({ kind, on, presetUnit, presetBatch, open, onClose, onS
       footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button variant="primary" size="lg" loading={busy} disabled={!ready} onClick={save}>Save</Button></>}>
       <div className="flex flex-col gap-4">
         {error && <Alert tone="crit">{error}</Alert>}
+        <Field label="Date" htmlFor="q-day" hint={day === localDay() ? "Today" : "An earlier day: it is saved on this date"}>
+          <Input id="q-day" type="date" max={localDay()} value={day} onChange={(e) => e.target.value && setDay(e.target.value)} />
+        </Field>
         {farm.data && units.length === 0 ? (
           <Alert tone="warn">{needsBatch ? "No unit has animals in it. Stock a batch first." : "There are no units yet."}</Alert>
         ) : (
